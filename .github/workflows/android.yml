@@ -7,6 +7,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -14,11 +17,11 @@ jobs:
       image: barichello/godot-ci:4.4.1
     env:
       GODOT_VERSION: 4.4.1
-      # Optional repo secrets for a fixed release key. Without them the build
-      # is signed with the CI image's debug key instead.
-      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+      # Personal hobby app: the signing key is kept in the repo (owner's choice)
+      # so every build installs over the last one and keeps the save.
+      KEYSTORE_PASSWORD: ${{ secrets.SOL_KEYSTORE_PASSWORD }}
+      KEYSTORE_ALIAS: redsun
+      BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,24 +30,17 @@ jobs:
           mkdir -p ~/.local/share/godot ~/.config/godot
           cp -r /root/.local/share/godot/export_templates ~/.local/share/godot/ || true
           cp -r /root/.config/godot/. ~/.config/godot/ || true
-          ls ~/.local/share/godot/export_templates/
-          ls ~/.config/godot/
 
       - name: Set signing key and version number
         working-directory: game
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/release.keystore
-            sed -i "s|keystore/release=\".*\"|keystore/release=\"/tmp/release.keystore\"|" export_presets.cfg
-            sed -i "s|keystore/release_user=\".*\"|keystore/release_user=\"$KEYSTORE_ALIAS\"|" export_presets.cfg
-            sed -i "s|keystore/release_password=\".*\"|keystore/release_password=\"$KEYSTORE_PASSWORD\"|" export_presets.cfg
-            echo "EXPORT_MODE=--export-release" >> "$GITHUB_ENV"
-          else
-            echo "No release key secret set: signing with the debug key."
-            echo "EXPORT_MODE=--export-debug" >> "$GITHUB_ENV"
-          fi
-          sed -i "s|^version/code=.*|version/code=$GITHUB_RUN_NUMBER|" export_presets.cfg
-          sed -i "s|^version/name=.*|version/name=\"0.1.$GITHUB_RUN_NUMBER\"|" export_presets.cfg
+          sed -i "s|keystore/release=\".*\"|keystore/release=\"$GITHUB_WORKSPACE/game/android/release.keystore\"|" export_presets.cfg
+          sed -i "s|keystore/release_user=\".*\"|keystore/release_user=\"$KEYSTORE_ALIAS\"|" export_presets.cfg
+          sed -i "s|keystore/release_password=\".*\"|keystore/release_password=\"$KEYSTORE_PASSWORD\"|" export_presets.cfg
+          sed -i "s|^version/code=.*|version/code=$BUILD_NUMBER|" export_presets.cfg
+          sed -i "s|^version/name=.*|version/name=\"1.0.$BUILD_NUMBER\"|" export_presets.cfg
+          sed -i "s|^config/version=.*|config/version=\"1.0.$BUILD_NUMBER\"|" project.godot
+          grep -E "^config/version" project.godot
 
       - name: Import project
         working-directory: game
@@ -58,7 +54,7 @@ jobs:
         working-directory: game
         run: |
           mkdir -p build
-          godot --headless --verbose $EXPORT_MODE "Android" build/RedSunHoldings.apk
+          godot --headless --verbose --export-release "Android" build/RedSunHoldings.apk
           ls -la build
           test -s build/RedSunHoldings.apk
 
@@ -68,3 +64,15 @@ jobs:
           name: RedSunHoldings-apk
           path: game/build/RedSunHoldings.apk
           if-no-files-found: error
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Red Sun Holdings 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          files: game/build/RedSunHoldings.apk
+          make_latest: "true"
+          body: |
+            Build ${{ github.run_number }}.
+            Install: open this on your phone and tap RedSunHoldings.apk.

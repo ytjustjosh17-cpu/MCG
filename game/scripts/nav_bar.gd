@@ -1,5 +1,5 @@
 class_name NavBar
-extends Panel
+extends Control
 ## Floating tab bar: Earn, Business, Invest, Items, Profile.
 
 signal tab_selected(index: int)
@@ -13,10 +13,9 @@ var _active := 0
 
 
 func _ready() -> void:
-	var sb := UI.box(Color(0.035, 0.133, 0.145, 0.96), 32)
-	sb.border_width_top = 1
-	sb.border_color = Color(UI.TEXT, 0.12)
-	add_theme_stylebox_override("panel", sb)
+	var glass := GlassPanel.new(32.0, Color(0.035, 0.133, 0.145, 0.7), 12.0)
+	glass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(glass)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 6
@@ -30,6 +29,7 @@ func _ready() -> void:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.custom_minimum_size = Vector2(0, 52)
 		b.pressed.connect(func(): tab_selected.emit(i))
+		Kit.press_fx(b)
 		row.add_child(b)
 		var col := VBoxContainer.new()
 		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

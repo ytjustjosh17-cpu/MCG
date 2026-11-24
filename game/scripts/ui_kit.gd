@@ -1,0 +1,311 @@
+extends CanvasLayer
+## Custom sheets, alerts and toasts drawn in the game's own style.
+## Nothing here uses Godot's or Android's default pop-ups.
+
+const DIM := Color(0.0, 0.03, 0.03, 0.62)
+const SHEET_TINT := Color(0.035, 0.133, 0.145, 0.9)
+const ALERT_TINT := Color(0.035, 0.133, 0.145, 0.94)
+
+var top_inset := 0.0
+var bottom_inset := 0.0
+var _stack: Array = []  # [{"root": Control, "close": Callable}]
+var _toast: Control
+
+
+func _ready() -> void:
+	layer = 20
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+func screen() -> Vector2:
+	return get_viewport().get_visible_rect().size
+
+
+func has_open() -> bool:
+	return not _stack.is_empty()
+
+
+func close_top() -> bool:
+	if _stack.is_empty():
+		return false
+	(_stack.back()["close"] as Callable).call()
+	return true
+
+
+func tick(ms := 8) -> void:
+	if Game.vibrate:
+		Input.vibrate_handheld(ms)
+
+
+# ---- press feedback ---------------------------------------------------------
+
+func press_fx(c: Control) -> void:
+	## Apple-style squish on press for any button.
+	if not c is BaseButton:
+		return
+	var b := c as BaseButton
+	var fit := func(): b.pivot_offset = b.size / 2.0
+	b.resized.connect(fit)
+	fit.call()
+	b.button_down.connect(func():
+		var t := b.create_tween()
+		t.tween_property(b, "scale", Vector2(0.97, 0.97), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT))
+	b.button_up.connect(func():
+		var t := b.create_tween()
+		t.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
+
+
+# ---- buttons used inside overlays ------------------------------------------
+
+func _action_button(a: Dictionary, height := 52) -> Button:
+	var style: String = a.get("style", "primary")
+	var b: Button
+	match style:
+		"primary":
+			b = UI.pill(a["text"], UI.TEXT, UI.INK, 17, height / 2)
+		"plain":
+			b = UI.pill(a["text"], Color(0, 0, 0, 0), UI.SUB, 17, height / 2)
+		_:
+			b = UI.pill(a["text"], UI.RAISED, UI.TEXT, 17, height / 2)
+	b.custom_minimum_size = Vector2(0, height)
+	b.disabled = a.get("disabled", false)
+	press_fx(b)
+	return b
+
+
+# ---- bottom sheet -----------------------------------------------------------
+
+func sheet(title: String, body: String, actions: Array, dismissable := true, extra: Control = null) -> Control:
+	## actions: [{"text": String, "style": "primary"|"secondary"|"plain", "call": Callable}]
+	var scr := screen()
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(root)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(DIM, 0.0)
+	root.add_child(dim)
+
+	var pad := 20.0
+	var w := scr.x
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	col.position = Vector2(pad, 28)
+	col.size = Vector2(w - pad * 2, 0)
+	if title != "":
+		var t := UI.label(title, 22, UI.TEXT, true)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.custom_minimum_size.x = w - pad * 2
+		col.add_child(t)
+	if body != "":
+		var bl := UI.label(body, 17, UI.SUB)
+		bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bl.custom_minimum_size.x = w - pad * 2
+		col.add_child(bl)
+	if extra != null:
+		col.add_child(extra)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 4)
+	col.add_child(gap)
+	var closing := [false]
+	var panel := GlassPanel.new(28.0, SHEET_TINT, 10.0)
+	var close := func(after: Callable = Callable()):
+		if closing[0]:
+			return
+		closing[0] = true
+		for i in range(_stack.size()):
+			if _stack[i]["root"] == root:
+				_stack.remove_at(i)
+				break
+		var tw := root.create_tween().set_parallel(true)
+		tw.tween_property(panel, "position:y", scr.y + 8.0, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(dim, "color:a", 0.0, 0.22)
+		tw.chain().tween_callback(func():
+			root.queue_free()
+			if after.is_valid():
+				after.call())
+	for a in actions:
+		var b := _action_button(a)
+		b.custom_minimum_size.x = w - pad * 2
+		var cb: Callable = a.get("call", Callable())
+		var keep_open: bool = a.get("keep_open", false)
+		b.pressed.connect(func():
+			tick()
+			if keep_open:
+				if cb.is_valid():
+					cb.call()
+			else:
+				close.call(cb))
+		col.add_child(b)
+	panel.size = Vector2(w, scr.y)
+	panel.position = Vector2(0, scr.y + 8.0)
+	root.add_child(panel)
+	var grab := ColorRect.new()
+	grab.color = UI.TRACK
+	grab.size = Vector2(36, 5)
+	grab.position = Vector2(w / 2.0 - 18.0, 10)
+	grab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(grab)
+	panel.add_child(col)
+	var geo := {"rest": scr.y}
+	_present_sheet(root, panel, col, dim, geo)
+
+	if dismissable:
+		dim.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed:
+				close.call())
+		var drag := {"on": false, "y0": 0.0}
+		panel.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+				if e.pressed:
+					drag["on"] = true
+					drag["y0"] = e.global_position.y
+				elif drag["on"]:
+					drag["on"] = false
+					if panel.position.y - geo["rest"] > 90.0:
+						close.call()
+					else:
+						var back := root.create_tween()
+						back.tween_property(panel, "position:y", geo["rest"], 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			elif e is InputEventMouseMotion and drag["on"]:
+				panel.position.y = geo["rest"] + maxf(0.0, e.global_position.y - drag["y0"]))
+	_stack.append({"root": root, "close": func(): close.call() if dismissable else null})
+	return root
+
+
+func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect, geo: Dictionary) -> void:
+	await get_tree().process_frame
+	if not is_instance_valid(root):
+		return
+	var scr := screen()
+	var inner := col.get_combined_minimum_size().y
+	col.size = Vector2(col.size.x, inner)
+	var h := inner + 28.0 + 20.0 + bottom_inset
+	panel.size = Vector2(scr.x, h + 40.0)
+	geo["rest"] = scr.y - h
+	var tw := root.create_tween().set_parallel(true)
+	tw.tween_property(panel, "position:y", geo["rest"], 0.42).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(dim, "color:a", DIM.a, 0.25)
+
+
+# ---- centred alert ----------------------------------------------------------
+
+func alert(title: String, body: String, actions: Array) -> Control:
+	var scr := screen()
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(root)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(DIM, 0.0)
+	root.add_child(dim)
+	var w := minf(310.0, scr.x - 48.0)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	col.position = Vector2(20, 22)
+	var t := UI.label(title, 17, UI.TEXT, true)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.custom_minimum_size.x = w - 40
+	col.add_child(t)
+	if body != "":
+		var b := UI.label(body, 13, UI.SUB)
+		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.custom_minimum_size.x = w - 40
+		col.add_child(b)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	col.add_child(gap)
+	var card := GlassPanel.new(22.0, ALERT_TINT, 10.0)
+	var closing := [false]
+	var close := func(after: Callable = Callable()):
+		if closing[0]:
+			return
+		closing[0] = true
+		for i in range(_stack.size()):
+			if _stack[i]["root"] == root:
+				_stack.remove_at(i)
+				break
+		var tw := root.create_tween().set_parallel(true)
+		tw.tween_property(card, "modulate:a", 0.0, 0.16)
+		tw.tween_property(dim, "color:a", 0.0, 0.18)
+		tw.chain().tween_callback(func():
+			root.queue_free()
+			if after.is_valid():
+				after.call())
+	for a in actions:
+		var btn := _action_button(a, 44)
+		btn.custom_minimum_size.x = w - 40
+		var cb: Callable = a.get("call", Callable())
+		btn.pressed.connect(func():
+			tick()
+			close.call(cb))
+		col.add_child(btn)
+	card.size = Vector2(w, 100)
+	card.modulate.a = 0.0
+	root.add_child(card)
+	card.add_child(col)
+	_present_alert(root, card, col, dim)
+	_stack.append({"root": root, "close": func(): close.call()})
+	return root
+
+
+func _present_alert(root: Control, card: Control, col: Control, dim: ColorRect) -> void:
+	await get_tree().process_frame
+	if not is_instance_valid(root):
+		return
+	var scr := screen()
+	var inner := col.get_combined_minimum_size().y
+	col.size = Vector2(card.size.x - 40.0, inner)
+	card.size = Vector2(card.size.x, inner + 22.0 + 20.0)
+	card.position = (scr - card.size) / 2.0
+	card.pivot_offset = card.size / 2.0
+	card.scale = Vector2(1.08, 1.08)
+	var tw := root.create_tween().set_parallel(true)
+	tw.tween_property(card, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(card, "modulate:a", 1.0, 0.18)
+	tw.tween_property(dim, "color:a", DIM.a, 0.2)
+
+
+# ---- toast ------------------------------------------------------------------
+
+func toast(text: String, red_mark := false) -> void:
+	if _toast != null and is_instance_valid(_toast):
+		_toast.queue_free()
+	var pill := GlassPanel.new(22.0, Color(0.035, 0.133, 0.145, 0.88), 10.0)
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.modulate.a = 0.0
+	pill.position = Vector2(-1000, -1000)
+	add_child(pill)
+	var l := UI.label(text, 15, UI.TEXT, true)
+	l.position = Vector2(32.0 if red_mark else 20.0, 12)
+	pill.add_child(l)
+	if red_mark:
+		var m := ColorRect.new()
+		m.color = UI.RED
+		m.size = Vector2(8, 8)
+		m.position = Vector2(18, 18)
+		pill.add_child(m)
+	_toast = pill
+	_present_toast(pill, l, red_mark)
+
+
+func _present_toast(pill: Control, l: Label, red_mark: bool) -> void:
+	await get_tree().process_frame
+	if not is_instance_valid(pill):
+		return
+	var scr := screen()
+	var w := l.get_minimum_size().x + (52.0 if red_mark else 40.0)
+	pill.size = Vector2(w, 44)
+	var y := top_inset + 10.0
+	pill.position = Vector2((scr.x - w) / 2.0, y - 60.0)
+	var tw := pill.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(pill, "position:y", y, 0.4).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(pill, "modulate:a", 1.0, 0.2)
+	tw.chain().tween_interval(2.2)
+	tw.chain().set_parallel(true)
+	tw.tween_property(pill, "position:y", y - 40.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(pill, "modulate:a", 0.0, 0.3)
+	tw.chain().tween_callback(pill.queue_free)
