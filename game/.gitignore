@@ -4,4 +4,3 @@ build/
 *.aab
 *.idsig
 export_credentials.cfg
-*.keystore

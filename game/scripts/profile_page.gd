@@ -6,7 +6,7 @@ var _fortune: Label
 var _stats: Array = []
 var _vibrate_value: Label
 var _reset_btn: Button
-var _reset_armed := false
+var _checking := false
 var _card_stats: Panel
 var _card_settings: Panel
 
@@ -36,13 +36,34 @@ func _ready() -> void:
 	_vibrate_value = UI.label("", 17, UI.SUB)
 	_vibrate_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	vib.add_child(_vibrate_value)
+	Kit.press_fx(vib)
 	vib.pressed.connect(func():
 		Game.vibrate = not Game.vibrate
 		Game.save_game()
 		_refresh())
 	_card_settings.add_child(vib)
 
+	var upd := UI.flat_button()
+	upd.name = "Update"
+	upd.add_child(UI.place(UI.label("Check for updates", 17), 16, 13))
+	var ver := UI.label("v" + Updater.current_version(), 17, UI.SUB)
+	ver.name = "Ver"
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	upd.add_child(ver)
+	upd.pressed.connect(_on_check_updates)
+	_card_settings.add_child(upd)
+	var sep := ColorRect.new()
+	sep.name = "Sep"
+	sep.color = UI.RAISED
+	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_settings.add_child(sep)
+	Updater.check_finished.connect(func(found: bool):
+		if _checking and not found:
+			Kit.toast("You're on the latest version")
+		_checking = false)
+
 	_reset_btn = UI.pill("Start again", UI.RAISED, UI.TEXT, 17, 22)
+	Kit.press_fx(_reset_btn)
 	_reset_btn.pressed.connect(_on_reset)
 	add_child(_reset_btn)
 	var note := UI.label("Saved on this phone", 13, UI.SUB)
@@ -64,15 +85,24 @@ func _layout() -> void:
 		_stats[i][0].position = Vector2(i * cw + 16, 10)
 		_stats[i][1].position = Vector2(i * cw + 16, 34)
 	_card_settings.position = Vector2(16, 256)
-	_card_settings.size = Vector2(w - 32, 48)
+	_card_settings.size = Vector2(w - 32, 97)
 	var vib: Button = _card_settings.get_node("Vibrate")
 	vib.size = Vector2(w - 32, 48)
 	_vibrate_value.size = Vector2(80, 24)
 	_vibrate_value.position = Vector2(w - 32 - 16 - 80, 12)
-	_reset_btn.position = Vector2(16, 328)
+	var upd: Button = _card_settings.get_node("Update")
+	upd.position = Vector2(0, 49)
+	upd.size = Vector2(w - 32, 48)
+	var ver: Label = upd.get_node("Ver")
+	ver.size = Vector2(120, 24)
+	ver.position = Vector2(w - 32 - 16 - 120, 12)
+	var sep: ColorRect = _card_settings.get_node("Sep")
+	sep.position = Vector2(16, 48)
+	sep.size = Vector2(w - 48, 1)
+	_reset_btn.position = Vector2(16, 377)
 	_reset_btn.size = Vector2(w - 32, 48)
 	var note: Label = get_node("Note")
-	note.position = Vector2(20, 392)
+	note.position = Vector2(20, 441)
 	_refresh()
 
 
@@ -87,14 +117,20 @@ func _refresh() -> void:
 	_vibrate_value.text = "On" if Game.vibrate else "Off"
 
 
-func _on_reset() -> void:
-	if not _reset_armed:
-		_reset_armed = true
-		_reset_btn.text = "Tap again to wipe everything"
-		get_tree().create_timer(3.0).timeout.connect(func():
-			_reset_armed = false
-			_reset_btn.text = "Start again")
+func _on_check_updates() -> void:
+	Kit.tick()
+	if not OS.has_feature("android"):
+		Kit.toast("Updates are checked on your phone")
 		return
-	_reset_armed = false
-	_reset_btn.text = "Start again"
-	Game.reset_game()
+	_checking = true
+	Kit.toast("Checking for updates…")
+	Updater.check(true)
+
+
+func _on_reset() -> void:
+	Kit.alert("Start again?", "This wipes your cash, levels and everything else. It can't be undone.", [
+		{"text": "Wipe and start again", "style": "secondary", "call": func():
+			Game.reset_game()
+			Kit.toast("Fresh start")},
+		{"text": "Keep my progress", "style": "primary"},
+	])

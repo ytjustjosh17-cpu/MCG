@@ -1,9 +1,12 @@
 extends Control
-## Root: background, pages and the floating tab bar. Keeps clear of the camera hole and gesture bar.
+## Root: background, pages with transitions, the glass tab bar, back gesture
+## handling and the update prompt.
 
 var _content: Control
 var _pages: Array = []
 var _nav: NavBar
+var _current := 0
+var _back_armed := false
 
 
 func _ready() -> void:
@@ -28,6 +31,7 @@ func _ready() -> void:
 	]
 	for p in _pages:
 		_content.add_child(p)
+		p.visible = false
 	earn.open_tab.connect(show_page)
 
 	_nav = NavBar.new()
@@ -40,13 +44,73 @@ func _ready() -> void:
 
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
-	show_page(0)
+	_pages[0].visible = true
+	_nav.set_active(0)
+
+	Updater.update_available.connect(_on_update)
+	if OS.has_feature("android"):
+		get_tree().create_timer(3.0).timeout.connect(func(): Updater.check())
 
 
 func show_page(i: int) -> void:
-	for k in range(_pages.size()):
-		_pages[k].visible = k == i
+	if i == _current:
+		return
+	var old: Control = _pages[_current]
+	var new: Control = _pages[i]
+	var dir := 1.0 if i > _current else -1.0
+	_current = i
 	_nav.set_active(i)
+	Kit.tick(6)
+	# Old page fades out quickly, new page fades in with a short slide.
+	var to := old.create_tween()
+	to.tween_property(old, "modulate:a", 0.0, 0.1)
+	to.tween_callback(func():
+		old.visible = false
+		old.modulate.a = 1.0
+		old.position.x = 0.0)
+	new.visible = true
+	new.modulate.a = 0.0
+	new.position.x = 18.0 * dir
+	var tn := new.create_tween().set_parallel(true)
+	tn.tween_property(new, "modulate:a", 1.0, 0.22).set_delay(0.06)
+	tn.tween_property(new, "position:x", 0.0, 0.28).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(0.06)
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			_on_back()
+		NOTIFICATION_WM_CLOSE_REQUEST:
+			Game.save_game()
+			get_tree().quit()
+		NOTIFICATION_APPLICATION_RESUMED:
+			if OS.has_feature("android"):
+				Updater.check()
+
+
+func _on_back() -> void:
+	if Kit.close_top():
+		return
+	if _current != 0:
+		show_page(0)
+		return
+	if _back_armed:
+		Game.save_game()
+		get_tree().quit()
+		return
+	_back_armed = true
+	Kit.toast("Swipe back again to close")
+	get_tree().create_timer(2.2).timeout.connect(func(): _back_armed = false)
+
+
+func _on_update(version: String) -> void:
+	Kit.sheet(
+		"Update ready",
+		"Version %s is out. Your progress stays exactly where it is." % version,
+		[
+			{"text": "Download update", "style": "primary", "call": Updater.open_download},
+			{"text": "Later", "style": "plain"},
+		])
 
 
 func _apply_safe_area() -> void:
@@ -59,6 +123,8 @@ func _apply_safe_area() -> void:
 			var k := get_viewport_rect().size.y / float(win.y)
 			top = clampf(safe.position.y * k, 0.0, 80.0)
 			bottom = clampf((win.y - safe.end.y) * k, 0.0, 60.0)
+	Kit.top_inset = top
+	Kit.bottom_inset = bottom
 	_content.offset_top = top
 	_content.offset_bottom = -bottom
 	_nav.offset_left = 16

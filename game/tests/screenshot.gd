@@ -29,8 +29,26 @@ func _run() -> void:
 	await create_timer(0.3).timeout
 	_shot(out_dir + "/profile.png")
 	main.show_page(1)
-	await create_timer(0.3).timeout
+	await create_timer(0.5).timeout
 	_shot(out_dir + "/business.png")
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	var kit = root.get_node("Kit")
+	kit.toast("Level 2 · $4.10 per tap", true)
+	await create_timer(0.6).timeout
+	_shot(out_dir + "/toast.png")
+	kit.sheet("Update ready", "Version 1.0.7 is out. Your progress stays exactly where it is.", [
+		{"text": "Download update", "style": "primary"},
+		{"text": "Later", "style": "plain"}])
+	await create_timer(0.7).timeout
+	_shot(out_dir + "/sheet.png")
+	kit.close_top()
+	await create_timer(0.4).timeout
+	kit.alert("Start again?", "This wipes your cash, levels and everything else. It can't be undone.", [
+		{"text": "Wipe and start again", "style": "secondary"},
+		{"text": "Keep my progress", "style": "primary"}])
+	await create_timer(0.5).timeout
+	_shot(out_dir + "/alert.png")
 	game.reset_game()
 	quit()
 

@@ -11,10 +11,14 @@ config/features=PackedStringArray("4.4", "GL Compatibility")
 config/icon="res://icon.svg"
 boot_splash/bg_color=Color(0, 0.0784, 0.0784, 1)
 boot_splash/show_image=false
+config/quit_on_go_back=false
+config/auto_accept_quit=false
 
 [autoload]
 
 Game="*res://scripts/game_state.gd"
+Kit="*res://scripts/ui_kit.gd"
+Updater="*res://scripts/updater.gd"
 
 [display]
 

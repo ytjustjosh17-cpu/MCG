@@ -5,6 +5,10 @@ signal changed
 signal tapped(amount: float)
 
 const SAVE_PATH := "user://save.json"
+const SAVE_TMP := "user://save.json.tmp"
+const SAVE_BAK := "user://save.json.bak"
+const SAVE_VERSION := 1
+const CHANGE_EVERY_S := 0.1
 const OFFLINE_CAP_S := 8.0 * 3600.0
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -29,6 +33,8 @@ var _dirty := false
 var _save_timer := 0.0
 var _hist_timer := 0.0
 var _paused_at := 0.0
+var _change_pending := false
+var _change_timer := 0.0
 
 
 func _ready() -> void:
@@ -132,8 +138,9 @@ func _earn(v: float) -> void:
 
 
 func _mark() -> void:
+	## Changes are batched and announced at most 10 times a second.
 	_dirty = true
-	changed.emit()
+	_change_pending = true
 
 
 func _record_history() -> void:
@@ -142,7 +149,16 @@ func _record_history() -> void:
 		history.pop_front()
 
 
+func flush_changes() -> void:
+	_change_pending = false
+	_change_timer = 0.0
+	changed.emit()
+
+
 func _process(delta: float) -> void:
+	_change_timer += delta
+	if _change_pending and _change_timer >= CHANGE_EVERY_S:
+		flush_changes()
 	if income_per_hour > 0.0:
 		_earn(income_per_hour * delta / 3600.0)
 	_hist_timer += delta
@@ -165,6 +181,7 @@ func _notification(what: int) -> void:
 			if _paused_at > 0.0:
 				_apply_offline(now() - _paused_at)
 				_paused_at = 0.0
+				flush_changes()
 
 
 func _apply_offline(seconds: float) -> void:
@@ -178,8 +195,28 @@ func _apply_offline(seconds: float) -> void:
 # ---- saving --------------------------------------------------------------
 
 func save_game() -> void:
-	var data := {
-		"version": 1,
+	var data := to_dict()
+	# Write to a temp file first, keep the last good save as a backup, then swap.
+	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
+	if f == null:
+		push_warning("Could not save: %s" % FileAccess.get_open_error())
+		return
+	f.store_string(JSON.stringify(data))
+	f.close()
+	var tmp := ProjectSettings.globalize_path(SAVE_TMP)
+	var main := ProjectSettings.globalize_path(SAVE_PATH)
+	var bak := ProjectSettings.globalize_path(SAVE_BAK)
+	if FileAccess.file_exists(SAVE_PATH):
+		if FileAccess.file_exists(SAVE_BAK):
+			DirAccess.remove_absolute(bak)
+		DirAccess.rename_absolute(main, bak)
+	DirAccess.rename_absolute(tmp, main)
+	_dirty = false
+
+
+func to_dict() -> Dictionary:
+	return {
+		"version": SAVE_VERSION,
 		"saved_at": now(),
 		"cash": cash,
 		"total_earned": total_earned,
@@ -192,30 +229,21 @@ func save_game() -> void:
 		"vibrate": vibrate,
 		"started_at": started_at,
 	}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f == null:
-		push_warning("Could not save: %s" % FileAccess.get_open_error())
-		return
-	f.store_string(JSON.stringify(data))
-	f.close()
-	_dirty = false
 
 
 func load_game() -> void:
 	started_at = now()
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(SAVE_PATH) and not FileAccess.file_exists(SAVE_BAK):
 		_record_history()
 		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
-	if typeof(parsed) != TYPE_DICTIONARY:
+	var d := _read_save(SAVE_PATH)
+	if d.is_empty():
+		d = _read_save(SAVE_BAK)
+	if d.is_empty():
 		push_warning("Save file unreadable, starting fresh.")
 		_record_history()
 		return
-	var d: Dictionary = parsed
+	d = _migrate(d)
 	cash = float(d.get("cash", 0.0))
 	total_earned = float(d.get("total_earned", 0.0))
 	level = int(d.get("level", 1))
@@ -232,6 +260,25 @@ func load_game() -> void:
 		_record_history()
 
 
+func _read_save(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _migrate(d: Dictionary) -> Dictionary:
+	## Upgrades older saves step by step so updates never lose progress.
+	var v := int(d.get("version", 1))
+	# if v < 2: add new fields with defaults here, then v = 2 ...
+	d["version"] = maxi(v, SAVE_VERSION)
+	return d
+
+
 func reset_game() -> void:
 	cash = 0.0
 	total_earned = 0.0
@@ -245,7 +292,7 @@ func reset_game() -> void:
 	started_at = now()
 	_record_history()
 	save_game()
-	changed.emit()
+	flush_changes()
 
 
 # ---- number formatting ---------------------------------------------------

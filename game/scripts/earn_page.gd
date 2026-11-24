@@ -12,7 +12,7 @@ var _scroll: ScrollContainer
 var _canvas: Control
 var _level_pill: Label
 var _level_meter: Array = []
-var _value: Label
+var _value: CountLabel
 var _change_icon: Icon
 var _change: Label
 var _chart: NetChart
@@ -67,6 +67,7 @@ func _build() -> void:
 		pill.add_child(sq)
 		_level_meter.append(sq)
 	var more := UI.pill("", UI.PANEL, UI.TEXT, 17, 22)
+	Kit.press_fx(more)
 	more.name = "More"
 	more.tooltip_text = "Profile"
 	var dots := Icon.new("dots", UI.TEXT, 22.0)
@@ -77,7 +78,11 @@ func _build() -> void:
 
 	# Title and net worth.
 	_canvas.add_child(UI.place(UI.label("Net worth", 34, UI.TEXT, true), 20, 52))
-	_value = UI.label("$0.00", 34)
+	_value = CountLabel.new(Game.money)
+	_value.add_theme_font_size_override("font_size", 34)
+	_value.add_theme_color_override("font_color", UI.TEXT)
+	_value.add_theme_font_override("font", UI.REG)
+	_value.set_value(Game.net_worth(), true)
 	_canvas.add_child(UI.place(_value, 20, 92))
 	_change_icon = Icon.new("up", UI.TEXT, 10.0)
 	_canvas.add_child(UI.place(_change_icon, 20, 141))
@@ -143,9 +148,11 @@ func _build() -> void:
 	_card.add_child(UI.place(_per_tap, 16, 34))
 	_level_btn = UI.pill("Level up", UI.TEXT, UI.INK, 17, 22)
 	_level_btn.pressed.connect(_on_level_up)
+	Kit.press_fx(_level_btn)
 	_card.add_child(_level_btn)
 	_boost_btn = UI.pill("Boost ×3", UI.PANEL, UI.TEXT, 17, 22)
 	_boost_btn.pressed.connect(_on_boost)
+	Kit.press_fx(_boost_btn)
 	_boost_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_boost_btn.add_theme_constant_override("h_separation", 0)
 	var bolt := Icon.new("bolt", UI.RED, 14.0)
@@ -247,7 +254,7 @@ func _refresh() -> void:
 	var prog := Game.level_progress()
 	for i in range(5):
 		_level_meter[i].color = UI.RED if prog >= (i + 1) / 5.0 - 0.001 else UI.TRACK
-	_value.text = Game.money(Game.net_worth())
+	_value.set_value(Game.net_worth())
 
 	var wc := Game.week_change()
 	if wc.is_empty() or absf(wc[1] - wc[0]) < 0.005:
@@ -322,10 +329,18 @@ func _tick() -> void:
 
 
 func _on_level_up() -> void:
-	if Game.level_up() and Game.vibrate:
-		Input.vibrate_handheld(40)
+	if Game.level_up():
+		Kit.tick(30)
+		Kit.toast("Level %d · %s per tap" % [Game.level, Game.money(Game.tap_value())], true)
+		Game.flush_changes()
+	else:
+		Kit.toast(Game.money(Game.level_cost() - Game.cash) + " more to level up")
 
 
 func _on_boost() -> void:
-	Game.start_boost()
+	if Game.start_boost():
+		Kit.tick(20)
+		Kit.toast("Boost on · ×3 for 60 seconds", true)
+	else:
+		Kit.toast("Boost ready in " + Game.clock(Game.boost_cooldown_left()))
 	_tick()
