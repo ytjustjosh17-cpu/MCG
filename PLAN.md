@@ -1,380 +1,255 @@
 # Game Plan
 
-A tap-to-earn collecting game for my Samsung S23. It's based on the "WatchBox" screen recording, but with a new theme.
+A business tycoon clicker for my Samsung S23.
+Based on the "Business Empire" screen recording, with the dark red-sun look we designed.
 
 ---
 
-## 1. What the original game is (in one line)
+## 1. The game in one line
 
-Tap to earn cash → spend it on mystery boxes → collect rare items → sell or trade them → play mini-games → level up.
-
----
-
-## 2. New theme: pick one
-
-| Option | Name idea | Why it works |
-|---|---|---|
-| **A. Sneakers** (my pick) | *Sole Vault* | Real "drop" and resale culture. Brands, colourways and rarity fit perfectly. |
-| B. Supercars | *Garage Rush* | Versus becomes a drag race. Big, shiny prizes. |
-| C. Space relics | *Star Salvage* | Meteorites, alien tech, planets. Lots of room for wild rarities. |
-| D. Dinosaur fossils | *Dig Site* | Boxes become dig crates. Museum sets for the collection. |
-
-All brands will be **made up**, like the original does (Glaskov, Novus, Vorm and so on).
-
-The rest of this plan uses **sneakers** as the example. Swapping themes only changes names and art.
+Tap to earn cash → start businesses → they earn every hour → invest in stocks, property and crypto → merge into giant holding companies → become a billionaire.
 
 ---
 
-## 3. Frame-by-frame breakdown of the video
+## 2. Frame-by-frame breakdown of the new video
 
-Times are from the recording.
+Times are from the recording (5 min 17 s).
+Note: the video shows a banner ad at the bottom of every screen. My version has no ads.
 
-### 3.1 Home screen (0:00–0:08, 4:09, 4:39, 5:48, 6:33)
+### 2.1 Earn (tap) screen (0:00–0:12, 1:36–1:50, 3:16–3:38)
 
-**Top bar**
-- Cash: coin icon + `$19.28K` (short format: K, M).
-- Gems: diamond icon + `80` + small green **+** button (opens the Gem Store).
-- Stars: `7`, later `67`. Looks like XP or season points.
-- Menu icon (☰) top right.
+**Bank card at the top**
+- Looks like a debit card: `**** 7439`, expiry `11/28`, faint world map behind.
+- Shows `Balance: $10.00`, going up as you tap.
+- Later the card design changes to a gold geometric pattern (3:16). Card skins are unlockable.
 
-**Level card**
-- Yellow square badge: `LVL 4`.
-- Green progress bar: `$2.49K / $4.50K`. **Levels are based on total cash earned**, not XP.
-- Yellow chip top right: `$3.79 per tap`.
-- At level 6 the target becomes `$10.00K`.
+**Click level panel**
+- `$2.50 per click`.
+- `1 level` with an arrow: `▲ $1.60 per click` (what the next level adds).
+- Progress bar to `$1,000.00`.
+- When you can afford it, a green button appears: `Raise the level ($1,000.00)` (3:32).
+- Next level shows `$2.50 → $4.10 per click`, then the price jumps to $3,280, then $1.0M at high levels (3:36).
 
-**Left side buttons:** Pass, Tasks, then **Boost** with a countdown (`1:56`) once a boost is active.
-
-**Right side buttons:** Watch (pick your tap item), Discord, Badges (red dot when something is claimable), Ranks.
-
-**Centre buttons**
-- Big yellow `⚡ BOOST X3 90s` with a small red video icon (watch an ad).
-- `💎 150 Gems` with the same video icon.
+**Ad boost card (light green)**
+- `$16.23 per click for 30 sec.` with an "Ad" icon.
+- Becomes `$30,736.64` at high levels.
 
 **Tap area**
-- A big gold watch with a brown strap, softly glowing.
-- Each tap pops up green floating text `+$3.79` that drifts up and fades.
-- Fast taps stack several `+$5.28` labels at once (5:51).
-- Small grey text at the bottom: `TAP TO EARN`.
+- Big hand icon, text: "Click in this area to earn money".
+- Green `$` coins float up and fade on each tap.
+- Background: teal-to-green gradient that fades to white.
 
-**Toasts:** a pill slides down from the top, e.g. `🏅 Badge unlocked: Click Enthusiast` (5:51), `Badge unlocked: Earning Starter` (6:33).
+**Bottom nav (5 tabs):** Investing · Business · Earnings · Items · Profile.
+- Active tab: blue icon.
+- Purple "New" badges and red number badges (e.g. `20`, `9`) appear later.
 
-**After levelling up (6:33)**
-- Jumped from level 4 to 6.
-- Boxes tab gets a red `2` badge (free boxes).
-- A small box icon with a red dot appears bottom left.
+### 2.2 Business (0:14–0:38, 1:56, 3:14, 3:40, 4:48)
 
-**Bottom navigation (7 tabs)**
-Home · Boxes · Vault · Shop · Upgrades · Market · Games.
-The active tab sits in a dark rounded pill with a yellow icon and label. The others are grey icons only.
+**Business home**
+- `$0.00 Total income per hour`.
+- Ad strip: "Raise income +100% for 4 h".
+- Two buttons: **Start a business** (blue) and **Business mergers** (light).
+- `My companies 0/10`. Hard cap of 10 companies.
+- Each company card: icon, name, type, stage, `$65,250.00 per hour` (4:48).
 
-### 3.2 Boxes (0:09–0:15, 5:54–6:00)
+**Choose a new business category** (grid of cards)
 
-Two tabs: **Shop** (yellow when active) and **Inventory (0)**.
-
-**Special boxes**
-- *Mythical Hunt*: red timer chip `1d 00:30`, `352/800 left`, `0/1 owned`. Price `$770.00K` **or** `5500` gems.
-- *Grail Cabinet V*: `SOLD OUT` chip, `0/250 left`, `0/2 owned`. Price `$1.00M` or `2000` gems, greyed out.
-
-**Red banner:** "Limited Drops – Exclusive limited supply watches available now".
-
-**Daily Drops** – "New drops in 3h 30m"
-- Single items with a stock count (`0/25 left`) and a `SOLD` label when gone.
-
-**Standard boxes** (each a different coloured box with a watch on top)
-
-| Box | Colour | Price / unlock |
-|---|---|---|
-| Starter | white | $380 or 30 gems |
-| Enthusiast | green | $1.30K or 60 gems |
-| Collector | navy | Level 5 🔒 |
-| Luxury | purple | Level 6 🔒 |
-| Grail | yellow | Level 10 🔒 |
-| Unicorn | pink | Level 13 🔒 |
-| Prestige | teal | Level 15 🔒 |
-| Divine | black | Level 17 🔒 |
-
-Locked boxes are dimmed with a white padlock.
-
-### 3.3 Vault / Collection (0:18–0:42, 1:03, 6:03)
-
-**Stats row:** `$800 Total Value` · `1 Unique` · `1 Total`.
-
-**Tools:** search box, 📖 catalogue button, grid-size button, ⚙ settings.
-
-**Item card:** brand in small caps (`GLASKOV`), name (`Капитан / Kapitan` – two-language names), value in green (`$800`).
-
-**Item detail pop-up**
-- Big image with a soft shadow, ✕ to close.
-- Name, brand, grey rarity chip `COMMON`.
-- `Value $800` and `Avg last 10 $850` (recent sale prices).
-- `Obtained: 24/11/2026 #449`. **Every item has a serial number.**
-- 🔒 **Lock** button (stops you selling it by mistake).
-- Red **QUICK SELL** and green **LIST ON MARKET** buttons.
-
-**Quick Sell confirm:** red "!" icon. "Sell Kapitan for $520? (65% of base value)". Cancel / Sell.
-
-**List on Market sheet**
-- Thumbnail, name, brand, rarity.
-- `Value: $800 • Avg last 10 sales: $850`.
-- Price box with **MIN** and **MAX** buttons and a clear ✕.
-- Limits: `Min $400 Max $16,000` (0.5× to 20× value).
-- Duration chips: 1h · 6h · 12h · 24h · 48h (selected one goes yellow).
-- Cancel / **List Watch**.
-
-### 3.4 Catalogue (0:45–1:00)
-
-- Title "Watch Catalog", `1/1489 discovered`.
-- Search by name or brand.
-- Filters: All / Owned / Missing.
-- Rarity letters: All · C · U · R · E · L · M · P · U · LM (Common → Limited).
-- "All Brands" dropdown. Count: `1489 watches`.
-- 3-column grid. Each tile: image, name, brand.
-- Small yellow label on some tiles (wish-list style).
-- Owned items get a green ✓ in the corner.
-- `Show More (1429 remaining)` button at the bottom.
-
-### 3.5 Shop (1:06–1:15, 6:06–6:09)
-
-**Premium Pass card** (yellow header): no ads, 350 gems, $70K, 3 Luxury Boxes, 1 Collector Box, Collector's Pass. £3.99.
-
-**Free:** "Watch Ad – Earn $50K (0/5 today)".
-
-**Bundle packs** (coloured headers and tags)
-- Prestige Pack (teal, `PRESTIGE`): $80M, 15,000 gems, x2 Prestige, x5 Unicorn, VIP badge, Bulk Open ×12, 20 market listings, free 2× idle, tax-free sales.
-- Ultimate Pack (red, `VIP`): $20M, 7,000 gems, x5 Grail…
-- Golden Pack (gold, `BEST VALUE`): $3M, 1,000 gems, x5 Luxury, x3 Grail.
-- Fast Forward Pack (purple, `POPULAR`): 650 gems, x3 Collector, x1 Luxury, 3× click for 48h.
-- Starter Pack (blue, `GREAT START`): $55K, 400 gems, x1 Collector, x4 Enthusiast, 3× click for 8h.
-
-**Get Gems:** 10,000 / 4,000 / 1,500 / 500, each with a gem-pile picture that gets bigger.
-
-**Free Money:** Join Discord (Joined), Follow TikTok, Follow Instagram, "Our Games" (200 gems each), Share with Friends ($5K).
-
-> **For my version:** no real money. Packs become rewards you **earn** (from levels, the pass or achievements). The ad buttons become free cooldown buttons.
-
-### 3.6 Upgrades (1:18–1:21, 6:12)
-
-| Upgrade | Shows | Example |
-|---|---|---|
-| Click Power | `LV 5 / 26`, progress bar | `$3.79 → $5.28 per click`, costs `$1.31K` |
-| Auctioneer | purple gavel, `LOCKED`, Unlock at Level 5 | – |
-| Market Analyst | bar chart, `LV 0 / 5` | `0% → 2% discount` on boxes, `$28.00K` |
-
-After buying, the button briefly shows `SAVING…`.
-
-### 3.7 Market (1:24–1:42, 6:15–6:18)
-
-- Loading spinner first.
-- First-visit pop-up: 💎 "The Market is open – +20 gems and no tax on your first purchase". Buttons: **Show what I can afford** / Browse.
-- Tabs: All Listings / My Listings (1).
-- Search, filter button (turns yellow when on), green chip `✓ Within budget · $17,995`.
-
-**Listing row:** image, name, brand, time left (`23h 55m`), rarity chip, `Avg $998`, price in big green (`$2,000`), seller name (`SuperLegend628`).
-
-**My Listings**
-- Collect All / Take Back All.
-- Note: "Expired listings now return to your collection automatically within 15 minutes."
-- When sold: `SOLD $4,000` and a green **Claim $3,760** button. That's a **6% sales tax**.
-
-> **For my version:** sellers are fake AI players with random names. Their prices drift around each item's average.
-
-### 3.8 Games hub (1:45, 3:27, 4:06)
-
-Each row: icon, name, `LEVEL`, `COST`, `REWARD`, arrow.
-- Versus (Level 1, $150 → $225; Level 2, $250 → $375)
-- Coin Flip
-- Spin the Wheel
-- 3 × LOCKED (unlock at levels 5, 6 and 7)
-- Guess the Watch ($75 → $375)
-- Guess the Brand ($50 → $250)
-- Higher or Lower ($50 → $150)
-
-### 3.9 Versus (1:48–2:42)
-
-**Intro:** title, green `LEVEL 1` chip, stats `$225 Win Reward` · `Lv 5 Next Box` · `$150 Entry`.
-How to Play: 1 Draft 4 watches → 2 Battle highest value → 3 Bonus collection round.
-Big green **START BATTLE $150**.
-
-**Draft**
-- AI's team (4 empty slots) at the top, your team at the bottom.
-- "Build Your Team – Pick 0/4". Pick 1 of 4 watches shown, 4 times.
-- Green "•••" placeholders while the next 4 load.
-- The AI fills its slots as you pick.
-
-**Battle**
-- Your values are shown under your team (`$50K`, `$470K`, `$1.9M`, `$700K`). **The AI's values are hidden.**
-- "Pick your watch – highest value wins!" Score `0 – 0` in big green numbers.
-- AI's choice is highlighted in yellow. You tap one of yours.
-- Reveal: winner card goes **green**, loser goes **red**, values shown under each.
-- Used watches go grey and dark.
-
-**Bonus round:** "Pick your best watch" from your **real collection**.
-
-**Result:** "Victory! 4 – 1", small XP chip, `+$225`, **Next Level** / Exit.
-
-### 3.10 Coin Flip (2:45–2:54)
-
-- Big coin icon, status `READY` → `FLIPPING…`. The coin turns into a gem while spinning.
-- Choose side: **Money** or **Gems** (yellow border when picked).
-- Toggle: Money / Bet Watch (you can bet an item!).
-- Bets: `$100 1.5×`, `$500 1.5×`, `$1,000 1.9×`, `$5,000 1.9×`, Custom.
-- Shows `Win: $150`. Big green **FLIP COIN**.
-
-### 3.11 Spin the Wheel (2:57–3:24)
-
-- Tier tabs: Bronze · Silver · Gold · Platinum · Diamond · Prestige. Each tier has its own colour.
-- Spin cost goes up per tier: $275 → … → $10K (Gold) → $100K (Diamond).
-- `10 spins left today` (daily limit).
-- Wheel has 10 segments: cash, gems (×2, ×5) and boxes (Starter, Enthusiast, Collector, Luxury, Grail, Unicorn).
-- Centre: `SPIN` and `9/10`.
-- The pointer at the top matches the tier colour.
-- While spinning, a chip above shows what's passing (`$750`, `$400`, `5 Gems`).
-- Result: "You won! $250" with a yellow `⚡ +20 XP` chip.
-
-### 3.12 Quiz games (3:30–4:03)
-
-All three share one layout:
-- Intro: title, `LEVEL 1`, Entry / Reward boxes, Game Rules box, **START GAME**.
-- Rules: 5 questions, 4 choices each, **one wrong answer = game over**.
-- Top bar: `Question 1 of 5`, thin green progress bar, Quit.
-- `Score: 0/5` in green at the bottom.
-- Wrong: grey ✕, red "Game Over!", "You got 0 out of 1 correct. Better luck next time!", TRY AGAIN.
-
-Games:
-- **Guess the Watch:** "Which watch is made by Casio?"
-- **Guess the Brand:** "What brand makes the 5?"
-- **Higher or Lower:** two cards with "VS". Left shows its price, right shows "?". Buttons: green HIGHER, red LOWER.
-
-### 3.13 Collector's Pass (4:12–4:36)
-
-- `Level 4 · $2,737 / $4,500` with a green bar.
-- Two columns: **FREE** and **PREMIUM**, joined by a numbered line down the middle (1–80).
-- Reached levels have green circles. Claimed rewards get a small green dot.
-- Rewards: cash, gems, boxes and a **special item at milestones** (30, 50, 60).
-- Scrolling ticker at the bottom: "Premium Pass Includes…".
-- Big green **UNLOCK PREMIUM TIERS**.
-
-### 3.14 Daily Tasks (4:48)
-
-- "Resets in 23h 42m".
-- Each task: title, cash reward + `⚡ +25 XP` chip, `0/1` bar, "In progress" button.
-- Examples: Buy a Mythical from the market (1M), **Complete a Trade-Up** (150K), Open a Grail box (600K).
-
-> **Trade-Up** is a hidden feature: swap several low items for one higher rarity.
-
-### 3.15 Boost pop-up (4:54)
-
-"Click Boost ×3 – ×3 click power for 1 min". `⚡ ×3  1:00`. **Activate – 130 💎**. Red "You need 50 more gems". Maybe Later.
-
-### 3.16 Select tap item (4:57)
-
-Choose which owned item sits in the middle of the Home screen. Search, rarity letters, list with a green ✓ on the current one.
-
-### 3.17 Achievements (5:03–5:36, 6:24–6:30)
-
-- `1/71 earned`. Tabs: All · In Progress · Claim (red count dot) · Brands.
-- Each row: icon, name, description, progress bar (`97/100`), reward (cash, gems or a box).
-- Claim row: green **CLAIM** plus a yellow "double with ad" button.
-- Groups found:
-  - Taps: 100 / 1K / 5K / 10K
-  - Boxes opened: 1 / 5 / 25 / 1,000
-  - Collection size: 1 / 10 / 25 / 50 / 100 / 500
-  - Rarity finds: rare, epic, legendary
-  - Cash earned: $10K → $100M
-  - Cash spent: $500K, $5M
-  - Market: sell 25 / 100, list 5, buy 5
-  - Versus wins: 1 / 10 / 50
-  - Coin flips: 50
-  - Player level: 10 / 25 / 50
-  - **Idle cash:** "Earn $100M while away"
-  - **Brand sets:** own 5 of one brand
-- Brands tab: sort A–Z / Tier / Progress.
-
-### 3.18 Ranks (5:39)
-
-"Season 8", "Loading leaderboard…". **For my version:** an offline leaderboard against fake players.
-
-### 3.19 Small details to copy
-
-- All money is shortened: `$19.28K`, `$1.90M`.
-- Green = good or money. Red = sell, lose or alert. Yellow = selected or primary.
-- Dark background (near black), cards slightly lighter, rounded corners everywhere.
-- Bold, chunky headings (a heavy rounded font).
-- Grey "dimmed" overlay behind every pop-up.
-- Red dots on buttons that need attention.
-- A spinner on first load of a screen.
-- Levelling up gives free boxes.
-
----
-
-## 4. My version: what changes
-
-| Original | Sole Vault |
+| Business | Opening cost |
 |---|---|
-| Watches | Sneakers |
-| 1,489 watches | ~300 sneakers to start (more later) |
-| Watch boxes | Shoe boxes |
-| Versus | Sneaker Battle |
-| Guess the Watch / Brand | Guess the Sneaker / Brand |
-| Real-money shop | Earned rewards only |
-| Ads | Free cooldown buttons |
-| Online leaderboard | Fake offline players |
-| Real market | AI buyers and sellers |
+| Shop | $4,899 |
+| Taxi company | $9,999 |
+| Shipping company | $19,899 |
+| Factory | $24,999 |
+| Construction company | $35,400 |
+| Car dealership | $40,000 |
+| IT company | $350,000 |
+| Bank | $10,000,000 |
+| Sports club | $40,000,000 |
+| Oil and gas company | $1,500,000,000 |
+| Airlines | $13,000,000,000 |
 
-**Kept the same:** tap to earn, levels by cash, boxes, rarity, serial numbers, quick sell, market, upgrades, all mini-games, pass, tasks, achievements, boosts, idle earnings.
+**Shop types:** Local shop $4,899 · Small chain $12,399 · Large chain $54,899.
 
-### 4.1 Rarity tiers
+**Naming:** "Enter shop name" → text field → opening cost → **Start a business**.
+- Red "Insufficient funds" if you can't afford it (0:34).
 
-| Letter | Tier | Colour | Rough value |
-|---|---|---|---|
-| C | Common | grey | $200–$1K |
-| U | Uncommon | green | $1K–$5K |
-| R | Rare | blue | $5K–$25K |
-| E | Epic | purple | $25K–$150K |
-| L | Legendary | gold | $150K–$1M |
-| M | Mythic | red | $1M–$5M |
-| P | Prestige | teal | $5M–$20M |
-| U | Unicorn | pink | $20M+ |
-| LM | Limited | rainbow | special drops only |
+**Shop screen** (4:06)
+- Green header with a basket icon and the shop name.
+- `$102.06 Income per hour`.
+- Stage 1 · Local shop.
+- **Opening of new sales outlets:** costs $1,469.70, gives `▲ $35.72` profit growth.
+- After paying: "Expansion in process", timer `0 h 1 min 59 sec`.
+- Ad button: "Skip the expansion time".
 
-### 4.2 Art
+**Taxi company screen** (4:18–4:32)
+- Yellow header with a taxi icon.
+- **Expand fleet capacity:** +5 places $17,500 · +10 places $50,000 · +20 places $140,000.
+- **Car fleet:** `Cars 0` / `Capacity 5`. A "filled 100%" tag appears when full.
+- **Choose a car:** tabs Economy · Comfort · Comfort+ · Business · Premier · Elite.
+  - Each car: name, resource in km, income per hour, price.
+  - Examples: $10,800 (economy) up to $262,000 (elite).
+  - Quantity stepper (− 1 +), Max, total price, yellow **Buy**.
 
-Drawing 300 sneakers by hand isn't realistic. Instead:
-- Draw **a few base shoe shapes** (high-top, runner, low, boot, slide).
-- Each has layers (sole, upper, laces, logo, trim).
-- The game **colours the layers in code**, so each shape gives many colourways.
-- Rarer items get extras: glitter, glow, gold trim, animated shine.
+### 2.3 Business mergers (1:58–2:10)
+
+You combine businesses you own into a bigger company.
+Each merger lists its requirements with progress bars, plus an opening cost.
+
+| Merger | Needs | Opening cost |
+|---|---|---|
+| Clothing brand | Large chain of shops, shipping company (city cars), small factory | $3,000,000 |
+| Space agency | Large factory, shipping company, construction company | $450,000,000 |
+| Holding company | Bank, share portfolio worth $40B | $5,000,000,000 |
+| Hotel industry | Taxi company, real estate worth $5M, islands | $10,000,000 |
+| Blockchain platform | IT company, crypto portfolio worth $1B | $500,000,000 |
+
+- Each merger has a "Potential effect" dropdown.
+
+### 2.4 Investing: shares (0:44–1:04)
+
+Three tabs: **Shares** · Real Estate · Cryptocurrency.
+
+**My stock portfolio:** value, "+$0.00 (0.00%) for all time", estimated yield per hour.
+
+**Stock market list**
+- Sort chips: Highest dividend · Lowest dividend · Cheap first · Expensive first · Highest capitalisation · Lowest capitalisation.
+- Each row: logo, name, "Available", price, change in $ and %, green or red.
+- The video uses parody names (Amason, Tassla, Netflexx, MVIDIA, Coco-Cola). **I will make up my own.**
+
+**Picks on the Investing home:** "Stable income" (highest dividends) and "Growth potential" (stocks that could rise), each with a Buy button.
+
+### 2.5 Investing: real estate (1:06–1:22, 4:52–5:16)
+
+- Header: `$0.00 Rental income per hour`.
+- Two big photo cards: **Real estate market** and **My property**.
+- Market list sorts by expensive or cheap first.
+- Each property: photo, price, city, Buy.
+- Price range: $25,000 (Detroit house) up to $28,000,000,000 (Las Vegas sphere).
+
+**Purchase confirmation:** location, price, income per hour, Buy.
+
+**Property screen**
+- Income per hour (`$395` → `$1,027` after improvements).
+- **Available improvements**, each with a cost and a red dot:
+  - cosmetic repairs $25,000
+  - home appliances $7,500
+  - furniture $3,750
+  - high-speed internet $2,500
+  - parking $1,250
+- Bought improvements show as small icons.
+- Market value goes up (e.g. $25,000 → $65,000).
+- **Sell** button with "Sales tax 12%".
+
+### 2.6 Investing: crypto (1:24–1:34, 1:52, 3:24–3:30)
+
+- Card: total crypto value with % change, **Buy** button.
+- **Cryptoexchange** tabs: Hot · Gainers · Losers · Highest cap · Lowest cap.
+- Rows: coin logo, name, price, ▲/▼ %.
+- **Buying:** balance, coin, quantity with Max, "Min 3.33, Max 575.47", summary, Buy.
+- **Coin screen:** amount held (575.48), value, live price chart with times, Sell / Buy more, current price.
+- Prices move in real time. In the video BTC rises (3:28) and XPR falls (1:52).
+
+### 2.7 Items (2:14–2:34)
+
+- **Shops:** Car showroom, Aircraft shop, Yacht shop.
+- **Storage:** Garage, Hangar, Harbor.
+- **Collections:** Coins 0/20, Paintings 0/25, Unique items 0/5, Retro cars 0/20, Jewels 0/20, Stamps 0/15, Insignia 0/5, NFT 0/21, Islands.
+- Each collection has a Market tab and a My collection tab.
+- Example: retro cars at $184,000 and $220,000.
+
+### 2.8 Profile (2:36–3:12)
+
+- `$347.79 Fortune` (total net worth).
+- Two-colour bar split.
+- Breakdown tiles: Balance · Businesses · Stocks · Real estate · Transport · Collections · Crypto assets · Residence.
+- "No more ads" banner.
+- Cloud save with Play services, Facebook and Google.
+- Restore progress pop-up, then a loading bar.
+
+### 2.9 Small details to copy
+
+- Money uses full decimals on detail screens (`$4,658,503.47`) and short form elsewhere (`$34.9 M`).
+- Income is always shown **per hour**.
+- Red dots mark things you can afford or upgrade.
+- "New" badges mark tabs with fresh content.
+- Long numbers: the game goes past billions, so format up to T (trillions).
 
 ---
 
-## 5. How it will be built
+## 3. My version
+
+**Theme:** business tycoon. Name idea: **Red Sun Holdings**.
+
+**Look:** the dark red-sun design we chose (Ledger concept).
+- teal-black background, concrete-teal panels
+- one flat red sun
+- red used only in small "lit window" points
+
+### 3.1 What changes from the video
+
+| Video | My version |
+|---|---|
+| Ads everywhere | No ads |
+| "Watch ad" boosts | Free boosts on a cooldown |
+| Cloud restore, notification prompt | Removed. Local save only |
+| Parody brands, real coin logos | All made-up companies and coins |
+| Real photos of houses and cars | Flat silhouettes on teal or red skies |
+| Bright white UI | Dark red-sun UI |
+| Tap a hand icon | Tap your headquarters tower. Windows light up |
+
+### 3.2 Kept from the first video (WatchBox)
+
+Only the general progress systems:
+- player levels
+- daily tasks
+- achievements
+- the ×3 boost
+
+**Dropped:** boxes, vault, the sneaker market and sneaker art.
+
+### 3.3 Art plan
+
+You can't draw hundreds of photos, so everything is flat shapes:
+- **Properties:** building silhouettes against the sky, with lit windows.
+- **Vehicles** (taxis, jets, yachts): side-view silhouettes.
+- **Business icons:** one simple mark per category.
+- **Coins and stocks:** made-up logos from simple shapes.
+- Colour variations make many items from a few shapes.
+
+### 3.4 Economy rules
+
+- Income per hour keeps running while the app is closed (capped, e.g. 8 hours).
+- Max 10 companies, like the video.
+- Number format: K, M, B, T.
+- Stock and crypto prices move every few seconds.
+- Every price change shows ▲ or ▼ and a + or −, never colour alone.
+
+---
+
+## 4. How it will be built
 
 - **Engine:** Godot 4 (free).
-- **Screen:** portrait, 1080 × 2340 (the S23's resolution).
-- **Saving:** a local save file on the phone. It also saves the time you left, to work out idle cash.
-- **Getting it on my phone:** GitHub builds the APK automatically. I download it on my S23 and install it (allow "Install unknown apps" once).
+- **Screen:** portrait, 1080 × 2340 (S23).
+- **Save:** local file on the phone, with the time you left.
+- **Install:** GitHub builds the APK. I download it on my S23 and install it.
 - **No account, no internet, no ads, no payments.**
 
 ---
 
-## 6. Build order
+## 5. Build order
 
-Each step ends with something I can play on my phone.
-
-1. **Core loop** – Home screen, tapping, floating `+$`, cash, levels, bottom nav, saving.
-2. **Boxes and Vault** – open boxes with a reveal animation, rarity, serial numbers, item details, quick sell, lock.
-3. **Upgrades and Boost** – click power, discount upgrade, ×3 boost, idle earnings.
-4. **Market** – AI listings, buying, listing your own, tax, claim.
-5. **Mini-games** – Coin Flip, Spin the Wheel, then the 3 quizzes, then Sneaker Battle.
-6. **Progress systems** – Pass (80 levels), daily tasks, achievements, toasts.
-7. **Extras** – Catalogue, special/limited drops, Trade-Up, leaderboard, pick your tap item.
-8. **Polish** – sounds, vibration on tap, animations, balancing the numbers.
+1. **Earn** – the tower tap, cash, click levels, saving.
+2. **Business** – start a shop, income per hour, expansion timers.
+3. **More businesses** – taxi fleet and cars, then the others.
+4. **Invest** – stocks, then property, then crypto with live charts.
+5. **Mergers** – holding companies with requirements.
+6. **Items** – collections and storage.
+7. **Profile** – fortune breakdown.
+8. **Progress** – levels, daily tasks, achievements, boost.
+9. **Polish** – sounds, vibration, animations, balancing the numbers.
 
 ---
 
-## 7. Questions for me
+## 6. Open question
 
-1. Which theme: Sneakers, Supercars, Space relics, Fossils, or something else?
-2. Happy with a dark look like the original, or a different colour style?
-3. Should I set up the automatic APK build on GitHub?
+1. Shall I set up the automatic APK build on GitHub?
