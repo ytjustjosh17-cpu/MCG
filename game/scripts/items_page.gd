@@ -47,10 +47,10 @@ func refresh() -> void:
 			done += 1
 			bonus += float(col["bonus"])
 		var r: Row = _rows[cid]
-		r.set_texts(col["name"], "+%d%% all income when complete" % int(float(col["bonus"]) * 100), "%d / %d" % [n, total])
+		r.set_texts(col["name"], "+%d%% income" % int(float(col["bonus"]) * 100), "%d / %d" % [n, total])
 		r.mark.visible = n == total
-	_summary.text = "%d of %d collections done" % [done, Data.COLLECTIONS.size()]
-	_bonus.text = ("Your collections add +%d%% to all income." % int(bonus * 100)) if bonus > 0 else "Complete a collection to raise all your income for good."
+	_summary.text = "%d / %d complete" % [done, Data.COLLECTIONS.size()]
+	_bonus.text = "+%d%% income" % int(bonus * 100)
 
 
 class CollectionPage extends Page:
@@ -63,7 +63,7 @@ class CollectionPage extends Page:
 
 	func build() -> void:
 		var col := Game.collection(cid)
-		var note := UI.label("Own all %d to add +%d%% to all income. Items sell back for 80%%." % [col["items"].size(), int(float(col["bonus"]) * 100)], 15, UI.SUB)
+		var note := UI.label("All %d: +%d%% income" % [col["items"].size(), int(float(col["bonus"]) * 100)], 15, UI.SUB)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.add_child(note)
 		var list := card()
@@ -82,7 +82,7 @@ class CollectionPage extends Page:
 			var it: Array = col["items"][i]
 			var r: Row = _rows[i]
 			if Game.item_owned(cid, i):
-				r.set_texts(it[0], "Owned · worth %s" % Game.money_short(it[1]), "Owned")
+				r.set_texts(it[0], "", "Owned")
 				r.value_l.add_theme_color_override("font_color", UI.SUB)
 				r.mark.visible = true
 			else:

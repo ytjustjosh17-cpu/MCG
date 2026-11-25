@@ -37,12 +37,13 @@ func _ready() -> void:
 		col.add_theme_constant_override("separation", 2)
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(col)
-		var ic := Icon.new(TABS[i][0], UI.SUB, 22.0)
+		var ic := Icon.new(TABS[i][0], UI.SUB, 26.0)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(ic)
-		var l := UI.label(TABS[i][1], 13, UI.SUB)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var l := UI.label("", 1, UI.SUB)
+		l.visible = false
 		col.add_child(l)
+		b.tooltip_text = TABS[i][1]
 		_buttons.append(b)
 		_icons.append(ic)
 		_labels.append(l)
@@ -58,6 +59,8 @@ func set_active(i: int) -> void:
 		b.add_theme_stylebox_override("normal", bg)
 		b.add_theme_stylebox_override("hover", bg)
 		(_icons[k] as Icon).set_style(UI.RED if on else UI.SUB, on)
-		var l: Label = _labels[k]
-		l.add_theme_color_override("font_color", UI.TEXT if on else UI.SUB)
-		l.add_theme_font_override("font", UI.SEMI if on else UI.REG)
+		var ic: Icon = _icons[k]
+		if on:
+			ic.pivot_offset = ic.size / 2.0
+			ic.scale = Vector2(0.86, 0.86)
+			ic.create_tween().tween_property(ic, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

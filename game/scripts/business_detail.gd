@@ -38,7 +38,7 @@ func build() -> void:
 	_income.add_theme_font_override("font", UI.SEMI)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	row.add_child(_income)
-	var ph := UI.label("  per hour", 13, UI.SUB)
+	var ph := UI.label(" /h", 15, UI.SUB)
 	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(ph)
 	_boost_note = UI.label("", 13, UI.SUB)
@@ -70,7 +70,7 @@ func build() -> void:
 	bh.add_theme_constant_override("separation", 8)
 	up.add_child(bh)
 	_buy = button("Buy", true, _on_buy)
-	_buy_max = button("Buy max", false, _on_buy_max)
+	_buy_max = button("Max", false, _on_buy_max)
 	_buy_max.size_flags_stretch_ratio = 0.6
 	bh.add_child(_buy)
 	bh.add_child(_buy_max)
@@ -126,26 +126,26 @@ func refresh() -> void:
 		sq.color = UI.RED if i < units else UI.TRACK
 	var per_unit := float(b["unit_income"]) * pow(float(b["stage_mult"]), stage - 1) * Game.merger_mult(id) * Game.global_mult()
 	if units >= cap:
-		_unit_note.text = "Full. Expand to make room for more."
+		_unit_note.text = "Full"
 		_buy.text = "Full"
 		Page.set_enabled(_buy, false)
 		Page.set_enabled(_buy_max, false, false)
 	else:
 		var p := Game.unit_price(id)
-		_unit_note.text = "Each %s earns %s an hour" % [b["unit"], Game.money(per_unit)]
-		_buy.text = "Buy %s · %s" % [b["unit"], Game.money_short(p)]
+		_unit_note.text = "+%s /h each" % Game.money_short(per_unit)
+		_buy.text = "+1 · " + Game.money_short(p)
 		Page.set_enabled(_buy, Game.cash >= p)
 		Page.set_enabled(_buy_max, Game.cash >= p, false)
 	if stage >= Data.MAX_STAGE:
 		_exp_title.text = "Fully expanded"
-		_exp_body.text = "This company is as big as it gets. Fill every %s to finish it." % b["unit"]
+		_exp_body.text = ""
 		_exp_bar.visible = false
 		_exp_btn.visible = false
 	elif Game.expanding(id):
 		var total := Game.expansion_seconds(id)
 		var left := Game.expansion_left(id)
 		_exp_title.text = "Expanding to stage %d" % (stage + 1)
-		_exp_body.text = Game.clock(left) + " left. It keeps going while the app is closed."
+		_exp_body.text = Game.clock(left)
 		_exp_bar.visible = true
 		_exp_bar.max_value = total
 		_exp_bar.value = total - left
@@ -153,7 +153,7 @@ func refresh() -> void:
 	else:
 		var mins := Game.expansion_seconds(id) / 60.0
 		_exp_title.text = "Expand to stage %d" % (stage + 1)
-		_exp_body.text = "+%d %s spaces and ×%.1f income per %s. Takes %s." % [Data.UNITS_PER_STAGE, b["unit"], b["stage_mult"], b["unit"], Game.clock(mins * 60.0)]
+		_exp_body.text = "+%d spaces · ×%.1f income · %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], Game.clock(mins * 60.0)]
 		_exp_bar.visible = false
 		_exp_btn.visible = true
 		_exp_btn.text = "Expand · " + Game.money_short(Game.expansion_cost(id))

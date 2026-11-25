@@ -77,9 +77,6 @@ func build() -> void:
 		coins_v.add_child(r)
 		_coin_rows[sym] = r
 	_views = [shares_v.get_parent(), props_v.get_parent(), coins_v.get_parent()]
-	var note := UI.label("Prices move every minute, even while you're away.", 13, UI.SUB)
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(note)
 	refresh_view()
 
 
@@ -104,7 +101,7 @@ func refresh() -> void:
 				_sum_sub.text = "My shares · %s%s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain))]
 			for s in Data.STOCKS:
 				var r: Row = _share_rows[s[0]]
-				r.set_texts(s[1], "%s · %.1f%% dividend" % [s[0], float(s[3]) * 1000.0], Game.money(Game.price(s[0])))
+				r.set_texts(s[1], "%s · %.1f%%" % [s[0], float(s[3]) * 1000.0], Game.money(Game.price(s[0])))
 				r.set_change(PriceChart.change_pct(s[0]))
 				r.mark.visible = Game.shares.has(s[0])
 		1:
@@ -116,9 +113,9 @@ func refresh() -> void:
 				var p: Array = Data.PROPERTIES[i]
 				var r: Row = _prop_rows[i]
 				if Game.prop_owned(i):
-					r.set_texts(p[0], p[1] + " · owned", Game.money_short(Game.prop_rent(i)) + " /h", "rent")
+					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
 				else:
-					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h rent" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
+					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "+%s /h" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
 				r.mark.visible = Game.prop_owned(i)
 				r.modulate.a = 1.0 if (Game.prop_owned(i) or Game.cash >= Game.prop_price(i)) else 0.6
 		2:
@@ -131,7 +128,7 @@ func refresh() -> void:
 			for c in Data.COINS:
 				var r: Row = _coin_rows[c[0]]
 				var held := Game.holding(Game.coins, c[0])
-				r.set_texts(c[1], c[0] + (" · you hold " + Game.money_short(held * Game.price(c[0])) if held > 0 else ""), _coin_price(Game.price(c[0])))
+				r.set_texts(c[1], c[0] + (" · " + Game.money_short(held * Game.price(c[0])) if held > 0 else ""), _coin_price(Game.price(c[0])))
 				r.set_change(PriceChart.change_pct(c[0]))
 				r.mark.visible = held > 0
 

@@ -4,3 +4,4 @@ build/
 *.aab
 *.idsig
 export_credentials.cfg
+override.cfg

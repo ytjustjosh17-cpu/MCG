@@ -157,7 +157,7 @@ func _on_back() -> void:
 func _on_update(version: String) -> void:
 	Kit.sheet(
 		"Update ready",
-		"Version %s is out. Your progress stays exactly where it is." % version,
+		"Version %s · your progress is kept." % version,
 		[
 			{"text": "Download update", "style": "primary", "call": Updater.open_download},
 			{"text": "Later", "style": "plain"},

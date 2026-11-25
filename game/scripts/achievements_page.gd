@@ -33,7 +33,7 @@ func refresh() -> void:
 			prog = "%s of %s" % [Game.money_short(minf(have, goal)), Game.money_short(goal)]
 		else:
 			prog = "%s of %s" % [Game.group(int(minf(have, goal))), Game.group(int(goal))]
-		r.set_texts(a["title"], "Done" if got else prog, "")
+		r.set_texts(a["title"], "" if got else prog, "")
 		var ic: Icon = r.lead
 		ic.kind = "check" if got else "lock"
 		ic.set_style(UI.RED if got else UI.DIM)
