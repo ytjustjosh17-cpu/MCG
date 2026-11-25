@@ -1652,6 +1652,9 @@ func _process(delta: float) -> void:
 		recalc()
 	_check_timer += delta
 	if _check_timer >= 1.0:
+		# Stats: time played and the best income seen (only while the app is open).
+		counters["play_s"] = float(counters.get("play_s", 0.0)) + _check_timer
+		counters["best_income"] = maxf(float(counters.get("best_income", 0.0)), income_per_hour)
 		_check_timer = 0.0
 		_ensure_daily()
 		_ensure_weekly()
@@ -1906,6 +1909,7 @@ func _migrate(d: Dictionary) -> Dictionary:
 
 
 func _reset_state() -> void:
+	sci = false
 	home = 0
 	cash = 0.0
 	total_earned = 0.0
@@ -2005,6 +2009,7 @@ func load_game() -> void:
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))
 	reduce_motion = bool(d.get("reduce_motion", false))
+	sci = bool(ui.get("sci", false))
 	started_at = float(d.get("started_at", now()))
 	_init_market()
 	recalc()
@@ -2045,44 +2050,60 @@ const BIG_UNITS := [[1e33, "Dc"], [1e30, "No"], [1e27, "Oc"], [1e24, "Sp"], [1e2
 	[1e15, "Qa"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]
 
 
+const CUR := "£"
+static var sci := false   # number format setting: true shows 1.23e9 instead of 1.23B
+
+
 static func money(v: float) -> String:
-	## $12.50 under 1,000; $19,284 up to a billion; then $1.25B and $3.40T.
+	## £12.50 under 1,000; £19,284 up to a billion; then £1.25B and £3.4T.
 	var a := absf(v)
 	var sign := "-" if v < 0.0 else ""
 	if a < 1000.0:
-		return sign + "$%.2f" % a
+		return sign + CUR + "%.2f" % a
 	if a < 1e9:
-		return sign + "$" + group(int(floor(a)))
-	if a < 1e12:
-		return sign + "$%.2fB" % (a / 1e9)
+		return sign + CUR + group(int(floor(a)))
 	return money_short(v)
 
 
 static func cash_text(v: float) -> String:
-	## Exact cash to the penny: $1,385.62. Very large amounts fall back to $1.23Qa.
+	## Cash to the penny while it fits on screen (£1,385.62). From ten million
+	## it switches to four figures, like £177.9M.
 	var a := absf(v)
-	if a >= 1e15:
-		return money_short(v)
+	if a >= 1e7:
+		return _short(v, 4)
 	var whole := floorf(a)
 	var pence := int(floor((a - whole) * 100.0 + 0.0001))
-	return ("-" if v < 0.0 else "") + "$" + group(int(whole)) + ".%02d" % pence
+	return ("-" if v < 0.0 else "") + CUR + group(int(whole)) + ".%02d" % pence
 
 
 static func money_short(v: float) -> String:
+	## Three figures, no trailing zeros: £32K, £1.2M, £12.27M, £383K.
 	var a := absf(v)
 	var sign := "-" if v < 0.0 else ""
 	if a < 999.5:
-		return sign + ("$%d" % int(round(a)) if a >= 100.0 else "$%.2f" % a)
-	# Three significant figures, no trailing zeros: $32K, $1.2M, $12.27M, $383K.
-	var units := BIG_UNITS
-	for u in units:
+		return sign + (CUR + "%d" % int(round(a)) if a >= 100.0 else CUR + "%.2f" % a)
+	return _short(v, 3)
+
+
+static func _short(v: float, figs: int) -> String:
+	var a := absf(v)
+	var sign := "-" if v < 0.0 else ""
+	if sci and a >= 1e6:
+		var e := int(floor(log(a) / log(10.0)))
+		var m := a / pow(10.0, e)
+		if m >= 9.995:
+			m /= 10.0
+			e += 1
+		return sign + CUR + ("%.2f" % m).rstrip("0").rstrip(".") + "e%d" % e
+	for u in BIG_UNITS:
 		if a >= float(u[0]) * 0.9995:
 			var x: float = a / float(u[0])
-			var t := "%.0f" % x if x >= 100.0 else ("%.1f" % x if x >= 10.0 else "%.2f" % x)
+			var dec := figs - (3 if x >= 100.0 else (2 if x >= 10.0 else 1))
+			var t := ("%." + str(maxi(0, dec)) + "f") % x
 			if t.contains("."):
 				t = t.rstrip("0").rstrip(".")
-			return sign + "$" + t + String(u[1])
-	return sign + "$%.2f" % a
+			return sign + CUR + t + String(u[1])
+	return sign + CUR + "%.2f" % a
 
 
 static func clock(seconds: float) -> String:

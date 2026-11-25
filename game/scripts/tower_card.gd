@@ -223,6 +223,7 @@ func _on_button(pos: Vector2) -> bool:
 
 
 func _do_tap(pos: Vector2) -> void:
+	Kit.sound("tap")
 	var v := Game.tap()
 	_combo_tick(pos)
 	if _rows > 0:

@@ -11,6 +11,7 @@ const MAP := {
 	"storage": "hard-drives", "update": "arrows-clockwise", "vibrate": "vibrate", "trash": "trash",
 	"close": "x", "coins": "coins", "clock": "clock", "sparkle": "sparkle", "pie": "chart-pie-slice",
 	"news": "newspaper", "gauge": "gauge", "unlock": "lock-simple-open", "copy": "copy", "download": "download-simple", "home": "house", "goal": "flag-checkered",
+	"sound": "speaker-high", "hash": "hash", "stats": "chart-bar", "cpu": "cpu", "info": "info", "star": "star", "fire": "fire",
 }
 static var _cache := {}
 

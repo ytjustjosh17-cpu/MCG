@@ -154,11 +154,11 @@ func _line(c: VBoxContainer, label: String) -> Label:
 
 static func price_text(p: float) -> String:
 	if p <= 0.0:
-		return "$0.00"
+		return Game.CUR + "0.00"
 	if p < 0.01:
-		return "$%.5f" % p
+		return Game.CUR + "%.5f" % p
 	if p < 1.0:
-		return "$%.3f" % p
+		return Game.CUR + "%.3f" % p
 	return Game.money(p)
 
 
