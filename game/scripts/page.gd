@@ -39,20 +39,10 @@ func _ready() -> void:
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 12)
 	margin.add_child(body)
-	if has_back:
-		var back := UI.pill("", UI.PANEL, UI.TEXT, 17, 22)
-		back.custom_minimum_size = Vector2(44, 44)
-		back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		var chev := Icon.new("back", UI.TEXT, 20.0)
-		chev.position = Vector2(12, 12)
-		back.add_child(chev)
-		back.pressed.connect(func(): pop_page.emit())
-		Kit.press_fx(back)
-		body.add_child(back)
-	else:
-		var gap := Control.new()
-		gap.custom_minimum_size = Vector2(0, 44)
-		body.add_child(gap)
+	# Back lives in the bottom bar now (main.gd), so every page starts with the same gap.
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 28 if has_back else 44)
+	body.add_child(gap)
 	if title != "":
 		_title_label = UI.display(title, 40)
 		_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

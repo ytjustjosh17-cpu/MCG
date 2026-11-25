@@ -51,7 +51,8 @@ Rules:
 - Cards: `PANEL`, radius 16, 12 px between cards. Rows 56 to 72 px tall, dividers inset to the text.
 - Buttons and controls are at least 44 px tall (primary and secondary 48, segmented 44, chips 40 with padding).
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
-- Every pushed page has a back button at the top left (rule R10).
+- Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
+- Every pressable thing is at least 44 x 44 px. The touch test measures them on every tab.
 
 ## Components (use these, don't rebuild them)
 
