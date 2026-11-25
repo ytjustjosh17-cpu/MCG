@@ -33,7 +33,8 @@ func _ready() -> void:
 	Game.achievement.connect(func(title: String, reward: float):
 		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
 	Game.expansion_done.connect(func(id: String, stage: int):
-		Kit.toast("%s reached stage %d" % [Game.biz[id]["name"], stage], true))
+		Kit.haptic("success")
+		Kit.toast("%s · stage %d" % [Game.biz[id]["name"], stage], true))
 
 	_nav = NavBar.new()
 	_nav.anchor_left = 0.0
@@ -63,9 +64,11 @@ func push(p: Control) -> void:
 	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
 	_stack.append(p)
 	p.position.x = w
+	if p.has_method("entered"):
+		p.entered.call_deferred()
 	var t := p.create_tween().set_parallel(true)
-	t.tween_property(p, "position:x", 0.0, 0.36).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "position:x", -w * 0.25, 0.36).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(p, "position:x", 0.0, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "position:x", -w * 0.25, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	t.tween_property(under, "modulate:a", 0.4, 0.36)
 	t.chain().tween_callback(func():
 		if is_instance_valid(under):
@@ -120,8 +123,8 @@ func show_page(i: int) -> void:
 	new.modulate.a = 0.0
 	new.position.x = 18.0 * dir
 	var tn := new.create_tween().set_parallel(true)
-	tn.tween_property(new, "modulate:a", 1.0, 0.22).set_delay(0.06)
-	tn.tween_property(new, "position:x", 0.0, 0.28).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(0.06)
+	tn.tween_property(new, "modulate:a", 1.0, Motion.d(0.22)).set_delay(0.06)
+	tn.tween_property(new, "position:x", 0.0, Motion.d(Motion.STANDARD)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(0.06)
 
 
 func _notification(what: int) -> void:

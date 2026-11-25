@@ -162,7 +162,8 @@ func refresh() -> void:
 
 func _on_buy() -> void:
 	if Game.buy_unit(id):
-		Kit.tick(10)
+		Kit.haptic("light")
+		Motion.pop(_units_value, 1.15)
 		Game.flush_changes()
 
 
@@ -178,6 +179,6 @@ func _on_buy_max() -> void:
 
 func _on_expand() -> void:
 	if Game.start_expansion(id):
-		Kit.tick(30)
-		Kit.toast("Expansion started", true)
+		Kit.haptic("success")
+		Motion.pop(_exp_title, 1.06)
 		Game.flush_changes()

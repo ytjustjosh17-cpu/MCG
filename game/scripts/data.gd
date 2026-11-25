@@ -5,7 +5,7 @@ extends RefCounted
 
 const MAX_STAGE := 10
 const UNITS_PER_STAGE := 5
-const UNIT_PRICE_GROWTH := 1.11
+const UNIT_PRICE_GROWTH := 1.13
 const OFFLINE_CAP_H := 8.0
 const MAX_LEVEL := 25
 const SELL_TAX := 0.12
@@ -18,37 +18,37 @@ const ITEM_RESALE := 0.8
 # exp_min: first expansion time in minutes (x2 per stage, capped).
 const BUSINESSES := [
 	{"id": "shop", "name": "Shop", "kind": "shop", "cost": 1999.0, "unit": "outlet", "units": "outlets",
-		"unit_cost": 900.0, "unit_income": 55.0, "stage_mult": 1.6, "exp_cost": 8000.0, "exp_growth": 3.0, "exp_min": 2.0,
+		"unit_cost": 900.0, "unit_income": 55.0, "stage_mult": 1.45, "exp_cost": 8000.0, "exp_growth": 3.3, "exp_min": 2.0,
 		"names": ["Kettle & Co.", "Corner Larder", "Ellis Goods", "Northgate Store"]},
 	{"id": "taxi", "name": "Taxi company", "kind": "taxi", "cost": 9999.0, "unit": "car", "units": "cars",
-		"unit_cost": 3200.0, "unit_income": 180.0, "stage_mult": 1.6, "exp_cost": 25000.0, "exp_growth": 3.0, "exp_min": 3.0,
+		"unit_cost": 3200.0, "unit_income": 180.0, "stage_mult": 1.45, "exp_cost": 25000.0, "exp_growth": 3.3, "exp_min": 3.0,
 		"names": ["Halden Taxis", "Ringway Cabs", "Lamplight Cars", "Quay Street Taxis"]},
 	{"id": "shipping", "name": "Shipping company", "kind": "ship", "cost": 19899.0, "unit": "lorry", "units": "lorries",
-		"unit_cost": 7000.0, "unit_income": 360.0, "stage_mult": 1.6, "exp_cost": 60000.0, "exp_growth": 3.0, "exp_min": 5.0,
+		"unit_cost": 7000.0, "unit_income": 360.0, "stage_mult": 1.45, "exp_cost": 60000.0, "exp_growth": 3.3, "exp_min": 5.0,
 		"names": ["Port Ellis Freight", "Saltmarsh Haulage", "Brakewater Lines"]},
 	{"id": "factory", "name": "Factory", "kind": "factory", "cost": 24999.0, "unit": "line", "units": "lines",
-		"unit_cost": 9000.0, "unit_income": 430.0, "stage_mult": 1.6, "exp_cost": 80000.0, "exp_growth": 3.0, "exp_min": 6.0,
+		"unit_cost": 9000.0, "unit_income": 430.0, "stage_mult": 1.45, "exp_cost": 80000.0, "exp_growth": 3.3, "exp_min": 6.0,
 		"names": ["Ironmere Works", "Coldharbour Mills", "Redstack Foundry"]},
 	{"id": "construction", "name": "Construction", "kind": "crane", "cost": 35400.0, "unit": "crew", "units": "crews",
-		"unit_cost": 13000.0, "unit_income": 600.0, "stage_mult": 1.6, "exp_cost": 120000.0, "exp_growth": 3.0, "exp_min": 8.0,
+		"unit_cost": 13000.0, "unit_income": 600.0, "stage_mult": 1.45, "exp_cost": 120000.0, "exp_growth": 3.3, "exp_min": 8.0,
 		"names": ["Granite & Vale", "Hollow Oak Build", "Steelyard Construction"]},
 	{"id": "dealer", "name": "Car dealer", "kind": "dealer", "cost": 40000.0, "unit": "showroom", "units": "showrooms",
-		"unit_cost": 15000.0, "unit_income": 680.0, "stage_mult": 1.6, "exp_cost": 140000.0, "exp_growth": 3.0, "exp_min": 10.0,
+		"unit_cost": 15000.0, "unit_income": 680.0, "stage_mult": 1.45, "exp_cost": 140000.0, "exp_growth": 3.3, "exp_min": 10.0,
 		"names": ["Marlow Motors", "Brisk Autos", "Velle Showrooms"]},
 	{"id": "it", "name": "IT company", "kind": "screen", "cost": 350000.0, "unit": "team", "units": "teams",
-		"unit_cost": 120000.0, "unit_income": 4800.0, "stage_mult": 1.6, "exp_cost": 1.2e6, "exp_growth": 3.0, "exp_min": 15.0,
+		"unit_cost": 120000.0, "unit_income": 4800.0, "stage_mult": 1.45, "exp_cost": 1.2e6, "exp_growth": 3.3, "exp_min": 15.0,
 		"names": ["Lumen Systems", "Quillsoft", "Northlight Code"]},
 	{"id": "bank", "name": "Bank", "kind": "bank", "cost": 1.0e7, "unit": "branch", "units": "branches",
-		"unit_cost": 3.5e6, "unit_income": 120000.0, "stage_mult": 1.6, "exp_cost": 3.5e7, "exp_growth": 2.8, "exp_min": 25.0,
+		"unit_cost": 3.5e6, "unit_income": 120000.0, "stage_mult": 1.45, "exp_cost": 3.5e7, "exp_growth": 3.0, "exp_min": 25.0,
 		"names": ["Ostrava Bank", "Hearth & Crown Bank", "Meridian Savings"]},
 	{"id": "sports", "name": "Sports club", "kind": "stadium", "cost": 4.0e7, "unit": "player", "units": "players",
-		"unit_cost": 1.4e7, "unit_income": 440000.0, "stage_mult": 1.6, "exp_cost": 1.4e8, "exp_growth": 2.7, "exp_min": 35.0,
+		"unit_cost": 1.4e7, "unit_income": 440000.0, "stage_mult": 1.45, "exp_cost": 1.4e8, "exp_growth": 2.9, "exp_min": 35.0,
 		"names": ["Port Ellis Athletic", "Redmoor Rovers", "Halcyon United"]},
 	{"id": "oil", "name": "Oil and gas", "kind": "rig", "cost": 1.5e9, "unit": "rig", "units": "rigs",
-		"unit_cost": 5.0e8, "unit_income": 1.4e7, "stage_mult": 1.6, "exp_cost": 5.0e9, "exp_growth": 2.6, "exp_min": 50.0,
+		"unit_cost": 5.0e8, "unit_income": 1.4e7, "stage_mult": 1.45, "exp_cost": 5.0e9, "exp_growth": 2.8, "exp_min": 50.0,
 		"names": ["Norvale Energy", "Deepwell Petroleum", "Black Tern Oil"]},
 	{"id": "airline", "name": "Airline", "kind": "plane", "cost": 1.3e10, "unit": "plane", "units": "planes",
-		"unit_cost": 4.5e9, "unit_income": 1.1e8, "stage_mult": 1.6, "exp_cost": 4.5e10, "exp_growth": 2.4, "exp_min": 70.0,
+		"unit_cost": 4.5e9, "unit_income": 1.1e8, "stage_mult": 1.45, "exp_cost": 4.5e10, "exp_growth": 2.6, "exp_min": 70.0,
 		"names": ["Red Sun Air", "Kestrel Airways", "Highline Air"]},
 ]
 
@@ -121,17 +121,17 @@ const COLLECTIONS := [
 # needs: list of [type, a, b]: ["biz", id, min_stage] | ["props", count] |
 # ["shares", value] | ["crypto", value] | ["collection", id] | ["mergers", count]
 const MERGERS := [
-	{"id": "retail", "name": "Retail Group", "cost": 2.0e6, "boost": ["shop", "dealer", "factory"], "mult": 1.5,
+	{"id": "retail", "name": "Retail Group", "cost": 6.0e+06, "boost": ["shop", "dealer", "factory"], "mult": 1.5,
 		"needs": [["biz", "shop", 5], ["biz", "dealer", 3], ["biz", "factory", 3]]},
-	{"id": "transit", "name": "Transit Group", "cost": 2.5e7, "boost": ["taxi", "shipping"], "mult": 1.5,
+	{"id": "transit", "name": "Transit Group", "cost": 7.5e+07, "boost": ["taxi", "shipping"], "mult": 1.5,
 		"needs": [["biz", "taxi", 5], ["biz", "shipping", 5], ["props", 5]]},
-	{"id": "build", "name": "Build Corp", "cost": 2.5e8, "boost": ["construction", "factory"], "mult": 1.5,
+	{"id": "build", "name": "Build Corp", "cost": 7.5e+08, "boost": ["construction", "factory"], "mult": 1.5,
 		"needs": [["biz", "construction", 6], ["biz", "factory", 6], ["props", 8]]},
-	{"id": "tech", "name": "Coin Exchange", "cost": 1.5e9, "boost": ["it", "bank"], "mult": 1.5,
+	{"id": "tech", "name": "Coin Exchange", "cost": 4.5e+09, "boost": ["it", "bank"], "mult": 1.5,
 		"needs": [["biz", "it", 5], ["crypto", 5.0e7], ["shares", 1.0e8]]},
-	{"id": "skysea", "name": "Sky & Sea", "cost": 5.0e10, "boost": ["airline", "shipping", "oil"], "mult": 1.5,
+	{"id": "skysea", "name": "Sky & Sea", "cost": 1.5e+11, "boost": ["airline", "shipping", "oil"], "mult": 1.5,
 		"needs": [["biz", "airline", 3], ["biz", "shipping", 8], ["collection", "yachts"]]},
-	{"id": "holding", "name": "Sol Holdings", "cost": 2.5e11, "boost": [], "mult": 2.0,
+	{"id": "holding", "name": "Sol Holdings", "cost": 7.5e+11, "boost": [], "mult": 2.0,
 		"needs": [["biz", "bank", 8], ["biz", "oil", 5], ["shares", 1.0e10], ["mergers", 5]]},
 ]
 
@@ -142,12 +142,12 @@ static func tap_base(level: int) -> float:
 
 static func level_cost(level: int) -> float:
 	## Price to go from `level` to `level + 1`.
-	return 1000.0 * pow(3.1, level - 1)
+	return 1000.0 * pow(3.4, level - 1)
 
 
 static func expansion_minutes(b: Dictionary, stage: int) -> float:
 	## Real time for expanding from `stage` to `stage + 1`.
-	return minf(float(b["exp_min"]) * pow(2.0, stage - 1), 24.0 * 60.0)
+	return minf(float(b["exp_min"]) * 2.0 * pow(2.0, stage - 1), 48.0 * 60.0)
 
 
 static func expansion_cost(b: Dictionary, stage: int) -> float:

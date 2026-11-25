@@ -46,6 +46,7 @@ var counters := {}     # name -> number
 var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]}
 var history: Array = []
 var vibrate := true
+var reduce_motion := false
 var started_at := 0.0
 var away_earned := 0.0
 
@@ -898,7 +899,7 @@ func to_dict() -> Dictionary:
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved,
 		"counters": counters, "daily": daily, "history": history,
-		"vibrate": vibrate, "started_at": started_at,
+		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
 
 
@@ -1008,6 +1009,7 @@ func load_game() -> void:
 	daily = d.get("daily", {})
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))
+	reduce_motion = bool(d.get("reduce_motion", false))
 	started_at = float(d.get("started_at", now()))
 	_init_market()
 	recalc()
