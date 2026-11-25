@@ -105,6 +105,10 @@ func _spend() -> void:
 		for m in Data.MERGERS:
 			if not g.mergers.has(m["id"]) and g.merger_ready(m) and g.cash >= m["cost"]:
 				g.merge(m["id"]); bought = true
+		# Synergies when they pay back within about a day.
+		for sy in Data.SYNERGIES:
+			if g.synergy_ready(sy[0]) and g.cash >= float(sy[6]) and g.biz_income(sy[4]) * (float(sy[5]) - 1.0) * 24.0 >= float(sy[6]):
+				g.buy_synergy(sy[0]); bought = true
 		# Open the next business.
 		for b in Data.BUSINESSES:
 			if not g.owns(b["id"]) and g.cash >= b["cost"]:
