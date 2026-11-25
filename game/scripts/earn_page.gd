@@ -18,6 +18,7 @@ var _per_tap: Label
 var _level_btn: IconButton
 var _boost_btn: IconButton
 var _goal: GoalCard
+var _hint: Label
 
 
 func _ready() -> void:
@@ -63,6 +64,10 @@ func _ready() -> void:
 	_per_tap = UI.label("", 15, UI.TEXT, true)
 	_per_tap.position = Vector2(18, 16)
 	_card.add_child(_per_tap)
+	# First-time hint, gone after a few taps.
+	_hint = UI.label("Tap the tower to earn", 15, UI.TEXT, true)
+	_hint.position = Vector2(18, 42)
+	_card.add_child(_hint)
 	_level_btn = IconButton.new("level", 64.0)
 	_level_btn.custom_minimum_size = Vector2(80, 86)
 	_level_btn.pressed.connect(_on_level_up)
@@ -119,6 +124,7 @@ func _refresh() -> void:
 	_goal.set_goal(Game.next_goal())
 	if had != _goal.visible:
 		_layout.call_deferred()
+	_hint.visible = Game.taps < 10
 	_per_tap.text = Game.money_short(Game.tap_value() * (Game.BOOST_MULT if Game.boost_active() else 1.0)) + " /tap"
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()

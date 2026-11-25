@@ -10,7 +10,7 @@ var index := 0
 
 func _init(labels: Array) -> void:
 	add_theme_stylebox_override("panel", UI.box(UI.PANEL, 10, 2, 2))
-	custom_minimum_size = Vector2(0, 40)
+	custom_minimum_size = Vector2(0, 44)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 2)
 	add_child(h)

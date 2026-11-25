@@ -38,7 +38,7 @@ func _run() -> void:
 	_check(game.money(19284.4) == "$19,284", "money grouped")
 	_check(game.money(62480190) == "$62,480,190", "money millions")
 	_check(game.money(1.25e9) == "$1.25B", "money billions")
-	_check(game.money(3.4e12) == "$3.40T", "money trillions")
+	_check(game.money(3.4e12) == "$3.4T" and game.money_short(32000.0) == "$32K" and game.money_short(1.2e6) == "$1.2M" and game.money_short(382800.0) == "$383K", "money short drops trailing zeros")
 	_check(game.money_short(4658503.47) == "$4.66M", "money short")
 	_check(game.clock(119) == "1:59", "clock")
 

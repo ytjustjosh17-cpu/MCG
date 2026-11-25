@@ -47,6 +47,14 @@ func build() -> void:
 func refresh() -> void:
 	if _cash == null:
 		return
+	# Affordable first, then the rest by price, owned ones last.
+	var order: Array = Data.BUSINESSES.duplicate()
+	order.sort_custom(func(a, b):
+		var ka := _rank(a)
+		var kb := _rank(b)
+		return ka < kb if ka != kb else float(a["cost"]) < float(b["cost"]))
+	for i in range(order.size()):
+		_grid.move_child(_tiles[order[i]["id"]][0], i)
 	_cash.text = "Cash " + Game.money(Game.cash)
 	for b in Data.BUSINESSES:
 		var id: String = b["id"]
@@ -97,3 +105,9 @@ func _open(id: String, nm: String) -> void:
 		pop_page.emit()
 	else:
 		Kit.toast("Not enough cash")
+
+
+func _rank(b: Dictionary) -> int:
+	if Game.owns(b["id"]):
+		return 2
+	return 0 if Game.cash >= float(b["cost"]) else 1

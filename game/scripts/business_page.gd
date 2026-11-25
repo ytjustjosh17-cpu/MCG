@@ -8,6 +8,8 @@ var _count: Label
 var _list: VBoxContainer
 var _cards := {}
 var _empty: Control
+var _income_note: Label
+var _boost_card: Control
 
 
 func _init() -> void:
@@ -20,7 +22,10 @@ func build() -> void:
 	_income.add_theme_font_override("font", UI.DISPLAY)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	body.add_child(_income)
+	_income_note = UI.label("From your companies", 13, UI.SUB)
+	body.add_child(_income_note)
 	var c := card()
+	_boost_card = c.get_parent()
 	_boost = Row.new("bolt", "", false)
 	(_boost.lead as Icon).set_style(UI.RED)
 	_boost.pressed.connect(_on_boost)
@@ -34,28 +39,35 @@ func build() -> void:
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 12)
 	body.add_child(_list)
-	_empty = UI.panel(UI.PANEL, 16)
-	_empty.custom_minimum_size = Vector2(0, 96)
-	var el := UI.label("Open a company to earn every hour.", 15, UI.SUB)
-	el.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	el.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	el.offset_left = 16
-	el.offset_right = -16
-	el.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_empty.add_child(el)
-	_list.add_child(_empty)
+	# Empty state: one clear way forward.
+	var first: Dictionary = Data.BUSINESSES[0]
+	var er := Row.new("business")
+	er.custom_minimum_size = Vector2(0, 72)
+	er.set_texts("Open your first company", "It earns every hour, even while you're away", Game.money_short(float(first["cost"])))
+	er.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(StartBusinessPage.new()))
+	var ec := card(_list)
+	ec.add_child(er)
+	_empty = ec.get_parent()
 
 
 func refresh() -> void:
 	if _income == null:
 		return
 	_income.set_value(Game.business_per_hour())
+	var has := Game.companies() > 0
+	_boost_card.visible = has
+	_income.visible = has
+	_income_note.visible = has
+	_boost.value_l.add_theme_color_override("font_color", UI.TEXT)
 	if Game.ibost_active():
-		_boost.set_texts("×2 income", "", Game.clock(Game.ibost_left()))
+		_boost.set_texts("×2 income on", "", Game.clock(Game.ibost_left()))
 	elif Game.ibost_ready():
-		_boost.set_texts("×2 income · 4 h", "", "Start" if Game.companies() > 0 else "")
+		_boost.set_texts("×2 income for 4 h", "Free, then rests for a while", "Start")
+		_boost.value_l.add_theme_color_override("font_color", UI.RED)
 	else:
-		_boost.set_texts("×2 income", "", Game.clock(Game.ibost_cooldown_left()))
+		_boost.set_texts("×2 income", "Ready again in", Game.clock(Game.ibost_cooldown_left()))
 	_count.text = "%d of %d" % [Game.companies(), Data.BUSINESSES.size()]
 	_empty.visible = Game.companies() == 0
 	for b in Data.BUSINESSES:

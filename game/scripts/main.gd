@@ -40,7 +40,8 @@ func _ready() -> void:
 		Kit.celebrate("Daily goal done" if scope == "daily" else "Weekly goal done", text, "+" + Game.money_short(reward)))
 	Game.rival_beaten.connect(func(i: int):
 		var r: Array = Data.RIVALS[i]
-		Kit.celebrate("Rival beaten", "You passed %s" % r[0], "#%d" % (Data.RIVALS.size() - i)))
+		Kit.haptic("success")
+		Kit.toast("You passed %s · now #%d" % [r[0], Data.RIVALS.size() - i], true))
 	Game.deal_ready.connect(func(_d): _show_deal())
 	var dt := Timer.new()
 	dt.wait_time = 1.0
@@ -65,6 +66,24 @@ func _ready() -> void:
 	_nav.anchor_right = 1.0
 	_nav.anchor_top = 1.0
 	_nav.anchor_bottom = 1.0
+	# Soft fade so list rows melt away behind the floating tab bar.
+	var fade := TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(UI.BG, 0.0))
+	grad.set_color(1, Color(UI.BG, 0.92))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	gt.width = 4
+	gt.height = 64
+	fade.texture = gt
+	fade.stretch_mode = TextureRect.STRETCH_SCALE
+	fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	fade.offset_top = -120
+	add_child(fade)
 	add_child(_nav)
 	_nav.tab_selected.connect(show_page)
 

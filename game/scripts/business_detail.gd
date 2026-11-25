@@ -144,14 +144,14 @@ func refresh() -> void:
 	var cut := int(Data.MANAGER_CUT * 100.0)
 	if Game.has_manager(id):
 		_mgr_title.text = "Manager hired"
-		_mgr_body.text = "Expands when full · takes %d%%" % cut
+		_mgr_body.text = "Expands when full · keeps %d%%" % cut
 		_mgr_btn.visible = false
 	else:
 		_mgr_title.text = "Manager"
-		_mgr_body.text = "Expands for you when full, even while you're away. Takes %d%% of income." % cut
+		_mgr_body.text = "Expands when full, even while you're away · keeps %d%%" % cut
 		_mgr_btn.visible = true
 		_mgr_btn.text = "Hire · " + Game.money_short(Game.manager_cost(id))
-		Page.set_enabled(_mgr_btn, Game.cash >= Game.manager_cost(id), false)
+		Page.set_enabled(_mgr_btn, Game.cash >= Game.manager_cost(id), true)
 	if units >= cap:
 		_unit_note.text = "Full"
 		_buy.text = "Full"
