@@ -41,11 +41,11 @@ func _ready() -> void:
 	Game.achievement.connect(func(title: String, reward: float):
 		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
 	Game.goal_done.connect(func(scope: String, text: String, reward: float):
-		Kit.celebrate("Daily goal done" if scope == "daily" else "Weekly goal done", text, "+" + Game.money_short(reward)))
+		Kit.celebrate("Goal done" if scope == "daily" else "Week goal done", text, "+" + Game.money_short(reward)))
 	Game.rival_beaten.connect(func(i: int):
 		var r: Array = Data.RIVALS[i]
 		Kit.haptic("success")
-		Kit.toast("You passed %s · now #%d" % [r[0], Data.RIVALS.size() - i], true))
+		Kit.toast("Passed %s · now #%d" % [r[0], Data.RIVALS.size() - i], true))
 	Game.deal_ready.connect(func(_d): _show_deal())
 	var dt := Timer.new()
 	dt.wait_time = 1.0
@@ -156,14 +156,18 @@ func pop() -> void:
 
 
 func _kill_tab_tween(page: Control) -> void:
-	var t = page.get_meta("tab_tw", null)
+	if not page.has_meta("tab_tw"):
+		return
+	var t = page.get_meta("tab_tw")
 	if t is Tween and t.is_valid():
 		t.kill()
 
 
 func _stop_push(p: Control) -> void:
 	## Stops a page's slide-in if it is still running (fast back taps).
-	var t = p.get_meta("push_tw", null)
+	if not p.has_meta("push_tw"):
+		return
+	var t = p.get_meta("push_tw")
 	if t is Tween and t.is_valid():
 		t.kill()
 
@@ -250,13 +254,18 @@ func _on_back() -> void:
 		get_tree().quit()
 		return
 	_back_armed = true
-	Kit.toast("Swipe back again to close")
+	Kit.toast("Swipe again to exit")
 	get_tree().create_timer(2.2).timeout.connect(func(): _back_armed = false)
+
+
+var _toasted_version := ""
 
 
 func _on_update(version: String) -> void:
 	_nav.set_badge(4, true)
-	Kit.toast("Update ready · Profile", true)
+	if version != _toasted_version:
+		_toasted_version = version
+		Kit.toast("New version · see Profile", true)
 
 
 func _apply_safe_area() -> void:
@@ -295,15 +304,22 @@ func _show_deal() -> void:
 	## Also shows the welcome-back card after time away.
 	if Game.away_unseen and not Kit.has_open():
 		Game.away_unseen = false
-		var lines: Array = ["Away %s" % Game.clock(Game.away_seconds)] + Game.away_notes
+		var lines: Array = ["Away for %s" % Game.clock(Game.away_seconds), "Earned %s" % Game.money_short(Game.away_earned)] + Game.away_notes
 		Kit.sheet("Welcome back", "\n".join(lines), [
-			{"text": "Collect " + Game.money_short(Game.away_earned), "style": "primary"},
+			{"text": "Continue", "style": "primary"},
 		])
 		return
-	if not Game.streak_unseen.is_empty() and not Kit.has_open() and not Kit._cele_open:
+	# The daily gift waits until a new player has tapped a little, so it never
+	# covers the first "Tap the tower" hint.
+	if not Game.streak_unseen.is_empty() and not Kit.has_open() and not Kit._cele_open and Game.taps >= 10:
 		var st: Array = Game.streak_unseen
 		Game.streak_unseen = []
-		Kit.celebrate("Daily gift" if st[0] <= 1 else "Day %d in a row" % st[0], "Come back tomorrow for a bigger gift" if st[0] < 7 else "Top streak gift", "+" + Game.money_short(st[1]))
+		var title := "Daily gift" if st[0] <= 1 else "Day %d streak" % st[0]
+		var line := "Bigger tomorrow" if st[0] < 7 else "Top gift"
+		if Game.streak_lost >= 2:
+			line = "Your %d day streak ended" % Game.streak_lost
+			Game.streak_lost = 0
+		Kit.celebrate(title, line, "+" + Game.money_short(st[1]))
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return

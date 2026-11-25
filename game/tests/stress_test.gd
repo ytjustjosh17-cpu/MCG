@@ -54,7 +54,7 @@ func _run() -> void:
 	_ok(g.money_short(1e18) != "" and g.money_short(1e30) != "", "huge numbers format (%s)" % g.money_short(1e30))
 	g.save_game()
 	g.load_game()
-	_ok(_sane() and g.news.size() <= 30, "save and load after stress")
+	_ok(_sane() and g.news.size() <= g.NEWS_MAX, "save and load after stress")
 	g.sim_time = -1.0
 	g.reset_game()
 	print("Failures: ", fails)

@@ -9,13 +9,14 @@ signal goal_done(scope: String, text: String, reward: float)
 signal deal_ready(deal: Dictionary)
 signal rival_beaten(index: int)
 signal streak_gift(days: int, amount: float)
+signal golden_sun
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -29,7 +30,7 @@ const MARKET_TICK_S := 60.0
 const MARKET_HIST := 120   # 1-minute points (2 hours)
 const HIST_Q := 96         # 15-minute points (1 day)
 const HIST_H := 168        # hourly points (1 week)
-const NEWS_MAX := 30
+const NEWS_MAX := 120  # about 2 days of headlines
 
 # ---- saved state ---------------------------------------------------------
 var cash := 0.0
@@ -49,6 +50,7 @@ var price_hist := {}   # sym -> Array of 1-minute prices
 var hist_q := {}       # sym -> Array of 15-minute prices
 var hist_h := {}       # sym -> Array of hourly prices
 var moods := {}        # sym or sector -> news effect on fair price
+var coin_shift := {}   # coin -> lasting news effect on its long-run price (log)
 var trends := {}       # coin -> current trend per minute
 var fair_log := {}     # coin -> log of fair price
 var news: Array = []   # newest last: {t, text, sym, pct}
@@ -71,11 +73,18 @@ var away_earned := 0.0
 var away_seconds := 0.0
 var away_unseen := false  # show the welcome-back card once
 var last_tap_at := 0.0
+var tap_cap := true  # tests switch this off to tap in bulk
+var _tap_tokens := 7.0
+var _tap_ms := 0
 var away_notes: Array = []
 var ui := {}          # remembered screen choices (tabs, chart range)
 var streak := 0       # days in a row the game was opened
 var streak_day := -1
 var streak_unseen: Array = []  # [days, gift] to show once
+var streak_lost := 0  # length of a streak that just ended (for the message)
+var sun_wait := 900.0   # seconds of play until the next golden sun
+var sun_day := -1
+var sun_count := 0
 
 # ---- runtime -------------------------------------------------------------
 var sim_time := -1.0   # set by the pacing simulator
@@ -190,6 +199,14 @@ func start_ibost() -> bool:
 
 
 func tap() -> float:
+	## At most 7 paid taps a second (faster than any thumb); extra taps still
+	## light the tower but earn nothing.
+	var t := Time.get_ticks_msec()
+	_tap_tokens = minf(7.0, _tap_tokens + float(t - _tap_ms) / 1000.0 * 7.0)
+	_tap_ms = t
+	if _tap_tokens < 1.0 and sim_time < 0.0 and tap_cap:
+		return 0.0
+	_tap_tokens -= 1.0
 	var v := tap_value() * (BOOST_MULT if boost_active() else 1.0)
 	taps += 1
 	last_tap_at = now()
@@ -304,7 +321,7 @@ func roll_deal() -> Dictionary:
 		kinds.append("supplier")
 	match kinds[randi() % kinds.size()]:
 		"buyer":
-			var price := unit_price(id) / Data.UNIT_PRICE_GROWTH * 1.15  # a bit over what the last outlet cost
+			var price := unit_price(id) / Data.UNIT_PRICE_GROWTH * 0.95  # a bit under what rebuying costs
 			return {"kind": "buyer", "id": id, "value": price,
 				"title": "A buyer for one outlet", "text": "%s · they pay %s" % [name, money_short(price)],
 				"yes": "Sell for " + money_short(price)}
@@ -346,6 +363,39 @@ func accept_deal() -> bool:
 		_task_progress("deal", 1)
 		recalc()
 	return ok
+
+
+# ==== golden sun ============================================================
+
+func tick_sun(dt: float) -> void:
+	## Counts play time only. Signals the screen to float a sun across.
+	if biz.is_empty():
+		return
+	if sun_day != _today():
+		sun_day = _today()
+		sun_count = 0
+	if sun_count >= Data.SUN_PER_DAY:
+		return
+	sun_wait -= dt
+	if sun_wait <= 0.0:
+		sun_wait = randf_range(Data.SUN_EVERY_MIN[0], Data.SUN_EVERY_MIN[1]) * 60.0
+		sun_count += 1
+		golden_sun.emit()
+
+
+func catch_sun() -> float:
+	## The player tapped the sun: a small, random prize in minutes of income.
+	var r := randf()
+	var mins := 10.0
+	for p in Data.SUN_PRIZES:
+		if r < float(p[0]):
+			mins = float(p[1])
+			break
+		r -= float(p[0])
+	var v := maxf(100.0, income_per_hour * mins / 60.0)
+	_pay(v)
+	_bump("suns")
+	return v
 
 
 func decline_deal() -> void:
@@ -518,7 +568,9 @@ func stake(sym: String, fraction: float) -> bool:
 		return false
 	coins[sym]["qty"] = free - q
 	coins[sym]["staked"] = staked(sym) + q
-	coins[sym]["stake_until"] = now() + Data.STAKE_LOCK_H * 3600.0
+	# Adding to a stake keeps the time already counting down.
+	if staked(sym) - q <= 0.0 or stake_left(sym) <= 0.0:
+		coins[sym]["stake_until"] = now() + Data.STAKE_LOCK_H * 3600.0
 	GameLog.info("invest", "Staked %s %s" % [str(snappedf(q, 0.0001)), sym])
 	recalc()
 	return true
@@ -538,9 +590,17 @@ func stake_earn_per_hour(sym: String) -> float:
 	var p := price(sym)
 	if p <= 0.0:
 		return 0.0
-	var per_h := staked(sym) * stake_rate(sym)
-	per_h = minf(per_h, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / p)
-	return per_h * p
+	return staked(sym) * stake_rate(sym) * p * _stake_scale()
+
+
+func _stake_scale() -> float:
+	## Staking pays at most STAKE_CAP of hourly income across ALL coins together.
+	var raw := 0.0
+	for c in coins.keys():
+		raw += staked(c) * stake_rate(c) * price(c)
+	if raw <= 0.0:
+		return 1.0
+	return minf(1.0, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / raw)
 
 
 func staking_per_hour() -> float:
@@ -610,7 +670,8 @@ func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
 	book[sym]["qty"] = float(book[sym]["qty"]) + amount_cash / p
 	book[sym]["cost"] = float(book[sym]["cost"]) + amount_cash
 	cash -= amount_cash
-	_task_progress("invest", 1)
+	if amount_cash >= maxf(100.0, income_per_hour / 6.0):
+		_task_progress("invest", 1)  # pennies don't count
 	recalc()
 	return true
 
@@ -667,22 +728,30 @@ func _market_tick(minutes := 1) -> void:
 	var keep := pow(0.999976, m)
 	for k in moods.keys():
 		moods[k] = clampf(exp(log(maxf(float(moods[k]), 1e-6)) * keep), 0.2, 5.0)
-	var pull_s := 1.0 - pow(1.0 - 0.004, m)  # drifts back to fair over hours, not minutes
+	# Random moves go into the fair price itself (a random walk), and the
+	# price follows it closely. So a dip isn't a promise of a bounce, and
+	# buy-low/sell-high on the chart has no built-in edge.
+	var follow := 1.0 - pow(0.5, m)
 	for s in Data.STOCKS:
 		var sym: String = s[0]
-		var fair := float(s[2]) * exp(Data.STOCK_GROWTH * ticks) * float(moods.get(sym, 1.0)) * float(moods.get(s[4], 1.0))
 		var vol: float = Data.SECTOR_VOL.get(s[4], 0.006)
-		_step(sym, fair, pull_s, vol * 0.45 * sqrt(m))
-	var pull_c := 1.0 - pow(1.0 - 0.003, m)
+		moods[sym] = clampf(float(moods.get(sym, 1.0)) * exp(randfn(0.0, vol * 0.45 * sqrt(m))), 0.2, 5.0)
+		var fair := float(s[2]) * exp(Data.STOCK_GROWTH * ticks) * float(moods.get(sym, 1.0)) * float(moods.get(s[4], 1.0))
+		_step(sym, fair, follow, vol * 0.04 * sqrt(m))
 	for c in Data.COINS:
 		var sym: String = c[0]
 		# Coins wander in boom and bust phases that change every few hours.
 		if not trends.has(sym) or randf() < m / 180.0:
 			trends[sym] = randfn(0.0, 0.0002)
-		fair_log[sym] = float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m
-		fair_log[sym] = lerpf(float(fair_log[sym]), log(float(c[2])), 0.0004 * m)
+		var f_log := float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m + randfn(0.0, float(c[3]) * 0.3 * sqrt(m))
+		# Only a very slow pull home (weeks), and hard limits so a coin can't
+		# run off to nothing or to the moon.
+		var anchor := log(float(c[2])) + float(coin_shift.get(sym, 0.0))
+		f_log = lerpf(f_log, anchor, 0.00002 * m)
+		fair_log[sym] = clampf(f_log, anchor - 3.0, anchor + 3.0)
+		coin_shift[sym] = float(coin_shift.get(sym, 0.0)) * pow(0.99995, m)
 		var fair := exp(float(fair_log[sym]))
-		_step(sym, fair, pull_c, float(c[3]) * 0.3 * sqrt(m))
+		_step(sym, fair, follow, float(c[3]) * 0.03 * sqrt(m))
 	if randf() < m / Data.NEWS_EVERY_MIN:
 		_news_event()
 
@@ -772,6 +841,7 @@ func _news_event() -> void:
 		f = f if up else 1.0 / f
 		sym = c[0]
 		fair_log[sym] = float(fair_log.get(sym, log(float(c[2])))) + log(f)
+		coin_shift[sym] = float(coin_shift.get(sym, 0.0)) + log(f)  # news sticks, not a quick bounce
 		prices[sym] = price(sym) * f
 		var tmpl: Array = Data.NEWS_COIN_UP if up else Data.NEWS_COIN_DOWN
 		item = {"text": tmpl[randi() % tmpl.size()] % c[1], "sym": sym}
@@ -1065,6 +1135,8 @@ func tab_badges() -> Array:
 		if not biz.has(b["id"]) and cash >= float(b["cost"]):
 			business = true
 			break
+	if fill_all_cost() > 0.0 and cash >= fill_all_cost():
+		business = true
 	for m in Data.MERGERS:
 		if not mergers.has(m["id"]) and merger_ready(m) and cash >= float(m["cost"]):
 			business = true
@@ -1073,6 +1145,12 @@ func tab_badges() -> Array:
 		if staked(sym) > 0.0 and stake_left(sym) <= 0.0:
 			invest = true
 	var items := next_home_cost() > 0.0 and cash >= next_home_cost()
+	for c in Data.COLLECTIONS:
+		for i in range(c["items"].size()):
+			if not item_owned(c["id"], i):
+				if float(c["items"][i][1]) <= cash * 0.25:
+					items = true
+				break  # only the cheapest missing item in each set
 	return [earn, business, invest, items]
 
 
@@ -1255,7 +1333,7 @@ func _build_achievements() -> Array:
 	var a: Array = []
 	for t in [100, 1000, 10000, 50000]:
 		a.append({"id": "taps_%d" % t, "title": "%s taps" % group(t), "m": "taps", "goal": float(t)})
-	for e in range(4, 13):
+	for e in range(4, 16):  # up to $1Qa, so the late game still has goals
 		var g := pow(10.0, e)
 		a.append({"id": "worth_%d" % e, "title": "Worth %s" % money_short(g), "m": "worth", "goal": g})
 	for n in [1, 3, 6, 11]:
@@ -1264,7 +1342,7 @@ func _build_achievements() -> Array:
 		a.append({"id": "stages_%d" % n, "title": "%d expansions" % n, "m": "expansions", "goal": float(n)})
 	for n in [1, 5, 10, 20]:
 		a.append({"id": "props_%d" % n, "title": "%d propert%s" % [n, "y" if n == 1 else "ies"], "m": "props", "goal": float(n)})
-	for e in [4, 7, 10]:
+	for e in [4, 7, 10, 12]:
 		a.append({"id": "shares_%d" % e, "title": "Shares worth %s" % money_short(pow(10.0, e)), "m": "shares", "goal": pow(10.0, e)})
 	for e in [3, 6, 9]:
 		a.append({"id": "crypto_%d" % e, "title": "%s crypto profit" % money_short(pow(10.0, e)), "m": "crypto_profit", "goal": pow(10.0, e)})
@@ -1274,11 +1352,13 @@ func _build_achievements() -> Array:
 		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
+	for n in [1, 25, 100]:
+		a.append({"id": "suns_%d" % n, "title": "Catch %d golden sun%s" % [n, "" if n == 1 else "s"], "m": "suns", "goal": float(n)})
 	for n in [1, 10, 25]:
 		a.append({"id": "deals_%d" % n, "title": "%d deal%s" % [n, "" if n == 1 else "s"], "m": "deals", "goal": float(n)})
 	for n in [1, 5, 11]:
 		a.append({"id": "managers_%d" % n, "title": "%d manager%s" % [n, "" if n == 1 else "s"], "m": "managers", "goal": float(n)})
-	for n in [1, 5, 10]:
+	for n in [1, 5, 10, 13]:
 		a.append({"id": "rivals_%d" % n, "title": "Beat %d rival%s" % [n, "" if n == 1 else "s"], "m": "rivals", "goal": float(n)})
 	for n in [10, 50]:
 		a.append({"id": "goals_%d" % n, "title": "%d goals done" % n, "m": "goals", "goal": float(n)})
@@ -1317,6 +1397,7 @@ func metric(m: String) -> float:
 		"mergers": return float(mergers.size())
 		"home": return float(home)
 		"deals": return float(counters.get("deals", 0))
+		"suns": return float(counters.get("suns", 0))
 		"rivals": return float(rivals_beaten())
 		"goals": return float(counters.get("goals_done", 0))
 		"managers":
@@ -1344,16 +1425,26 @@ func _check_achievements() -> void:
 
 # ==== daily tasks =========================================================
 
+func _local_now() -> float:
+	## Days and weeks roll over at local midnight, not UTC.
+	return now() + float(_tz_bias_min) * 60.0
+
+
+var _tz_bias_min := int(Time.get_time_zone_from_system().get("bias", 0))
+
+
 func _today() -> int:
-	return int(now() / 86400.0)
+	return int(_local_now() / 86400.0)
 
 
 func _check_streak() -> void:
 	## Coming back on consecutive days builds a streak with a small gift.
 	var today := _today()
-	if streak_day == today:
-		return
+	if today <= streak_day:
+		return  # same day, or the clock went backwards
+	var old := streak
 	streak = streak + 1 if streak_day == today - 1 else 1
+	streak_lost = old if (streak == 1 and old >= 2) else 0
 	streak_day = today
 	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
 	_pay(gift)
@@ -1363,18 +1454,18 @@ func _check_streak() -> void:
 
 func _ensure_daily() -> void:
 	_check_streak()
-	if int(daily.get("day", -1)) == _today():
-		return
+	if not daily.is_empty() and _today() <= int(daily.get("day", -1)):
+		return  # same day, or the clock went backwards
 	var pool := [
-		{"id": "taps", "text": "Tap your tower %d times", "goal": 200},
-		{"id": "invest", "text": "Make %d investments", "goal": 3},
+		{"id": "taps", "text": "Tap %d times", "goal": 200},
+		{"id": "invest", "text": "Invest %d times", "goal": 3},
 	]
 	if _units_left() >= 5:
-		pool.append({"id": "units", "text": "Buy %d units for your companies", "goal": 5})
+		pool.append({"id": "units", "text": "Buy %d units", "goal": 5})
 	if _can_still_expand():
 		pool.append({"id": "expand", "text": "Finish %d expansion", "goal": 1})
 	if biz.is_empty():
-		pool = [{"id": "taps", "text": "Tap your tower %d times", "goal": 400}]
+		pool = [{"id": "taps", "text": "Tap %d times", "goal": 400}]
 	pool.shuffle()
 	var tasks: Array = []
 	for i in range(mini(3, pool.size())):
@@ -1429,20 +1520,20 @@ func _can_still_expand() -> bool:
 
 func _week() -> int:
 	## Weeks start on Monday (1 Jan 1970 was a Thursday).
-	return int(floor((now() / 86400.0 + 3.0) / 7.0))
+	return int(floor((_local_now() / 86400.0 + 3.0) / 7.0))
 
 
 func _ensure_weekly() -> void:
-	if int(weekly.get("week", -1)) == _week():
+	if not weekly.is_empty() and _week() <= int(weekly.get("week", -1)):
 		return
 	var earn_goal := maxf(50000.0, income_per_hour * 30.0)
 	var pool := [
-		{"id": "taps", "text": "Tap your tower %s times" % group(1200), "goal": 1200.0},
-		{"id": "invest", "text": "Make 10 investments", "goal": 10.0},
+		{"id": "taps", "text": "Tap %s times" % group(800), "goal": 800.0},
+		{"id": "invest", "text": "Invest 10 times", "goal": 10.0},
 		{"id": "earn", "text": "Earn %s" % money_short(earn_goal), "goal": earn_goal, "money": true},
 	]
 	if _units_left() >= 30:
-		pool.append({"id": "units", "text": "Buy 30 units for your companies", "goal": 30.0})
+		pool.append({"id": "units", "text": "Buy 30 units", "goal": 30.0})
 	if _can_still_expand():
 		pool.append({"id": "expand", "text": "Finish 3 expansions", "goal": 3.0})
 	pool.shuffle()
@@ -1463,7 +1554,7 @@ func weekly_reward() -> float:
 
 
 func week_left() -> float:
-	return float(_week() + 1) * 7.0 * 86400.0 - 3.0 * 86400.0 - now()
+	return float(_week() + 1) * 7.0 * 86400.0 - 3.0 * 86400.0 - _local_now()
 
 
 func goals_open() -> int:
@@ -1526,10 +1617,17 @@ func advance(dt: float, earn_income := true) -> void:
 		var quarters := mini((minutes - recent) / 15, HIST_H * 4)
 		if quarters > 0:
 			_catch_up(quarters, now() - float(recent) * 60.0)
+		var catching_up := recent > 2
+		if catching_up:
+			_quiet = true
 		for i in recent:
 			_bump("market_ticks")
+			if catching_up:
+				_tick_t = now() - float(recent - 1 - i) * 60.0
 			_market_tick()
 			_record_prices(1)
+		_tick_t = -1.0
+		_quiet = false
 		recalc()
 	_finish_expansions()
 	if ibost_until > 0.0 and now() >= ibost_until and _income_parts.get("ib", false):
@@ -1549,6 +1647,7 @@ func _process(delta: float) -> void:
 	var was_boosting := ibost_active()
 	advance(delta)
 	tick_deals(delta)
+	tick_sun(delta)
 	if was_boosting != ibost_active():
 		recalc()
 	_check_timer += delta
@@ -1580,6 +1679,13 @@ func _notification(what: int) -> void:
 func apply_offline(seconds: float) -> void:
 	## Income is capped at 8 hours; timers and markets run for real.
 	var s := maxf(0.0, seconds)
+	# Roll today's goals first, so things that finish while away can't pay
+	# out on yesterday's list.
+	_ensure_daily()
+	_ensure_weekly()
+	# Some of the time away counts towards the next deal (up to 2 h), so
+	# short-session players still get them.
+	deal_wait -= minf(s, 7200.0)
 	var capped := minf(s, Data.OFFLINE_CAP_H * 3600.0)
 	var before := cash
 	var ib_part := 0.0
@@ -1605,13 +1711,24 @@ func apply_offline(seconds: float) -> void:
 	away_notes = []
 	var done := int(counters.get("expansions", 0)) - exp0
 	if done > 0:
-		away_notes.append("%d expansion%s finished" % [done, "" if done == 1 else "s"])
+		away_notes.append("%d expansion%s done" % [done, "" if done == 1 else "s"])
 	if pay0 > payouts.size():
-		away_notes.append("Rush orders paid out")
+		away_notes.append("Rush orders paid")
 	if s > Data.OFFLINE_CAP_H * 3600.0:
-		away_notes.append("Earnings stop after %d h away" % int(Data.OFFLINE_CAP_H))
-	away_unseen = s >= 600.0 and away_earned > 0.0
+		away_notes.append("Capped at %d h" % int(Data.OFFLINE_CAP_H))
+	away_unseen = s >= 600.0 and away_earned >= 1.0
+	var exp_before := 0
+	for id in biz.keys():
+		if expanding(id):
+			exp_before += 1
 	_managers_work()
+	var started := 0
+	for id in biz.keys():
+		if expanding(id):
+			started += 1
+	started -= exp_before
+	if started > 0:
+		away_notes.append("Managers started %d expansion%s" % [started, "" if started == 1 else "s"])
 	if s > 60.0:
 		GameLog.info("game", "Away for %s, earned %s (income %s/h)" % [clock(s), money(away_earned), money(income_per_hour)])
 	_ensure_daily()
@@ -1625,11 +1742,7 @@ func _accrue(dt: float) -> void:
 	for sym in coins.keys():
 		var st := staked(sym)
 		if st > 0.0:
-			var per_h := st * stake_rate(sym)
-			var p := price(sym)
-			if p > 0.0:
-				per_h = minf(per_h, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / p)
-			var gain := per_h * dt / 3600.0
+			var gain := st * stake_rate(sym) * _stake_scale() * dt / 3600.0
 			coins[sym]["staked"] = st + gain
 			counters["stake_earned"] = float(counters.get("stake_earned", 0.0)) + gain * price(sym)
 
@@ -1661,11 +1774,12 @@ func to_dict() -> Dictionary:
 		"boost_until": boost_until, "boost_ready_at": boost_ready_at, "boosts_used": boosts_used,
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
-		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "trends": trends, "fair_log": fair_log, "news": news,
+		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
+		"sun_wait": sun_wait, "sun_day": sun_day, "sun_count": sun_count,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
 
@@ -1734,6 +1848,10 @@ func restore_code(text: String) -> bool:
 	if f == null:
 		return false
 	d["saved_at"] = now()  # no time passes on restore, so it can't re-roll the market
+	# Keep today's market and deal, so a restore can't rewind prices or re-roll a deal.
+	var live := to_dict()
+	for k in ["prices", "price_hist", "hist_q", "hist_h", "moods", "coin_shift", "trends", "fair_log", "news", "deal", "deal_wait"]:
+		d[k] = live[k]
 	f.store_string(JSON.stringify(d))
 	f.close()
 	if FileAccess.file_exists(SAVE_PATH):
@@ -1780,6 +1898,9 @@ func _migrate(d: Dictionary) -> Dictionary:
 	if v < 6:
 		# v6 adds the daily streak and remembered screen choices (defaults are fine).
 		v = 6
+	if v < 7:
+		# v7 adds the golden sun and lasting coin news (defaults are fine).
+		v = 7
 	d["version"] = v
 	return d
 
@@ -1803,6 +1924,7 @@ func _reset_state() -> void:
 	hist_q = {}
 	hist_h = {}
 	moods = {}
+	coin_shift = {}
 	trends = {}
 	fair_log = {}
 	news = []
@@ -1817,6 +1939,9 @@ func _reset_state() -> void:
 	ui = {}
 	streak = 0
 	streak_day = -1
+	sun_wait = 900.0
+	sun_day = -1
+	sun_count = 0
 	deal_wait = 1500.0
 	payouts = []
 	history = []
@@ -1856,6 +1981,7 @@ func load_game() -> void:
 	hist_q = d.get("hist_q", {})
 	hist_h = d.get("hist_h", {})
 	moods = d.get("moods", {})
+	coin_shift = d.get("coin_shift", {})
 	trends = d.get("trends", {})
 	fair_log = d.get("fair_log", {})
 	news = d.get("news", [])
@@ -1872,6 +1998,9 @@ func load_game() -> void:
 	ui = d.get("ui", {})
 	streak = int(d.get("streak", 0))
 	streak_day = int(d.get("streak_day", -1))
+	sun_wait = float(d.get("sun_wait", 900.0))
+	sun_day = int(d.get("sun_day", -1))
+	sun_count = int(d.get("sun_count", 0))
 	payouts = d.get("payouts", [])
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))
@@ -1899,6 +2028,8 @@ func reset_game() -> void:
 # ==== number formatting ===================================================
 
 static func group(n: int) -> String:
+	if absi(n) >= 1000000000000000:
+		return money_short(float(n)).substr(1)  # very big counts read as 1.2Qa, not 19 digits
 	var s := str(absi(n))
 	var out := ""
 	var count := 0
@@ -1911,7 +2042,7 @@ static func group(n: int) -> String:
 
 
 const BIG_UNITS := [[1e33, "Dc"], [1e30, "No"], [1e27, "Oc"], [1e24, "Sp"], [1e21, "Sx"], [1e18, "Qi"],
-	[1e15, "Q"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]
+	[1e15, "Qa"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]
 
 
 static func money(v: float) -> String:
