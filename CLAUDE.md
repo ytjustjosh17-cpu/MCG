@@ -68,6 +68,7 @@ Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 - GitHub sometimes returns 502 when publishing. The workflow retries once. If it still fails, re-run the job later; the code is fine.
 - A pop-up that covers the screen during play annoys people. Celebrations never block taps; deals wait until the player is on a main tab and not tapping.
 - Agent play-testers found real exploits each time (market trading, backup re-rolls, boost double pay). Re-run the exploit persona after economy changes.
+- For big batches, split builder agents by file (no two agents touch the same script), have each commit in its own worktree on the branch commit, then cherry-pick. Keep `game_state.gd`, `data.gd`, `main.gd` and `ui_kit.gd` with one owner.
 
 ## Releasing
 

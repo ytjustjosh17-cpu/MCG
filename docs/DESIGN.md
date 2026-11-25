@@ -88,11 +88,17 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - The game remembers screen choices (`Game.ui`): Invest tab, sector filter, chart range.
 - Welcome back lists what happened while away. A daily streak gives a small gift.
 - Long names end in "..." rather than running into art.
-- Business tab: "Fill all" (outlets everywhere, cheapest first) and "Expand N ready".
+- Business tab: one row, "+ New" and a "More ▾" drop-down (Fill all, Expand N, Mergers).
 - Tap a goal to go where you can do it.
-- Settings: deal pop-ups (off = the deal waits on the Business tab), news messages, keep screen on.
-- Tap combo counter on the tower (×50, ×100, ×250 ...) is just for fun and pays nothing extra.
-- Share and coin lists sort by owned first, rising or falling. Profile shows the next achievement.
+- Settings live on their own page (Profile > Settings): Less motion, Pop-ups drop-down (All / Deals only / None), Keep screen on, Backup, Reset.
+- Tap combo counter on the tower ("25 COMBO") is just for fun and pays nothing extra.
+- A golden sun sometimes drifts across the tower (max 4 a day, only while playing). Tap it for a small prize.
+- Filters and sorts are drop-downs (`Kit.drop_pill()` + `Kit.pick()`), never rows of chips. Lists don't jump while you look at them.
+- Profile shows the next achievement. The nav bar names only the active tab.
+
+## Words and terms
+
+One word per idea, everywhere: "units" (not outlets/spaces), "Stage", "Expand", "Lv", "Net worth", "/h", "X more", "Done", "Reset", "Upgrades", "Lock" (staking).
 
 ## Words
 
