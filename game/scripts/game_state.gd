@@ -533,13 +533,22 @@ func unstake(sym: String) -> bool:
 	return true
 
 
+func stake_earn_per_hour(sym: String) -> float:
+	## What one coin's stake really earns per hour, after the cap.
+	var p := price(sym)
+	if p <= 0.0:
+		return 0.0
+	var per_h := staked(sym) * stake_rate(sym)
+	per_h = minf(per_h, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / p)
+	return per_h * p
+
+
 func staking_per_hour() -> float:
-	## Value of staking rewards per hour at today's prices.
+	## Value of staking rewards per hour at today's prices (capped like _accrue).
 	var v := 0.0
 	for sym in coins.keys():
-		v += staked(sym) * stake_rate(sym) * price(sym)
+		v += stake_earn_per_hour(sym)
 	return v
-
 
 func avg_price(book: Dictionary, sym: String) -> float:
 	if not book.has(sym):

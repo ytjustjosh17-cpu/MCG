@@ -469,3 +469,22 @@ func _next_celebration() -> void:
 	for n in card.find_children("*", "Control", true, false):
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	get_tree().create_timer(2.4).timeout.connect(close)
+
+
+# ---- drop-down picker -------------------------------------------------------
+
+func pick(title: String, options: Array, current, on_pick: Callable) -> void:
+	## A simple drop-down: a sheet listing the choices, the current one lit.
+	## options: [[value, label], ...]
+	var actions: Array = []
+	for o in options:
+		var v = o[0]
+		actions.append({"text": String(o[1]), "style": "primary" if v == current else "secondary", "call": func(): on_pick.call(v)})
+	sheet(title, "", actions)
+
+
+static func drop_pill(text: String) -> Button:
+	## The button that opens a drop-down: label plus a small down arrow.
+	var b := UI.pill(text + "  ▾", UI.PANEL, UI.TEXT, 15, 22)
+	b.custom_minimum_size = Vector2(0, 44)
+	return b
