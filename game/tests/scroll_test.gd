@@ -214,5 +214,21 @@ func _run() -> void:
 	await create_timer(0.3).timeout
 	var bought: int = int(g.biz["shop"]["units"]) - u0
 	_ok(bought >= 3 and bought <= 4, "holding +1 keeps buying (%d bought)" % bought)
+	# Golden sun: it appears on Earn and a tap on it pays out.
+	main.show_page(0)
+	await create_timer(0.8).timeout
+	var sun_card = main._pages[0].find_child("TowerCard", true, false)
+	sun_card.spawn_sun()
+	await create_timer(1.5).timeout
+	var sun: Control = null
+	for sun_ch in sun_card.get_children():
+		if sun_ch.has_method("_catch"):
+			sun = sun_ch
+	var found := sun != null
+	var cash_s: float = g.cash
+	var taps_s: int = g.taps
+	if found:
+		await _wobble_tap(sun.get_global_rect().get_center())
+	_ok(found and g.cash > cash_s and g.taps == taps_s, "tapping a golden sun pays and isn't a tower tap")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
