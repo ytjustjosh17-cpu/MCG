@@ -5,6 +5,8 @@ extends SceneTree
 var g
 var log_lines: Array = []
 var marks := {}
+var trader := ""   # "", "news" (buy good news) or "dip" (buy bad news)
+var trade_profit := 0.0
 
 
 func _initialize() -> void:
@@ -18,7 +20,30 @@ func _mark(key: String, label: String) -> void:
 		print("  %-34s day %5.1f" % [label, d])
 
 
+func _trade() -> void:
+	## Sells last session's trade, then bets 30% of cash on the newest headline.
+	if g.has_meta("trade"):
+		var tr: Array = g.get_meta("trade")
+		var got: float = g.sell_asset(tr[0], tr[1], 1.0)
+		trade_profit += got - float(tr[2])
+		g.remove_meta("trade")
+	if g.news.is_empty():
+		return
+	var it: Dictionary = g.news[g.news.size() - 1]
+	var sym := String(it["sym"])
+	var kind := "share" if not g._stock(sym).is_empty() else ("coin" if not g._coin(sym).is_empty() else "")
+	if kind == "" or g.holding(g.shares if kind == "share" else g.coins, sym) > 0.0:
+		return
+	var up := float(it["pct"]) > 0.0
+	if (trader == "news" and up) or (trader == "dip" and not up):
+		var amt: float = g.cash * 0.3
+		if amt > 100.0 and g.buy_asset(kind, sym, amt):
+			g.set_meta("trade", [kind, sym, amt])
+
+
 func _session(active_s: float) -> void:
+	if trader != "":
+		_trade()
 	# Tap for a while (3 taps a second), using the tap boost when ready.
 	if g.boost_ready():
 		g.start_boost()
@@ -112,6 +137,8 @@ func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		days = int(args[0])
+	if args.size() > 1:
+		trader = args[1]
 	seed(1234)
 	g.reset_game()
 	g.sim_time = 1.7e9
@@ -137,6 +164,8 @@ func _run() -> void:
 		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%" % [
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
 			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0])
+	if trader != "":
+		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()
 
 

@@ -37,6 +37,10 @@ func _run() -> void:
 	g.buy_asset("share", "NRV", 4.0e5)
 	g.buy_asset("share", "LMG", 2.0e5)
 	g.buy_asset("coin", "KRV", 1.5e5)
+	g.buy_asset("coin", "LMN", 6.0e4)
+	g.stake("LMN", 1.0)
+	for i in 6:
+		g._news_event()
 	g.buy_property(0)
 	g.buy_property(8)
 	g.improve_property(8, 2)
@@ -69,8 +73,19 @@ func _run() -> void:
 	await _shot("07_invest_property")
 	inv._seg.select(2, true)
 	await _shot("08_invest_crypto")
-	main.push(CoinDetail.new("KRV"))
+	main.push(AssetDetail.new("coin", "LMN"))
 	await _shot("09_coin")
+	main._stack[-1].scroll.scroll_vertical = 600
+	await _shot("09b_coin_staking")
+	main.pop()
+	await create_timer(0.4).timeout
+	inv._seg.select(0, true)
+	main.push(AssetDetail.new("share", "NRV"))
+	await _shot("09c_share")
+	main.pop()
+	await create_timer(0.4).timeout
+	main.push(NewsPage.new())
+	await _shot("09d_news")
 	main.pop()
 	await create_timer(0.4).timeout
 	main.push(PropertyDetail.new(8))

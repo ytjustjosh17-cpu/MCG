@@ -6,11 +6,12 @@ signal changed
 signal tapped(amount: float)
 signal achievement(title: String, reward: float)
 signal expansion_done(biz_id: String, stage: int)
+signal market_news(item: Dictionary)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 2
+const SAVE_VERSION := 3
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -21,7 +22,10 @@ const HISTORY_EVERY_S := 300.0
 const HISTORY_MAX := 2100
 const WEEK_S := 7.0 * 24.0 * 3600.0
 const MARKET_TICK_S := 60.0
-const MARKET_HIST := 180
+const MARKET_HIST := 120   # 1-minute points (2 hours)
+const HIST_Q := 96         # 15-minute points (1 day)
+const HIST_H := 168        # hourly points (1 week)
+const NEWS_MAX := 30
 
 # ---- saved state ---------------------------------------------------------
 var cash := 0.0
@@ -37,7 +41,13 @@ var biz := {}          # id -> {name, stage, units, exp_until, invested}
 var shares := {}       # sym -> {qty, cost}
 var coins := {}        # sym -> {qty, cost}
 var prices := {}       # sym -> price (shares and coins)
-var price_hist := {}   # sym -> Array of prices
+var price_hist := {}   # sym -> Array of 1-minute prices
+var hist_q := {}       # sym -> Array of 15-minute prices
+var hist_h := {}       # sym -> Array of hourly prices
+var moods := {}        # sym or sector -> news effect on fair price
+var trends := {}       # coin -> current trend per minute
+var fair_log := {}     # coin -> log of fair price
+var news: Array = []   # newest last: {t, text, sym, pct}
 var props := {}        # "index" -> {imps: [bool...]}
 var items := {}        # "col:index" -> true
 var mergers := {}      # id -> true
@@ -58,6 +68,8 @@ var _dirty := false
 var _save_timer := 0.0
 var _hist_timer := 0.0
 var _market_timer := 0.0
+var _tick_t := -1.0      # time stamp used for news made while fast-forwarding
+var _quiet := false       # no news signals while catching up
 var _check_timer := 0.0
 var _paused_at := 0.0
 var _change_pending := false
@@ -317,7 +329,100 @@ func _coin(sym: String) -> Array:
 
 
 func holding(book: Dictionary, sym: String) -> float:
+	## Free (sellable) amount.
 	return float(book[sym]["qty"]) if book.has(sym) else 0.0
+
+
+func staked(sym: String) -> float:
+	return float(coins[sym].get("staked", 0.0)) if coins.has(sym) else 0.0
+
+
+func stake_left(sym: String) -> float:
+	return maxf(0.0, float(coins[sym].get("stake_until", 0.0)) - now()) if coins.has(sym) else 0.0
+
+
+func stake_rate(sym: String) -> float:
+	var c := _coin(sym)
+	return float(c[4]) if c.size() > 4 else 0.0
+
+
+func stake(sym: String, fraction: float) -> bool:
+	## Locks coins for 24 hours; they earn more coins while locked.
+	var free := holding(coins, sym)
+	var q := free * clampf(fraction, 0.0, 1.0)
+	if q <= 0.0:
+		return false
+	coins[sym]["qty"] = free - q
+	coins[sym]["staked"] = staked(sym) + q
+	coins[sym]["stake_until"] = now() + Data.STAKE_LOCK_H * 3600.0
+	GameLog.info("invest", "Staked %s %s" % [str(snappedf(q, 0.0001)), sym])
+	recalc()
+	return true
+
+
+func unstake(sym: String) -> bool:
+	if staked(sym) <= 0.0 or stake_left(sym) > 0.0:
+		return false
+	coins[sym]["qty"] = holding(coins, sym) + staked(sym)
+	coins[sym]["staked"] = 0.0
+	recalc()
+	return true
+
+
+func staking_per_hour() -> float:
+	## Value of staking rewards per hour at today's prices.
+	var v := 0.0
+	for sym in coins.keys():
+		v += staked(sym) * stake_rate(sym) * price(sym)
+	return v
+
+
+func avg_price(book: Dictionary, sym: String) -> float:
+	if not book.has(sym):
+		return 0.0
+	var q := float(book[sym]["qty"]) + float(book[sym].get("staked", 0.0))
+	return float(book[sym]["cost"]) / q if q > 0.0 else 0.0
+
+
+func change_pct(sym: String, minutes: int) -> float:
+	## Price change over the last `minutes`, using the best history available.
+	var series: Array
+	var back := 0
+	if minutes <= MARKET_HIST:
+		series = price_hist.get(sym, [])
+		back = minutes
+	elif minutes <= HIST_Q * 15:
+		series = hist_q.get(sym, [])
+		back = minutes / 15
+	else:
+		series = hist_h.get(sym, [])
+		back = minutes / 60
+	if series.size() < 2:
+		return 0.0
+	var a: float = series[maxi(0, series.size() - 1 - back)]
+	return (price(sym) - a) / a * 100.0 if a > 0.0 else 0.0
+
+
+func series(sym: String, range_name: String) -> Array:
+	match range_name:
+		"1D":
+			return hist_q.get(sym, [])
+		"1W":
+			return hist_h.get(sym, [])
+	return price_hist.get(sym, [])
+
+
+func sector_of(sym: String) -> String:
+	var s := _stock(sym)
+	return s[4] if s.size() > 4 else ""
+
+
+func market_mood() -> float:
+	## 0 = fear, 100 = greed, from the last day of crypto moves.
+	var total := 0.0
+	for c in Data.COINS:
+		total += clampf(change_pct(c[0], 1440), -30.0, 30.0)
+	return clampf(50.0 + total / float(Data.COINS.size()) * 2.0, 0.0, 100.0)
 
 
 func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
@@ -343,14 +448,15 @@ func sell_asset(kind: String, sym: String, fraction: float) -> float:
 		return 0.0
 	fraction = clampf(fraction, 0.0, 1.0)
 	var qty := float(book[sym]["qty"]) * fraction
-	var cost := float(book[sym]["cost"]) * fraction
+	var total := float(book[sym]["qty"]) + float(book[sym].get("staked", 0.0))
+	var cost := float(book[sym]["cost"]) * (qty / total if total > 0.0 else 0.0)
 	var got := qty * price(sym)
 	cash += got
 	if kind == "coin":
 		_bump("crypto_profit", maxf(0.0, got - cost))
 	book[sym]["qty"] = float(book[sym]["qty"]) - qty
 	book[sym]["cost"] = float(book[sym]["cost"]) - cost
-	if float(book[sym]["qty"]) <= 1e-9:
+	if float(book[sym]["qty"]) <= 1e-9 and float(book[sym].get("staked", 0.0)) <= 1e-9:
 		book.erase(sym)
 	recalc()
 	return got
@@ -359,7 +465,7 @@ func sell_asset(kind: String, sym: String, fraction: float) -> float:
 func book_value(book: Dictionary) -> float:
 	var v := 0.0
 	for sym in book.keys():
-		v += float(book[sym]["qty"]) * price(sym)
+		v += (float(book[sym]["qty"]) + float(book[sym].get("staked", 0.0))) * price(sym)
 	return v
 
 
@@ -379,26 +485,140 @@ func dividends_per_hour() -> float:
 	return v * global_mult()
 
 
-func _market_tick() -> void:
+func _market_tick(minutes := 1) -> void:
+	## One market step of `minutes` (1 normally, 60 for fast-forward while away).
+	var m := float(minutes)
+	var ticks := float(counters.get("market_ticks", 0))
+	# News effects fade slowly (half gone in about 20 days) and stay within limits,
+	# so prices can't run away over months of play.
+	var keep := pow(0.999976, m)
+	for k in moods.keys():
+		moods[k] = clampf(exp(log(maxf(float(moods[k]), 1e-6)) * keep), 0.2, 5.0)
+	var pull_s := 1.0 - pow(1.0 - 0.05, m)
 	for s in Data.STOCKS:
-		_walk(s[0], float(s[2]), 0.006, 0.00002)
+		var sym: String = s[0]
+		var fair := float(s[2]) * exp(Data.STOCK_GROWTH * ticks) * float(moods.get(sym, 1.0)) * float(moods.get(s[4], 1.0))
+		var vol: float = Data.SECTOR_VOL.get(s[4], 0.006)
+		_step(sym, fair, pull_s, vol * sqrt(m))
+	var pull_c := 1.0 - pow(1.0 - 0.03, m)
 	for c in Data.COINS:
-		_walk(c[0], float(c[2]), float(c[3]), 0.0)
+		var sym: String = c[0]
+		# Coins wander in boom and bust phases that change every few hours.
+		if not trends.has(sym) or randf() < m / 180.0:
+			trends[sym] = randfn(0.0, 0.0002)
+		fair_log[sym] = float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m
+		fair_log[sym] = lerpf(float(fair_log[sym]), log(float(c[2])), 0.0004 * m)
+		var fair := exp(float(fair_log[sym]))
+		_step(sym, fair, pull_c, float(c[3]) * sqrt(m))
+	if randf() < m / Data.NEWS_EVERY_MIN:
+		_news_event()
 
 
-func _walk(sym: String, base: float, vol: float, drift: float) -> void:
+func _step(sym: String, fair: float, pull: float, noise: float) -> void:
 	var p := price(sym)
 	if p <= 0.0:
-		p = base
-	var fair := base * (1.0 + drift * float(counters.get("market_ticks", 0)))
-	var pull := (log(fair) - log(p)) * 0.02
-	p *= exp(pull + randfn(0.0, vol))
+		p = fair
+	p *= exp((log(fair) - log(p)) * pull + randfn(0.0, noise))
 	prices[sym] = p
-	var h: Array = price_hist.get(sym, [])
-	h.append(p)
-	while h.size() > MARKET_HIST:
+
+
+func _record_prices(minutes: int) -> void:
+	## Adds a point to each history. 15-minute steps (catching up) feed the
+	## day and week charts directly.
+	var t := int(counters.get("market_ticks", 0))
+	for sym in prices.keys():
+		_push(price_hist, sym, MARKET_HIST)
+		if minutes >= 15 or t % 15 == 0:
+			_push(hist_q, sym, HIST_Q)
+		if t % 60 == 0:
+			_push(hist_h, sym, HIST_H)
+
+
+func _catch_up(quarters: int, end_t: float) -> void:
+	## Fast-forwards the market in 15-minute steps without news pop-ups.
+	_quiet = true
+	for i in quarters:
+		# Stay on 15-minute marks so the hourly chart gets every 4th step.
+		counters["market_ticks"] = floorf(float(counters.get("market_ticks", 0)) / 15.0) * 15.0 + 15.0
+		_tick_t = end_t - float(quarters - 1 - i) * 900.0
+		_market_tick(15)
+		_record_prices(15)
+	_tick_t = -1.0
+	_quiet = false
+
+
+func _push(store: Dictionary, sym: String, cap: int) -> void:
+	var h: Array = store.get(sym, [])
+	h.append(_sig(prices[sym]))
+	while h.size() > cap:
 		h.pop_front()
-	price_hist[sym] = h
+	store[sym] = h
+
+
+static func _sig(v: float) -> float:
+	## Keeps 5 significant figures so the save file stays small.
+	if v <= 0.0:
+		return v
+	var step := pow(10.0, floor(log(v) / log(10.0)) - 4.0)
+	return snappedf(v, step)
+
+
+func _news_event() -> void:
+	## News moves the price straight away, so only people who already own it gain.
+	## Ups and downs are the same size in log terms, so news gives no free edge.
+	var r := randf()
+	var item := {}
+	var sym := ""
+	var f := 1.0
+	if r < 0.55:
+		var st: Array = Data.STOCKS[randi() % Data.STOCKS.size()]
+		var up := randf() < 0.5
+		f = 1.0 + randf_range(0.04, 0.16)
+		f = f if up else 1.0 / f
+		sym = st[0]
+		moods[sym] = float(moods.get(sym, 1.0)) * f
+		prices[sym] = price(sym) * f
+		var tmpl: Array = Data.NEWS_STOCK_UP if up else Data.NEWS_STOCK_DOWN
+		item = {"text": tmpl[randi() % tmpl.size()] % st[1], "sym": sym}
+	elif r < 0.75:
+		var sec: String = Data.SECTORS[randi() % Data.SECTORS.size()]
+		var up := randf() < 0.5
+		f = 1.0 + randf_range(0.03, 0.09)
+		f = f if up else 1.0 / f
+		sym = sec
+		moods[sec] = float(moods.get(sec, 1.0)) * f
+		for st in Data.STOCKS:
+			if st[4] == sec:
+				prices[st[0]] = price(st[0]) * f
+		var tmpl: Array = Data.NEWS_SECTOR_UP if up else Data.NEWS_SECTOR_DOWN
+		item = {"text": tmpl[randi() % tmpl.size()] % sec, "sym": sec}
+	else:
+		var c: Array = Data.COINS[randi() % Data.COINS.size()]
+		var up := randf() < 0.5
+		f = 1.0 + randf_range(0.15, 0.5)
+		f = f if up else 1.0 / f
+		sym = c[0]
+		fair_log[sym] = float(fair_log.get(sym, log(float(c[2])))) + log(f)
+		prices[sym] = price(sym) * f
+		var tmpl: Array = Data.NEWS_COIN_UP if up else Data.NEWS_COIN_DOWN
+		item = {"text": tmpl[randi() % tmpl.size()] % c[1], "sym": sym}
+	item["pct"] = (f - 1.0) * 100.0
+	item["t"] = _tick_t if _tick_t >= 0.0 else now()
+	news.append(item)
+	while news.size() > NEWS_MAX:
+		news.pop_front()
+	_bump("news_total")
+	if not _quiet:
+		market_news.emit(item)
+
+
+func news_for(sym: String) -> Array:
+	var out: Array = []
+	var sec := sector_of(sym)
+	for i in range(news.size() - 1, -1, -1):
+		if news[i]["sym"] == sym or (sec != "" and news[i]["sym"] == sec):
+			out.append(news[i])
+	return out
 
 
 func _init_market() -> void:
@@ -408,9 +628,16 @@ func _init_market() -> void:
 	for c in Data.COINS:
 		if not prices.has(c[0]):
 			prices[c[0]] = float(c[2])
-	if price_hist.is_empty():
-		for i in 60:
+	if price_hist.is_empty() or hist_h.is_empty():
+		# Give a new market a week of believable history.
+		_catch_up(HIST_H * 4, now() - 7200.0)
+		_quiet = true
+		for i in 120:
+			_bump("market_ticks")
 			_market_tick()
+			_record_prices(1)
+		_quiet = false
+		news.clear()
 
 
 # ==== property ============================================================
@@ -669,6 +896,10 @@ func _build_achievements() -> Array:
 		a.append({"id": "shares_%d" % e, "title": "Shares worth %s" % money_short(pow(10.0, e)), "m": "shares", "goal": pow(10.0, e)})
 	for e in [3, 6, 9]:
 		a.append({"id": "crypto_%d" % e, "title": "%s crypto profit" % money_short(pow(10.0, e)), "m": "crypto_profit", "goal": pow(10.0, e)})
+	for e in [3, 6, 9]:
+		a.append({"id": "div_%d" % e, "title": "%s in dividends" % money_short(pow(10.0, e)), "m": "dividends", "goal": pow(10.0, e)})
+	for e in [3, 6]:
+		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
 	for n in [1, 3, 6]:
@@ -693,6 +924,8 @@ func metric(m: String) -> float:
 		"props": return float(props.size())
 		"shares": return book_value(shares)
 		"crypto_profit": return float(counters.get("crypto_profit", 0.0))
+		"dividends": return float(counters.get("dividends_earned", 0.0))
+		"stake_earned": return float(counters.get("stake_earned", 0.0))
 		"collections":
 			var n := 0
 			for c in Data.COLLECTIONS:
@@ -790,18 +1023,26 @@ func flush_changes() -> void:
 
 func advance(dt: float, earn_income := true) -> void:
 	## Moves the game forward. Used each frame and by the simulator.
-	if earn_income and income_per_hour > 0.0:
-		_earn(income_per_hour * dt / 3600.0)
+	if not (dt > 0.0):
+		return  # clock went backwards (or NaN): never undo progress
+	if earn_income:
+		if income_per_hour > 0.0:
+			_earn(income_per_hour * dt / 3600.0)
+		_accrue(dt)
 	_market_timer += dt
-	var ticks := 0
-	while _market_timer >= MARKET_TICK_S and ticks < 240:
-		_market_timer -= MARKET_TICK_S
-		_bump("market_ticks")
-		_market_tick()
-		ticks += 1
-	if ticks > 0:
-		recalc()
+	var minutes := int(_market_timer / MARKET_TICK_S)
 	_market_timer = fmod(_market_timer, MARKET_TICK_S)
+	if minutes > 0:
+		# Long gaps (time away) move in 15-minute steps, at most a week's worth.
+		var recent := mini(minutes, 120)
+		var quarters := mini((minutes - recent) / 15, HIST_H * 4)
+		if quarters > 0:
+			_catch_up(quarters, now() - float(recent) * 60.0)
+		for i in recent:
+			_bump("market_ticks")
+			_market_tick()
+			_record_prices(1)
+		recalc()
 	_finish_expansions()
 	if ibost_until > 0.0 and now() >= ibost_until and _income_parts.get("ib", false):
 		pass
@@ -863,11 +1104,23 @@ func apply_offline(seconds: float) -> void:
 	advance(s, false)
 	recalc()
 	_earn(gained)
+	_accrue(capped)
 	away_earned = cash - before
 	if s > 60.0:
 		GameLog.info("game", "Away for %s, earned %s (income %s/h)" % [clock(s), money(away_earned), money(income_per_hour)])
 	_ensure_daily()
 	_check_achievements()
+
+
+func _accrue(dt: float) -> void:
+	## Dividends earned so far and staking rewards (paid in coins).
+	counters["dividends_earned"] = float(counters.get("dividends_earned", 0.0)) + dividends_per_hour() * dt / 3600.0
+	for sym in coins.keys():
+		var st := staked(sym)
+		if st > 0.0:
+			var gain := st * stake_rate(sym) * dt / 3600.0
+			coins[sym]["staked"] = st + gain
+			counters["stake_earned"] = float(counters.get("stake_earned", 0.0)) + gain * price(sym)
 
 
 func _record_history() -> void:
@@ -897,6 +1150,7 @@ func to_dict() -> Dictionary:
 		"boost_until": boost_until, "boost_ready_at": boost_ready_at, "boosts_used": boosts_used,
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
+		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved,
 		"counters": counters, "daily": daily, "history": history,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
@@ -942,6 +1196,10 @@ func _migrate(d: Dictionary) -> Dictionary:
 	if v < 2:
 		# v1 only had tapping; everything else starts empty.
 		v = 2
+	if v < 3:
+		# v3 adds day and week price history; rebuild it from the current prices.
+		d["price_hist"] = {}
+		v = 3
 	d["version"] = v
 	return d
 
@@ -961,6 +1219,12 @@ func _reset_state() -> void:
 	coins = {}
 	prices = {}
 	price_hist = {}
+	hist_q = {}
+	hist_h = {}
+	moods = {}
+	trends = {}
+	fair_log = {}
+	news = []
 	props = {}
 	items = {}
 	mergers = {}
@@ -1001,6 +1265,12 @@ func load_game() -> void:
 	coins = d.get("coins", {})
 	prices = d.get("prices", {})
 	price_hist = d.get("price_hist", {})
+	hist_q = d.get("hist_q", {})
+	hist_h = d.get("hist_h", {})
+	moods = d.get("moods", {})
+	trends = d.get("trends", {})
+	fair_log = d.get("fair_log", {})
+	news = d.get("news", [])
 	props = d.get("props", {})
 	items = d.get("items", {})
 	mergers = d.get("mergers", {})
@@ -1042,6 +1312,10 @@ static func group(n: int) -> String:
 	return ("-" if n < 0 else "") + out
 
 
+const BIG_UNITS := [[1e33, "Dc"], [1e30, "No"], [1e27, "Oc"], [1e24, "Sp"], [1e21, "Sx"], [1e18, "Qi"],
+	[1e15, "Q"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]
+
+
 static func money(v: float) -> String:
 	## $12.50 under 1,000; $19,284 up to a billion; then $1.25B and $3.40T.
 	var a := absf(v)
@@ -1052,9 +1326,7 @@ static func money(v: float) -> String:
 		return sign + "$" + group(int(floor(a)))
 	if a < 1e12:
 		return sign + "$%.2fB" % (a / 1e9)
-	if a < 1e15:
-		return sign + "$%.2fT" % (a / 1e12)
-	return sign + "$%.2fQ" % (a / 1e15)
+	return money_short(v)
 
 
 static func money_short(v: float) -> String:
@@ -1062,7 +1334,7 @@ static func money_short(v: float) -> String:
 	var sign := "-" if v < 0.0 else ""
 	if a < 1000.0:
 		return sign + ("$%d" % int(round(a)) if a >= 100.0 else "$%.2f" % a)
-	var units := [[1e15, "Q"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]]
+	var units := BIG_UNITS
 	for u in units:
 		if a >= u[0]:
 			var x: float = a / u[0]

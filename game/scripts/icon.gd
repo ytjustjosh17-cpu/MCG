@@ -10,6 +10,7 @@ const MAP := {
 	"trophy": "trophy", "dots": "dots-three", "plus": "plus", "gear": "gear", "bug": "bug",
 	"storage": "hard-drives", "update": "arrows-clockwise", "vibrate": "vibrate", "trash": "trash",
 	"close": "x", "coins": "coins", "clock": "clock", "sparkle": "sparkle", "pie": "chart-pie-slice",
+	"news": "newspaper", "gauge": "gauge", "unlock": "lock-simple-open",
 }
 static var _cache := {}
 

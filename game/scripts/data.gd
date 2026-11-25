@@ -55,25 +55,44 @@ const BUSINESSES := [
 # ---- shares -------------------------------------------------------------
 # price, yearly-ish dividend shown as %; div_h is the share of price paid per hour.
 const STOCKS := [
-	["NRV", "Norvale Energy", 75.32, 0.0061], ["OSB", "Ostrava Bank", 41.08, 0.0054],
-	["QLM", "Quillon Motors", 92.37, 0.0048], ["BWM", "Brightwave Media", 367.23, 0.0039],
-	["LMG", "Lumen Grid", 113.53, 0.0032], ["HCF", "Halcyon Foods", 55.46, 0.0029],
-	["KST", "Kestrel Air", 28.10, 0.0044], ["MRL", "Marlow Retail", 19.84, 0.0051],
-	["DPW", "Deepwell Oil", 61.70, 0.0058], ["GVL", "Granite & Vale", 143.20, 0.0035],
-	["QSF", "Quillsoft", 612.40, 0.0018], ["NLC", "Northlight", 288.90, 0.0022],
-	["IRM", "Ironmere", 37.55, 0.0047], ["SLT", "Saltmarsh", 12.30, 0.0063],
-	["HRC", "Hearth & Crown", 88.10, 0.0041], ["MRD", "Meridian", 204.60, 0.0027],
-	["RDR", "Redmoor Group", 9.45, 0.0069], ["CLH", "Coldharbour", 51.20, 0.0038],
-	["VLL", "Velle Auto", 176.30, 0.0030], ["BTN", "Black Tern", 33.80, 0.0055],
+	# symbol, name, price, dividend, sector
+	["NRV", "Norvale Energy", 75.32, 0.0061, "Energy"], ["OSB", "Ostrava Bank", 41.08, 0.0054, "Finance"],
+	["QLM", "Quillon Motors", 92.37, 0.0048, "Transport"], ["BWM", "Brightwave Media", 367.23, 0.0039, "Tech"],
+	["LMG", "Lumen Grid", 113.53, 0.0032, "Energy"], ["HCF", "Halcyon Foods", 55.46, 0.0029, "Food"],
+	["KST", "Kestrel Air", 28.10, 0.0044, "Transport"], ["MRL", "Marlow Retail", 19.84, 0.0051, "Retail"],
+	["DPW", "Deepwell Oil", 61.70, 0.0058, "Energy"], ["GVL", "Granite & Vale", 143.20, 0.0035, "Industry"],
+	["QSF", "Quillsoft", 612.40, 0.0018, "Tech"], ["NLC", "Northlight", 288.90, 0.0022, "Tech"],
+	["IRM", "Ironmere", 37.55, 0.0047, "Industry"], ["SLT", "Saltmarsh", 12.30, 0.0063, "Transport"],
+	["HRC", "Hearth & Crown", 88.10, 0.0041, "Finance"], ["MRD", "Meridian", 204.60, 0.0027, "Finance"],
+	["RDR", "Redmoor Group", 9.45, 0.0069, "Retail"], ["CLH", "Coldharbour", 51.20, 0.0038, "Industry"],
+	["VLL", "Velle Auto", 176.30, 0.0030, "Transport"], ["BTN", "Black Tern", 33.80, 0.0055, "Energy"],
+	["LDF", "Larder Foods", 24.60, 0.0046, "Food"], ["TFS", "Tern Fisheries", 14.85, 0.0052, "Food"],
 ]
 const STOCK_DIV_SCALE := 0.006  # dividend per hour = price * div * scale
+const SECTORS := ["Energy", "Finance", "Tech", "Transport", "Retail", "Food", "Industry"]
+const SECTOR_VOL := {"Energy": 0.007, "Finance": 0.005, "Tech": 0.009, "Transport": 0.006,
+	"Retail": 0.006, "Food": 0.004, "Industry": 0.005}
+const STOCK_GROWTH := 0.000004  # slow long-run rise per minute
 
 # ---- crypto ------------------------------------------------------------
+# symbol, name, price, volatility per minute, staking reward per hour
 const COINS := [
-	["KRV", "Korva coin", 115.23, 0.012], ["LMN", "Lumen token", 2.41, 0.018],
-	["ASH", "Ashcoin", 0.083, 0.025], ["MRC", "Meridian coin", 41000.0, 0.008],
-	["TDE", "Tide", 9.12, 0.015], ["EMB", "Ember", 0.0042, 0.03],
+	["KRV", "Korva coin", 115.23, 0.012, 0.0004], ["LMN", "Lumen token", 2.41, 0.018, 0.0008],
+	["ASH", "Ashcoin", 0.083, 0.025, 0.0012], ["MRC", "Meridian coin", 41000.0, 0.008, 0.0002],
+	["TDE", "Tide", 9.12, 0.015, 0.0006], ["EMB", "Ember", 0.0042, 0.03, 0.0015],
+	["NVA", "Nova", 1.84, 0.02, 0.001], ["PBL", "Pebble", 0.31, 0.022, 0.001],
+	["GLT", "Glint", 640.0, 0.012, 0.0005], ["DRF", "Drift", 0.0009, 0.035, 0.002],
 ]
+const STAKE_LOCK_H := 24.0
+
+# ---- market news ---------------------------------------------------------
+const NEWS_STOCK_UP := ["%s wins a big contract", "%s profits beat forecasts", "%s reports record sales", "%s expands overseas"]
+const NEWS_STOCK_DOWN := ["%s misses its targets", "%s faces an inquiry", "%s recalls products", "%s boss resigns"]
+const NEWS_SECTOR_UP := ["%s shares rally", "Strong week for %s"]
+const NEWS_SECTOR_DOWN := ["%s sell-off", "%s shares slide"]
+const NEWS_COIN_UP := ["%s soars as big buyers move in", "%s listed on a major exchange"]
+const NEWS_COIN_DOWN := ["%s crashes after a hack", "%s whales sell off"]
+const NEWS_EVERY_MIN := 45.0  # average minutes between news
 
 # ---- property ----------------------------------------------------------
 # name, place, price, kind (house/flats/tower/resort)

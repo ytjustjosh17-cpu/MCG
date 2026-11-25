@@ -32,6 +32,15 @@ func _ready() -> void:
 	earn.open_tab.connect(show_page)
 	Game.achievement.connect(func(title: String, reward: float):
 		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
+	Game.market_news.connect(func(item: Dictionary):
+		# Only tell the player about news that touches what they own.
+		var sym := String(item.get("sym", ""))
+		var mine := Game.shares.has(sym) or Game.coins.has(sym)
+		for k in Game.shares.keys():
+			if Game.sector_of(k) == sym:
+				mine = true
+		if mine:
+			Kit.toast("%s · %s" % [item["text"], AssetDetail.change_text(float(item["pct"]))], float(item["pct"]) >= 0.0))
 	Game.expansion_done.connect(func(id: String, stage: int):
 		Kit.haptic("success")
 		Kit.toast("%s · stage %d" % [Game.biz[id]["name"], stage], true))

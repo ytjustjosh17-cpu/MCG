@@ -94,6 +94,42 @@ func _run() -> void:
 	_check(game.collection_count("watches") == 1, "collection counts")
 	game.advance(600.0)
 	_check(game.price_hist["KRV"].size() > 60, "markets tick")
+	# Week and day charts, news and market mood.
+	_check(game.hist_h["NRV"].size() >= 160 and game.hist_q["NRV"].size() >= 90, "day and week charts filled")
+	_check(game.series("KRV", "1W").size() > 100, "week series for coins")
+	var mood: float = game.market_mood()
+	_check(mood >= 0.0 and mood <= 100.0, "market mood in range")
+	var n0 := int(game.counters.get("news_total", 0))
+	for i in 40:
+		game._news_event()
+	_check(game.news.size() == 30 and int(game.counters.get("news_total", 0)) == n0 + 40, "news list capped, counter keeps rising")
+	var bad := false
+	for k in game.prices.keys():
+		if not (game.prices[k] > 0.0) or is_nan(game.prices[k]) or is_inf(game.prices[k]):
+			bad = true
+	_check(not bad, "no broken prices after news")
+	# Staking: lock, cannot unlock early, earns coins, unlocks after 24 h.
+	game.cash += 1000.0
+	game.buy_asset("coin", "LMN", 1000.0)
+	var q0: float = game.holding(game.coins, "LMN")
+	_check(game.stake("LMN", 1.0) and game.holding(game.coins, "LMN") == 0.0, "stake locks coins")
+	_check(not game.unstake("LMN"), "cannot unlock early")
+	_check(game.sell_asset("coin", "LMN", 1.0) == 0.0, "locked coins cannot be sold")
+	game.sim_time += 25 * 3600.0
+	game.advance(3600.0)
+	_check(game.staked("LMN") > q0, "staking earns coins")
+	_check(game.unstake("LMN") and game.holding(game.coins, "LMN") > q0, "unlock after 24 h")
+	_check(float(game.counters.get("dividends_earned", 0.0)) >= 0.0, "dividends counter exists")
+	# Selling part keeps the average price the same.
+	game.cash += 2000.0
+	game.buy_asset("share", "QSF", 2000.0)
+	var avg0: float = game.avg_price(game.shares, "QSF")
+	game.sell_asset("share", "QSF", 0.5)
+	_check(absf(game.avg_price(game.shares, "QSF") - avg0) < avg0 * 1e-6, "average price stays after part sale")
+	game.stake("LMN", 0.5)
+	# A version 2 save upgrades cleanly.
+	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
+	_check(int(old["version"]) == 3 and old["price_hist"].is_empty(), "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")
@@ -103,6 +139,52 @@ func _run() -> void:
 	for i in 5:
 		main.show_page(i)
 		await create_timer(0.4).timeout
+	main.show_page(0)
+	await process_frame
+
+	# New invest screens build and their sheets open without errors.
+	for spec in [["share", "NRV"], ["share", "QSF"], ["coin", "LMN"], ["coin", "DRF"]]:
+		var pg = load("res://scripts/asset_detail.gd").new(spec[0], spec[1])
+		main.push(pg)
+		await create_timer(0.5).timeout
+		for r in ["1H", "1D", "1W"]:
+			pg._chart.set_range(r)
+			await process_frame
+		pg._on_buy()
+		await create_timer(0.3).timeout
+		root.get_node("Kit").close_top()
+		pg._on_sell()
+		await create_timer(0.3).timeout
+		root.get_node("Kit").close_top()
+		if spec[0] == "coin":
+			pg._on_stake()
+			await create_timer(0.3).timeout
+			root.get_node("Kit").close_top()
+		pg._on_scrub(1.0, 3, 10)
+		pg._on_scrub(-1.0, -1, 0)
+		_check(pg._price.text.begins_with("$"), "%s page shows a price" % spec[1])
+		main.pop()
+		await create_timer(0.5).timeout
+	var np = load("res://scripts/news_page.gd").new()
+	main.push(np)
+	await create_timer(0.5).timeout
+	_check(np._list.get_child_count() >= 30, "news page lists headlines")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.show_page(2)
+	await create_timer(0.4).timeout
+	var inv = main._pages[2]
+	for i in 3:
+		inv._seg.select(i, true)
+		await process_frame
+	inv._seg.select(0, true)
+	inv._sector = "Tech"
+	inv.refresh()
+	var shown := 0
+	for k in inv._share_rows.keys():
+		if inv._share_rows[k].visible:
+			shown += 1
+	_check(shown == 3, "sector filter shows Tech only")
 	main.show_page(0)
 	await process_frame
 
@@ -116,6 +198,8 @@ func _run() -> void:
 	_check(game.level == 2, "save/load keeps level")
 	_check(game.owns("shop") and game.biz["shop"]["stage"] == 2, "save/load keeps businesses")
 	_check(game.props_owned() == 1, "save/load keeps property")
+	_check(game.staked("LMN") > 0.0 and game.stake_left("LMN") > 0.0, "save/load keeps staking")
+	_check(game.news.size() == 30 and game.hist_h["NRV"].size() >= 160, "save/load keeps news and charts")
 
 	# Offline earnings are capped at 8 hours.
 	var inc: float = game.income_per_hour

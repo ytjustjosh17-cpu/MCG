@@ -15,6 +15,16 @@ const INK := Color("#001414")
 const WINDOW := Color("#0A2526")
 const SIDE := Color("#041717")
 const FLASH := Color("#FFC2B8")
+# Accents: used sparingly for markets so each company and coin has its own look.
+const UP := Color("#5EE0A0")
+const DOWN := Color("#FF5A4E")
+const SECTOR_COL := {
+	"Energy": Color("#F2A93B"), "Finance": Color("#E8D9B5"), "Tech": Color("#8C7CFF"),
+	"Transport": Color("#4FC3D9"), "Retail": Color("#FF7A8A"), "Food": Color("#6FD39B"),
+	"Industry": Color("#A7B4BE"),
+}
+const COIN_COL := [Color("#F2A93B"), Color("#4FC3D9"), Color("#B9A38A"), Color("#E8D9B5"), Color("#3FA7FF"),
+	Color("#FF7A3D"), Color("#C38CFF"), Color("#9FD8C8"), Color("#FFD166"), Color("#7FE3FF")]
 
 const REG := preload("res://assets/fonts/Inter-Regular.ttf")
 const SEMI := preload("res://assets/fonts/Inter-SemiBold.ttf")
@@ -114,3 +124,17 @@ static func circle_poly(center: Vector2, radius: float, seg := 64) -> PackedVect
 
 static func rect_poly(r: Rect2) -> PackedVector2Array:
 	return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+
+
+static func asset_color(sym: String) -> Color:
+	for st in Data.STOCKS:
+		if st[0] == sym:
+			return SECTOR_COL.get(st[4], TEXT)
+	for i in range(Data.COINS.size()):
+		if Data.COINS[i][0] == sym:
+			return COIN_COL[i % COIN_COL.size()]
+	return SECTOR_COL.get(sym, TEXT)
+
+
+static func change_color(pct: float) -> Color:
+	return UP if pct >= 0.0 else DOWN
