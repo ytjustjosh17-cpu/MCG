@@ -1,0 +1,7 @@
+#!/bin/sh
+# Install once: cp tools/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Blocks a commit that breaks a project rule (see CLAUDE.md).
+python3 tools/check_rules.py || {
+  echo "Commit blocked: fix the rules above first."
+  exit 1
+}

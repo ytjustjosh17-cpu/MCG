@@ -8,6 +8,7 @@ var _nav: NavBar
 var _current := 0
 var _back_armed := false
 var _stack: Array = []
+var _last_push_ms := -10000
 
 
 func _ready() -> void:
@@ -100,10 +101,17 @@ func _ready() -> void:
 
 func push(p: Control) -> void:
 	## Slides a detail page in from the right, over the current tab.
+	## Repeated taps while a page is sliding in don't stack copies.
+	var now_ms := Time.get_ticks_msec()
+	var same: bool = not _stack.is_empty() and _stack.back().get_script() == p.get_script()
+	if now_ms - _last_push_ms < 450 or (same and p.get_script() != AssetDetail):
+		p.queue_free()
+		return
+	_last_push_ms = now_ms
 	_content.add_child(p)
 	GameLog.info("ui", "Open %s" % (p.title if "title" in p else p.name))
 	p.push_page.connect(push)
-	p.pop_page.connect(pop)
+	p.pop_page.connect(func(): _pop_from(p))
 	var w := _content.size.x
 	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
 	_stack.append(p)
@@ -121,6 +129,12 @@ func push(p: Control) -> void:
 			under.visible = false)
 
 
+func _pop_from(p: Control) -> void:
+	## Only the page on top may close itself (stops double back taps skipping pages).
+	if not _stack.is_empty() and _stack.back() == p:
+		pop()
+
+
 func pop() -> void:
 	if _stack.is_empty():
 		return
@@ -135,6 +149,12 @@ func pop() -> void:
 	t.tween_property(under, "position:x", 0.0, Motion.d(0.3)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	t.tween_property(under, "modulate:a", 1.0, Motion.d(0.26))
 	t.chain().tween_callback(p.queue_free)
+
+
+func _kill_tab_tween(page: Control) -> void:
+	var t = page.get_meta("tab_tw", null)
+	if t is Tween and t.is_valid():
+		t.kill()
 
 
 func _stop_push(p: Control) -> void:
@@ -160,6 +180,12 @@ func show_page(i: int) -> void:
 		_clear_stack()
 		_pages[_current].visible = true
 	if i == _current:
+		# Re-tapping the current tab always leaves it fully shown.
+		var cur: Control = _pages[_current]
+		_kill_tab_tween(cur)
+		cur.visible = true
+		cur.modulate.a = 1.0
+		cur.position.x = 0.0
 		return
 	var old: Control = _pages[_current]
 	var new: Control = _pages[i]
@@ -169,16 +195,22 @@ func show_page(i: int) -> void:
 	_nav.set_active(i)
 	Kit.tick(6)
 	# Old page fades out quickly, new page fades in with a short slide.
+	_kill_tab_tween(old)
+	_kill_tab_tween(new)
 	var to := old.create_tween()
+	old.set_meta("tab_tw", to)
 	to.tween_property(old, "modulate:a", 0.0, Motion.d(0.1))
 	to.tween_callback(func():
-		old.visible = false
+		# Only hide it if the player hasn't already switched back to it.
+		if _pages[_current] != old:
+			old.visible = false
 		old.modulate.a = 1.0
 		old.position.x = 0.0)
 	new.visible = true
 	new.modulate.a = 0.0
 	new.position.x = 0.0 if Motion.reduced() else 18.0 * dir
 	var tn := new.create_tween().set_parallel(true)
+	new.set_meta("tab_tw", tn)
 	tn.tween_property(new, "modulate:a", 1.0, Motion.d(0.22)).set_delay(Motion.d(0.06))
 	tn.tween_property(new, "position:x", 0.0, Motion.d(Motion.STANDARD)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(Motion.d(0.06))
 
@@ -253,7 +285,7 @@ func _show_deal() -> void:
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
-	if not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0:
+	if not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0 or Kit._cele_open:
 		return  # wait until the player is on a main tab and not tapping
 	_deal_open = true
 	var d: Dictionary = Game.deal
@@ -263,7 +295,7 @@ func _show_deal() -> void:
 			if Game.accept_deal():
 				Kit.toast("Deal done", true)
 			else:
-				Kit.toast("Couldn't afford it")},
+				Kit.toast("That deal isn't possible any more")},
 		{"text": "No thanks", "style": "plain", "call": func():
 			_deal_open = false
 			Game.decline_deal()},
