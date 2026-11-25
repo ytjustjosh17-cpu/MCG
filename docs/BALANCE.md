@@ -44,11 +44,14 @@ Other players, measured by the agent play-testers:
 
 ## Guard rails (keep these true)
 
-1. Trading must not beat owning companies. Quick buy and sell loops lose money to the 0.5% spread and slow price moves. If you make prices move faster, re-run the exploit persona.
+1. Trading must not beat owning companies. Random moves go into the fair price itself (a random walk) and the price follows it, so dips are not promises of a bounce. Coin news shifts the coin's long-run anchor too. Re-run the exploit persona after any market change.
 2. Restoring a backup never passes time (so it can't re-roll the market).
 3. Time away is worked out without the ×2 boost, then only the boosted hours are added back.
-4. Selling an outlet to a buyer pays a little over what the last outlet cost, never more than rebuying costs.
-5. Staking pays at most 5% of hourly income per coin.
+4. Selling a unit to a buyer pays a little under what rebuying costs.
+5. Staking pays at most 5% of hourly income across all coins together.
+10. Taps: at most 7 paid a second. Invest goals need a real amount (10 minutes of income or $100).
+11. The clock going backwards never re-rolls goals or the streak. Restoring a backup keeps the live market and deal.
+12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income.
 6. Goals only ask for things that are still possible (no "buy units" when every company is full).
 7. Deals and the welcome-back card only appear while the app is open.
 8. Rivals stay beaten once passed.
