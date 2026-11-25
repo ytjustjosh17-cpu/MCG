@@ -79,6 +79,9 @@ func _run() -> void:
 	await _shot("11_items")
 	main.push(ItemsPage.CollectionPage.new("watches"))
 	await _shot("12_collection")
+	var up = root.get_node("Updater")
+	up.latest_version = "1.0.7"
+	up._set_state(up.State.AVAILABLE)
 	main.show_page(4)
 	await _shot("13_profile")
 	main.push(AchievementsPage.new())

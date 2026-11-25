@@ -50,6 +50,7 @@ func _ready() -> void:
 	_nav.set_active(0)
 
 	Updater.update_available.connect(_on_update)
+	Updater.state_changed.connect(func(): _nav.set_badge(4, Updater.has_update()))
 	if OS.has_feature("android"):
 		get_tree().create_timer(3.0).timeout.connect(func(): Updater.check())
 
@@ -158,13 +159,8 @@ func _on_back() -> void:
 
 
 func _on_update(version: String) -> void:
-	Kit.sheet(
-		"Update ready",
-		"Version %s · your progress is kept." % version,
-		[
-			{"text": "Download update", "style": "primary", "call": Updater.open_download},
-			{"text": "Later", "style": "plain"},
-		])
+	_nav.set_badge(4, true)
+	Kit.toast("Update ready · Profile", true)
 
 
 func _apply_safe_area() -> void:

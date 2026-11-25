@@ -146,5 +146,29 @@ func _run() -> void:
 	_check(save_size < 400000, "save stays small after a month of data (%s)" % gl.bytes(save_size))
 	game.reset_game()
 
+	# Update card on Profile, and old update files are cleaned up.
+	var up = root.get_node("Updater")
+	up.latest_version = "1.0.999"
+	up._set_state(up.State.AVAILABLE)
+	main.show_page(4)
+	await create_timer(0.4).timeout
+	var prof = main._pages[4]
+	_check(prof._upd_card.visible and prof._upd_btn.text == "Update", "update card shows on Profile")
+	_check(main._nav._badges[4].visible, "Profile tab shows a red dot")
+	up.progress = 0.42
+	up._set_state(up.State.DOWNLOADING)
+	_check(prof._upd_btn.text == "Downloading 42%", "download progress shows")
+	up._set_state(up.State.IDLE)
+	_check(not prof._upd_card.visible, "card hides when up to date")
+	var f := FileAccess.open("user://update.apk", FileAccess.WRITE)
+	f.store_string("x")
+	f.close()
+	f = FileAccess.open("user://update.txt", FileAccess.WRITE)
+	f.store_string("1.0.0")
+	f.close()
+	up._cleanup_old_download()
+	_check(not FileAccess.file_exists("user://update.apk"), "old update file is deleted")
+	main.show_page(0)
+
 	print("Failures: ", _fails)
 	quit(1 if _fails > 0 else 0)

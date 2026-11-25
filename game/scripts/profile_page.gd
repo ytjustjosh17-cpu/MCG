@@ -14,6 +14,10 @@ var _motion_row: Row
 var _report_row: Row
 var _storage_row: Row
 var _checking := false
+var _upd_card: PanelContainer
+var _upd_title: Label
+var _upd_btn: Button
+var _upd_bar: ProgressBar
 
 
 func _init() -> void:
@@ -21,6 +25,40 @@ func _init() -> void:
 
 
 func build() -> void:
+	# Update card: only shown when a new version is out. One tap updates.
+	_upd_card = PanelContainer.new()
+	var sb := UI.box(UI.PANEL, 18)
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.border_color = UI.RED
+	_upd_card.add_theme_stylebox_override("panel", sb)
+	body.add_child(_upd_card)
+	var up := padded(_upd_card, 16, 10)
+	var uh := HBoxContainer.new()
+	uh.add_theme_constant_override("separation", 10)
+	up.add_child(uh)
+	var ui := Icon.new("update", UI.RED, 22.0)
+	ui.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	uh.add_child(ui)
+	_upd_title = UI.label("", 17, UI.TEXT, true)
+	uh.add_child(_upd_title)
+	_upd_btn = UI.pill("Update", UI.RED, UI.INK, 17, 24)
+	_upd_btn.custom_minimum_size = Vector2(0, 52)
+	_upd_btn.pressed.connect(_on_update_pressed)
+	Kit.press_fx(_upd_btn)
+	up.add_child(_upd_btn)
+	_upd_bar = ProgressBar.new()
+	_upd_bar.show_percentage = false
+	_upd_bar.custom_minimum_size = Vector2(0, 6)
+	_upd_bar.max_value = 1.0
+	_upd_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 3))
+	_upd_bar.add_theme_stylebox_override("fill", UI.box(UI.RED, 3))
+	up.add_child(_upd_bar)
+	Updater.state_changed.connect(_refresh_update)
+	_refresh_update()
+
 	body.add_child(UI.label("Fortune", 13, UI.SUB))
 	_fortune = CountLabel.new(Game.money)
 	_fortune.add_theme_font_size_override("font_size", 34)
@@ -171,6 +209,37 @@ func _on_report() -> void:
 		{"text": "Done", "style": "primary"},
 	])
 	_update_storage()
+
+
+func _refresh_update() -> void:
+	if _upd_card == null:
+		return
+	var show := Updater.has_update()
+	_upd_card.visible = show
+	if not show:
+		return
+	_upd_title.text = "Version %s is ready" % Updater.latest_version
+	_upd_bar.visible = Updater.state == Updater.State.DOWNLOADING
+	_upd_bar.value = Updater.progress
+	match Updater.state:
+		Updater.State.DOWNLOADING:
+			_upd_btn.text = "Downloading %d%%" % int(Updater.progress * 100.0)
+		Updater.State.INSTALLING:
+			_upd_btn.text = "Opening installer…"
+		Updater.State.READY:
+			_upd_btn.text = "Install update"
+		Updater.State.FAILED:
+			_upd_btn.text = "Try again"
+		_:
+			_upd_btn.text = "Update"
+
+
+func _on_update_pressed() -> void:
+	Kit.haptic("medium")
+	if Updater.state == Updater.State.FAILED:
+		Updater.state = Updater.State.AVAILABLE
+	Updater.start_update()
+	_refresh_update()
 
 
 func _check_updates() -> void:
