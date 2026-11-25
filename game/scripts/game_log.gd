@@ -26,9 +26,9 @@ func _ready() -> void:
 	_start_ms = Time.get_ticks_msec()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	_open()
-	info("app", "Started v%s on %s (%s %s), screen %s, %d CPU cores" % [
-		ProjectSettings.get_setting("application/config/version", "?"), OS.get_model_name(), OS.get_name(),
-		OS.get_version(), str(DisplayServer.screen_get_size()), OS.get_processor_count()])
+	info("app", "Started v%s on %s (%s), screen %s, %d CPU cores, %s" % [
+		ProjectSettings.get_setting("application/config/version", "?"), OS.get_model_name(), os_text(),
+		str(DisplayServer.screen_get_size()), OS.get_processor_count(), ram_text()])
 	if FileAccess.file_exists(FLAG):
 		warn("app", "The last session ended unexpectedly (closed by the system or a crash)")
 	_set_flag(true)
@@ -117,10 +117,28 @@ func _process(delta: float) -> void:
 		_slow_frames = 0
 
 
+static func os_text() -> String:
+	var v := OS.get_version()
+	if v == "" and OS.has_method("get_version_alias"):
+		v = OS.call("get_version_alias")
+	return "%s %s" % [OS.get_name(), v if v != "" else "(version hidden)"]
+
+
+static func ram_text() -> String:
+	var m := OS.get_memory_info()
+	var avail := int(m.get("available", -1))
+	var phys := int(m.get("physical", -1))
+	if avail < 0 or phys <= 0:
+		return "RAM unknown"
+	return "RAM free %s of %s" % [bytes(avail), bytes(phys)]
+
+
 func perf_line() -> String:
-	return "fps %d, memory %.1f MB, nodes %d, orphan nodes %d, objects %d, save %s, logs %s" % [
+	var used := OS.get_static_memory_usage()
+	var mem := ("game memory %.1f MB" % (used / 1048576.0)) if used > 0 else ram_text()
+	return "fps %d, %s, nodes %d, orphan nodes %d, objects %d, save %s, logs %s" % [
 		Engine.get_frames_per_second(),
-		OS.get_static_memory_usage() / 1048576.0,
+		mem,
 		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 		int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
 		int(Performance.get_monitor(Performance.OBJECT_COUNT)),
@@ -212,8 +230,8 @@ func _engine_log_tail(max_lines := 60) -> Array:
 
 func report() -> String:
 	var lines: Array = []
-	lines.append("=== Red Sun Holdings problem report ===")
-	lines.append("Version %s · %s · %s %s" % [ProjectSettings.get_setting("application/config/version", "?"), OS.get_model_name(), OS.get_name(), OS.get_version()])
+	lines.append("=== Sol problem report ===")
+	lines.append("Version %s · %s · %s" % [ProjectSettings.get_setting("application/config/version", "?"), OS.get_model_name(), os_text()])
 	lines.append("Time %s · up %d min" % [Time.get_datetime_string_from_system(), (Time.get_ticks_msec() - _start_ms) / 60000])
 	lines.append("Storage used %s (save %s, logs %s)" % [bytes(storage_used()), bytes(file_size("user://save.json")), bytes(logs_size())])
 	lines.append(perf_line())

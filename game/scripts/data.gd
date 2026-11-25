@@ -131,7 +131,7 @@ const MERGERS := [
 		"needs": [["biz", "it", 5], ["crypto", 5.0e7], ["shares", 1.0e8]]},
 	{"id": "skysea", "name": "Sky & Sea", "cost": 5.0e10, "boost": ["airline", "shipping", "oil"], "mult": 1.5,
 		"needs": [["biz", "airline", 3], ["biz", "shipping", 8], ["collection", "yachts"]]},
-	{"id": "holding", "name": "Red Sun Holdings", "cost": 2.5e11, "boost": [], "mult": 2.0,
+	{"id": "holding", "name": "Sol Holdings", "cost": 2.5e11, "boost": [], "mult": 2.0,
 		"needs": [["biz", "bank", 8], ["biz", "oil", 5], ["shares", 1.0e10], ["mergers", 5]]},
 ]
 

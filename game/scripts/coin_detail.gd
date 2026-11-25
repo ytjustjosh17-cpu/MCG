@@ -34,9 +34,6 @@ func build() -> void:
 	_paid = _line(c, "You paid")
 	separator(c)
 	_profit = _line(c, "Profit")
-	var warn := UI.label("Coin prices move fast. You can lose money as well as make it.", 13, UI.SUB)
-	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(warn)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	body.add_child(h)
@@ -69,7 +66,7 @@ func refresh() -> void:
 	_price.text = InvestPage._coin_price(Game.price(sym))
 	var pct := PriceChart.change_pct(sym)
 	var up := pct >= 0.0
-	_change.text = "%s%.2f%% in the last hour · %s" % ["▲ +" if up else "▼ −", absf(pct), sym]
+	_change.text = "%s%.2f%% · 1 h" % ["▲ +" if up else "▼ −", absf(pct)]
 	_change.add_theme_color_override("font_color", UI.TEXT if up else UI.SUB)
 	_chart.queue_redraw()
 	var held := Game.holding(Game.coins, sym)

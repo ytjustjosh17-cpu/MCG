@@ -25,12 +25,16 @@ func build() -> void:
 	_fortune.add_theme_font_size_override("font_size", 34)
 	_fortune.add_theme_color_override("font_color", UI.TEXT)
 	body.add_child(_fortune)
+	var chart := NetChart.new()
+	chart.custom_minimum_size = Vector2(0, 72)
+	body.add_child(chart)
+	Game.changed.connect(chart.queue_redraw)
 
 	var cc := card()
 	var cp := padded(cc, 16, 8)
 	var ch := HBoxContainer.new()
 	cp.add_child(ch)
-	var cl := UI.label("Game complete", 17, UI.TEXT, true)
+	var cl := UI.label("Complete", 17, UI.TEXT, true)
 	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ch.add_child(cl)
 	_pct = UI.label("", 17, UI.TEXT, true)
@@ -42,11 +46,8 @@ func build() -> void:
 	_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 4))
 	_bar.add_theme_stylebox_override("fill", UI.box(UI.RED, 4))
 	cp.add_child(_bar)
-	var cn := UI.label("Companies, mergers, property, collections, achievements and level all count.", 13, UI.SUB)
-	cn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	cp.add_child(cn)
 
-	section("Where your money is")
+	section("Money")
 	var bc := card()
 	var parts := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items"], ["cash", "Cash"]]
 	for i in range(parts.size()):
@@ -83,7 +84,7 @@ func build() -> void:
 	ac.add_child(_ach_row)
 
 	var st := card()
-	_vib_row = Row.new("", "", false)
+	_vib_row = Row.new("vibrate", "", false)
 	_vib_row.custom_minimum_size = Vector2(0, 52)
 	_vib_row.pressed.connect(func():
 		Game.vibrate = not Game.vibrate
@@ -92,7 +93,7 @@ func build() -> void:
 		refresh())
 	st.add_child(_vib_row)
 	separator(st)
-	_upd_row = Row.new("", "", false)
+	_upd_row = Row.new("update", "", false)
 	_upd_row.custom_minimum_size = Vector2(0, 52)
 	_upd_row.pressed.connect(_check_updates)
 	st.add_child(_upd_row)
@@ -101,22 +102,18 @@ func build() -> void:
 			Kit.toast("You're on the latest version")
 		_checking = false)
 
-	section("Help")
 	var hc := card()
-	_report_row = Row.new("list")
+	_report_row = Row.new("bug")
 	_report_row.pressed.connect(_on_report)
 	hc.add_child(_report_row)
 	separator(hc, 50)
-	_storage_row = Row.new("", "", false)
+	_storage_row = Row.new("storage", "", false)
 	_storage_row.custom_minimum_size = Vector2(0, 52)
 	_storage_row.pressed.connect(func():
 		Kit.toast("Saves and logs have fixed size limits"))
 	hc.add_child(_storage_row)
 
 	body.add_child(button("Start again", false, _on_reset))
-	var note := UI.label("Saved on this phone. Updates keep your progress.", 13, UI.SUB)
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(note)
 
 
 func refresh() -> void:
@@ -140,10 +137,10 @@ func refresh() -> void:
 	_stats[1].text = Game.group(Game.taps)
 	var days := int((Game.now() - Game.started_at) / 86400.0) + 1
 	_stats[2].text = "%d day%s" % [days, "" if days == 1 else "s"]
-	_ach_row.set_texts("Achievements", "Each one pays an hour of income", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
-	_vib_row.set_texts("Vibrate on tap", "", "On" if Game.vibrate else "Off")
-	_upd_row.set_texts("Check for updates", "", "v" + Updater.current_version())
-	_report_row.set_texts("Copy problem report", "Paste it to Claude to fix issues", "")
+	_ach_row.set_texts("Achievements", "", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
+	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
+	_upd_row.set_texts("Updates", "", "v" + Updater.current_version())
+	_report_row.set_texts("Copy problem report", "", "")
 	if not _storage_timer_started:
 		_storage_timer_started = true
 		_update_storage()
@@ -153,7 +150,7 @@ var _storage_timer_started := false
 
 
 func _update_storage() -> void:
-	_storage_row.set_texts("Storage used", "Save and logs, capped", GameLog.bytes(GameLog.storage_used()))
+	_storage_row.set_texts("Storage", "", GameLog.bytes(GameLog.storage_used()))
 
 
 func _on_report() -> void:

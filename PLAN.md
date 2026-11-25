@@ -1,4 +1,4 @@
-# Game Plan
+# Sol: game plan
 
 A business tycoon clicker for my Samsung S23.
 Based on the "Business Empire" screen recording, with the dark red-sun look we designed.

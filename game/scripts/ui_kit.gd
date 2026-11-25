@@ -10,11 +10,63 @@ var top_inset := 0.0
 var bottom_inset := 0.0
 var _stack: Array = []  # [{"root": Control, "close": Callable}]
 var _toast: Control
+# Drag-versus-tap handling, so lists scroll even when the finger starts on a button.
+const DRAG_PX := 14.0
+var dragged := false
+var _pressing := false
+var _press_pos := Vector2.ZERO
+var _down_btn: BaseButton
+var _cancelled: Array = []
 
 
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().node_added.connect(_on_node_added)
+
+
+func _on_node_added(n: Node) -> void:
+	## Every button lets drags through to the scroll view behind it.
+	if n is BaseButton:
+		var b := n as BaseButton
+		b.mouse_filter = Control.MOUSE_FILTER_PASS
+		b.button_down.connect(func(): _down_btn = b)
+		if not b.has_theme_stylebox_override("disabled") and b.has_theme_stylebox_override("normal"):
+			b.add_theme_stylebox_override("disabled", b.get_theme_stylebox("normal"))
+
+
+func _input(e: InputEvent) -> void:
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed:
+			_pressing = true
+			dragged = false
+			_press_pos = e.position
+			_down_btn = null
+		else:
+			_pressing = false
+			if not _cancelled.is_empty():
+				_restore.call_deferred()
+	elif e is InputEventMouseMotion and _pressing and not dragged:
+		if e.position.distance_to(_press_pos) > DRAG_PX:
+			dragged = true
+			_cancel_press()
+
+
+func _cancel_press() -> void:
+	## The finger is scrolling: cancel the button it started on so it doesn't fire.
+	if _down_btn == null or not is_instance_valid(_down_btn) or _down_btn.disabled:
+		return
+	var b := _down_btn
+	_cancelled.append(b)
+	b.disabled = true
+	b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.15)
+
+
+func _restore() -> void:
+	for b in _cancelled:
+		if is_instance_valid(b):
+			b.disabled = false
+	_cancelled.clear()
 
 
 func screen() -> Vector2:

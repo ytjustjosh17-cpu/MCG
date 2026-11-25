@@ -1,14 +1,13 @@
 class_name TowerCard
 extends Control
-## The tap card: headquarters tower against the flat red sun.
+## The tap card: headquarters tower against the flat red sun. Scales to any size.
 ## Tap anywhere on the card (outside its buttons) to earn.
 
-const DESIGN_W := 358.0
-const COLS := [210.0, 230.0, 250.0, 270.0]
-const ROWS := 9
-const RADIUS := 22.0
+const COLS := 4
+const RADIUS := 24.0
 
 var _order: Array = []
+var _rows := 0
 var _flash_index := -1
 var _flash_time := 0.0
 var _float_count := 0
@@ -16,31 +15,44 @@ var _float_count := 0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	clip_contents = false
+	Game.changed.connect(queue_redraw)
+	resized.connect(_reshape)
+
+
+func _reshape() -> void:
+	var g := _geo()
+	_rows = maxi(1, int((size.y - g["top"] - 24.0) / g["pitch_y"]))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4401
-	_order = range(COLS.size() * ROWS)
+	_order = range(COLS * _rows)
 	for i in range(_order.size() - 1, 0, -1):
 		var j := rng.randi_range(0, i)
 		var t = _order[i]
 		_order[i] = _order[j]
 		_order[j] = t
-	Game.changed.connect(queue_redraw)
-	resized.connect(queue_redraw)
+	queue_redraw()
+
+
+func _geo() -> Dictionary:
+	var w := size.x
+	var h := size.y
+	var tw := clampf(w * 0.34, 96.0, 170.0)
+	var tx := w * 0.6 - tw / 2.0
+	var top := h * 0.2
+	var win_w := tw * 0.125
+	return {"tw": tw, "tx": tx, "top": top, "win_w": win_w, "win_h": win_w * 0.72,
+		"pitch_x": tw * 0.21, "pitch_y": win_w * 1.5, "pad": tw * 0.1}
 
 
 func lit_count() -> int:
-	return clampi((Game.level - 1) * 4 + 2 + int(Game.level_progress() * 4.0), 1, COLS.size() * ROWS)
+	var total := COLS * _rows
+	return clampi((Game.level - 1) * 3 + Game.companies() * 2 + 2 + int(Game.level_progress() * 3.0), 1, total)
 
 
-func _window_rect(i: int, dx: float) -> Rect2:
-	var col := i % COLS.size()
-	var row := i / COLS.size()
-	return Rect2(COLS[col] + dx, 54.0 + row * 18.0, 12.0, 9.0)
-
-
-func _card_poly() -> PackedVector2Array:
-	return UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), RADIUS)
+func _window_rect(i: int, g: Dictionary) -> Rect2:
+	var col := i % COLS
+	var row := i / COLS
+	return Rect2(g["tx"] + g["pad"] + col * g["pitch_x"], g["top"] + 18.0 + row * g["pitch_y"], g["win_w"], g["win_h"])
 
 
 func _fill_clipped(poly: PackedVector2Array, clip: PackedVector2Array, c: Color) -> void:
@@ -55,41 +67,40 @@ func _line_clipped(a: Vector2, b: Vector2, clip: PackedVector2Array, c: Color, w
 
 
 func _draw() -> void:
-	if size.x < 100.0 or size.y < 100.0:
+	if size.x < 100.0 or size.y < 100.0 or _rows == 0:
 		return
-	var clip := _card_poly()
-	var dx := size.x - DESIGN_W
+	var w := size.x
+	var h := size.y
+	var g := _geo()
+	var clip := UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), RADIUS)
 	draw_colored_polygon(clip, UI.SKY)
-	# The sun: flat, no glow.
-	var sun_col := UI.RED
-	if Game.boost_active():
-		sun_col = UI.RED.lightened(0.12)
-	_fill_clipped(UI.circle_poly(Vector2(268.0 + dx, 72.0), 92.0), clip, sun_col)
-	# Power lines.
-	_line_clipped(Vector2(140 + dx, -6), Vector2(366 + dx, 118), clip, UI.INK, 1.2)
-	_line_clipped(Vector2(150 + dx, size.y + 4), Vector2(366 + dx, 30), clip, UI.INK, 1.0)
-	# Tower.
-	_fill_clipped(UI.rect_poly(Rect2(214 + dx, 26, 30, 14)), clip, UI.INK)
-	_fill_clipped(UI.rect_poly(Rect2(200 + dx, 38, 96, size.y)), clip, UI.INK)
-	_fill_clipped(UI.rect_poly(Rect2(296 + dx, 46, 10, size.y)), clip, UI.SIDE)
-	# Windows.
-	var lit := lit_count()
-	var lit_set := {}
-	for k in range(lit):
-		lit_set[_order[k]] = true
-	for i in range(COLS.size() * ROWS):
-		var r := _window_rect(i, dx)
-		if r.end.y > size.y - 4.0:
+	var sun_r := minf(w * 0.42, h * 0.34)
+	var sun_col := UI.RED.lightened(0.12) if Game.boost_active() else UI.RED
+	_fill_clipped(UI.circle_poly(Vector2(w * 0.78, h * 0.24), sun_r, 96), clip, sun_col)
+	_line_clipped(Vector2(w * 0.25, -6), Vector2(w + 6, h * 0.5), clip, UI.INK, 1.4)
+	_line_clipped(Vector2(w * 0.3, h + 6), Vector2(w + 6, h * 0.12), clip, UI.INK, 1.1)
+	var tx: float = g["tx"]
+	var tw: float = g["tw"]
+	var top: float = g["top"]
+	_fill_clipped(UI.rect_poly(Rect2(tx + tw * 0.15, top - tw * 0.12, tw * 0.3, tw * 0.12)), clip, UI.INK)
+	_fill_clipped(UI.rect_poly(Rect2(tx, top, tw, h)), clip, UI.INK)
+	_fill_clipped(UI.rect_poly(Rect2(tx + tw, top + 8.0, tw * 0.1, h)), clip, UI.SIDE)
+	var lit := {}
+	for k in range(mini(lit_count(), _order.size())):
+		lit[_order[k]] = true
+	for i in range(COLS * _rows):
+		var r := _window_rect(i, g)
+		if r.end.y > h - 14.0:
 			continue
 		var c := UI.WINDOW
-		if lit_set.has(i):
+		if lit.has(i):
 			c = UI.RED
 		if i == _flash_index and _flash_time > 0.0:
 			c = UI.FLASH
 		draw_rect(r, c, true)
-	# Neighbour block.
-	_fill_clipped(UI.rect_poly(Rect2(314 + dx, size.y - 66, 60, 80)), clip, UI.WINDOW)
-	_fill_clipped(UI.rect_poly(Rect2(324 + dx, size.y - 52, 8, 7)), clip, UI.RED)
+	var nb := Rect2(w * 0.86, h * 0.68, w * 0.2, h * 0.4)
+	_fill_clipped(UI.rect_poly(nb), clip, UI.WINDOW)
+	_fill_clipped(UI.rect_poly(Rect2(nb.position + Vector2(10, 14), Vector2(8, 7))), clip, UI.RED)
 
 
 func _process(delta: float) -> void:
@@ -107,7 +118,8 @@ func _gui_input(event: InputEvent) -> void:
 
 func _do_tap(pos: Vector2) -> void:
 	var v := Game.tap()
-	_flash_index = randi() % (COLS.size() * ROWS)
+	if _rows > 0:
+		_flash_index = randi() % (COLS * _rows)
 	_flash_time = 0.12
 	queue_redraw()
 	if Game.vibrate:
@@ -117,12 +129,12 @@ func _do_tap(pos: Vector2) -> void:
 
 
 func _spawn_float(pos: Vector2, v: float) -> void:
-	var l := UI.label("+" + Game.money(v), 17, UI.TEXT, true)
+	var l := UI.label("+" + Game.money_short(v), 22, UI.TEXT, true)
 	add_child(l)
-	l.position = pos + Vector2(-28, -34)
+	l.position = pos + Vector2(-30, -40)
 	_float_count += 1
 	var tw := create_tween().set_parallel(true)
-	tw.tween_property(l, "position:y", l.position.y - 56.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(l, "position:y", l.position.y - 70.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(l, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(func():
 		_float_count -= 1

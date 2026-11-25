@@ -15,12 +15,10 @@ func _init() -> void:
 
 
 func build() -> void:
-	_income = CountLabel.new(Game.money)
+	_income = CountLabel.new(func(v): return Game.money_short(v) + " /h")
 	_income.add_theme_font_size_override("font_size", 34)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	body.add_child(_income)
-	var sub := UI.label("Business income per hour", 13, UI.SUB)
-	body.add_child(sub)
 	var c := card()
 	_boost = Row.new("bolt", "", false)
 	(_boost.lead as Icon).set_style(UI.RED)
@@ -29,7 +27,7 @@ func build() -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	body.add_child(h)
-	h.add_child(button("New business", true, func(): push_page.emit(StartBusinessPage.new())))
+	h.add_child(button("New", true, func(): push_page.emit(StartBusinessPage.new())))
 	h.add_child(button("Mergers", false, func(): push_page.emit(MergersPage.new())))
 	_count = section("My companies")
 	_list = VBoxContainer.new()
@@ -37,7 +35,7 @@ func build() -> void:
 	body.add_child(_list)
 	_empty = UI.panel(UI.PANEL, 16)
 	_empty.custom_minimum_size = Vector2(0, 96)
-	var el := UI.label("Open your first company to earn money every hour, even while you're away.", 15, UI.SUB)
+	var el := UI.label("Open a company to earn every hour.", 15, UI.SUB)
 	el.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	el.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	el.offset_left = 16
@@ -52,11 +50,11 @@ func refresh() -> void:
 		return
 	_income.set_value(Game.business_per_hour())
 	if Game.ibost_active():
-		_boost.set_texts("Double income is on", "Every company earns ×2", Game.clock(Game.ibost_left()), "left")
+		_boost.set_texts("×2 income", "", Game.clock(Game.ibost_left()))
 	elif Game.ibost_ready():
-		_boost.set_texts("Double income for 4 hours", "Free" if Game.companies() > 0 else "Open a company first", "Start" if Game.companies() > 0 else "")
+		_boost.set_texts("×2 income · 4 h", "", "Start" if Game.companies() > 0 else "")
 	else:
-		_boost.set_texts("Double income", "Ready again in " + Game.clock(Game.ibost_cooldown_left()), "")
+		_boost.set_texts("×2 income", "", Game.clock(Game.ibost_cooldown_left()))
 	_count.text = "%d of %d" % [Game.companies(), Data.BUSINESSES.size()]
 	_empty.visible = Game.companies() == 0
 	for b in Data.BUSINESSES:
@@ -128,19 +126,19 @@ class BizCard extends Button:
 		var s: Dictionary = Game.biz[id]
 		_name.text = s["name"]
 		_type.text = "%s · Stage %d" % [b["name"], s["stage"]]
-		_income.text = Game.money(Game.biz_income(id)) + " /h"
+		_income.text = Game.money_short(Game.biz_income(id)) + " /h"
 		_scene.lit = 1 + int(s["stage"]) / 4
 		_scene.queue_redraw()
 		var cap := Game.capacity(id)
 		if Game.expanding(id):
-			_status.text = "Expanding · " + Game.clock(Game.expansion_left(id))
+			_status.text = Game.clock(Game.expansion_left(id))
 			_mark.visible = false
 			_status.position.x = 16
 		elif int(s["units"]) >= cap and int(s["stage"]) < Data.MAX_STAGE:
-			_status.text = "Full · ready to expand"
+			_status.text = "Expand"
 			_mark.visible = true
 			_status.position.x = 30
 		else:
-			_status.text = "%d of %d %s" % [s["units"], cap, b["units"]]
+			_status.text = "%d / %d" % [s["units"], cap]
 			_mark.visible = Game.cash >= Game.unit_price(id) and int(s["units"]) < cap
 			_status.position.x = 30 if _mark.visible else 16

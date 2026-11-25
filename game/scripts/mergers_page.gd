@@ -10,9 +10,6 @@ func _init() -> void:
 
 
 func build() -> void:
-	var intro := UI.label("Join what you own into bigger groups. Each merger boosts income for good.", 15, UI.SUB)
-	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(intro)
 	for m in Data.MERGERS:
 		var c := card()
 		var p := padded(c, 16, 6)
@@ -53,11 +50,11 @@ func build() -> void:
 
 func _effect(m: Dictionary) -> String:
 	if m["boost"].is_empty():
-		return "Effect: doubles all income, for good."
+		return "×2 all income"
 	var names: Array = []
 	for bid in m["boost"]:
 		names.append(String(Data.business(bid)["name"]).to_lower())
-	return "Effect: ×%.1f income for %s." % [m["mult"], ", ".join(names)]
+	return "×%.1f %s" % [m["mult"], ", ".join(names)]
 
 
 func refresh() -> void:
@@ -80,7 +77,7 @@ func refresh() -> void:
 			btn.text = "Merged"
 			Page.set_enabled(btn, false)
 		else:
-			(entry[1] as Label).text = "%d of %d ready" % [ready, entry[2].size()]
+			(entry[1] as Label).text = "%d / %d" % [ready, entry[2].size()]
 			btn.text = "Merge · " + Game.money_short(m["cost"])
 			Page.set_enabled(btn, Game.merger_ready(m) and Game.cash >= float(m["cost"]))
 

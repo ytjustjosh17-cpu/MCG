@@ -5,7 +5,7 @@ signal update_available(version: String)
 signal check_finished(found: bool)
 
 const API := "https://api.github.com/repos/ytjustjosh17-cpu/MCG/releases/latest"
-const DOWNLOAD := "https://github.com/ytjustjosh17-cpu/MCG/releases/latest/download/RedSunHoldings.apk"
+const DOWNLOAD := "https://github.com/ytjustjosh17-cpu/MCG/releases/latest/download/Sol.apk"
 const MIN_GAP_S := 1800.0
 
 var latest_version := ""
@@ -37,7 +37,7 @@ func check(force := false) -> void:
 		return
 	_busy = true
 	_last = Time.get_ticks_msec() / 1000.0
-	var err := _http.request(API, ["User-Agent: RedSunHoldings-game", "Accept: application/vnd.github+json"])
+	var err := _http.request(API, ["User-Agent: Sol-game", "Accept: application/vnd.github+json"])
 	if err != OK:
 		_busy = false
 		check_finished.emit(false)

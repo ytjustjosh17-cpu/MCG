@@ -50,29 +50,40 @@ jobs:
         working-directory: game
         run: godot --headless --path . -s res://tests/smoke_test.gd
 
+      - name: Scroll test (as a touchscreen)
+        working-directory: game
+        run: |
+          printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
+          godot --headless --path . -s res://tests/scroll_test.gd
+          rm override.cfg
+
       - name: Export APK
         working-directory: game
         run: |
           mkdir -p build
-          godot --headless --verbose --export-release "Android" build/RedSunHoldings.apk
+          godot --headless --verbose --export-release "Android" build/Sol.apk
+          test -s build/Sol.apk
+          # Older versions look for the old file name, so publish both.
+          cp build/Sol.apk build/RedSunHoldings.apk
           ls -la build
-          test -s build/RedSunHoldings.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RedSunHoldings-apk
-          path: game/build/RedSunHoldings.apk
+          name: Sol-apk
+          path: game/build/Sol.apk
           if-no-files-found: error
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Red Sun Holdings 1.0.${{ github.run_number }}
+          name: Sol 1.0.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          files: game/build/RedSunHoldings.apk
+          files: |
+            game/build/Sol.apk
+            game/build/RedSunHoldings.apk
           make_latest: "true"
           body: |
             Build ${{ github.run_number }}.
-            Install: open this on your phone and tap RedSunHoldings.apk.
+            Install: open this on your phone and tap Sol.apk.

@@ -130,7 +130,7 @@ func _run() -> void:
 		gl.info("test", "Filler line %d to check that log files rotate and never grow without limit." % i)
 	_check(gl.logs_size() < 3 * 200000 + 300000, "logs stay capped (%s)" % gl.bytes(gl.logs_size()))
 	var rep: String = gl.report()
-	_check(rep.begins_with("=== Red Sun Holdings problem report") and rep.length() < 120000, "problem report builds and stays small")
+	_check(rep.begins_with("=== Sol problem report") and rep.length() < 120000, "problem report builds and stays small")
 	game.sim_time = game.now()
 	game.cash = 1.0e13
 	for b in Data.BUSINESSES:
