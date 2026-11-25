@@ -22,6 +22,9 @@ func _mark(key: String, label: String) -> void:
 
 func _trade() -> void:
 	## Sells last session's trade, then bets 30% of cash on the newest headline.
+	if trader == "hold":
+		_hold_trade()
+		return
 	if g.has_meta("trade"):
 		var tr: Array = g.get_meta("trade")
 		var got: float = g.sell_asset(tr[0], tr[1], 1.0)
@@ -39,6 +42,28 @@ func _trade() -> void:
 		var amt: float = g.cash * 0.3
 		if amt > 100.0 and g.buy_asset(kind, sym, amt):
 			g.set_meta("trade", [kind, sym, amt])
+
+
+var holds: Array = []   # [sym, cash spent, buy time]
+
+
+func _hold_trade() -> void:
+	## Buys every coin crash with most of the cash and holds for 3 days.
+	for i in range(holds.size() - 1, -1, -1):
+		var h: Array = holds[i]
+		if g.sim_time - float(h[2]) >= 3 * 86400.0:
+			trade_profit += g.sell_asset("coin", h[0], 1.0) - float(h[1])
+			holds.remove_at(i)
+	for k in range(g.news.size() - 1, maxi(-1, g.news.size() - 6), -1):
+		var it: Dictionary = g.news[k]
+		var sym := String(it["sym"])
+		if g._coin(sym).is_empty() or float(it["pct"]) > -10.0 or float(it["t"]) < g.sim_time - 6 * 3600.0:
+			continue
+		if g.coins.has(sym):
+			continue
+		var amt: float = g.cash * 0.8
+		if amt > 100.0 and g.buy_asset("coin", sym, amt):
+			holds.append([sym, amt, g.sim_time])
 
 
 func _session(active_s: float) -> void:
