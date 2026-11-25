@@ -111,11 +111,13 @@ func push(p: Control) -> void:
 	if p.has_method("entered"):
 		p.entered.call_deferred()
 	var t := p.create_tween().set_parallel(true)
+	p.set_meta("push_tw", t)
 	t.tween_property(p, "position:x", 0.0, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	t.tween_property(under, "position:x", -w * 0.25, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "modulate:a", 0.4, 0.36)
+	t.tween_property(under, "modulate:a", 0.4, Motion.d(0.36))
 	t.chain().tween_callback(func():
-		if is_instance_valid(under):
+		# Only hide the page underneath if this page is still on top.
+		if is_instance_valid(under) and not _stack.is_empty() and _stack.back() == p:
 			under.visible = false)
 
 
@@ -123,24 +125,34 @@ func pop() -> void:
 	if _stack.is_empty():
 		return
 	var p: Control = _stack.pop_back()
+	_stop_push(p)
 	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
 	var w := _content.size.x
 	under.visible = true
 	Kit.tick(5)
 	var t := p.create_tween().set_parallel(true)
-	t.tween_property(p, "position:x", w, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.tween_property(under, "position:x", 0.0, 0.3).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "modulate:a", 1.0, 0.26)
+	t.tween_property(p, "position:x", w, Motion.d(0.26)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(under, "position:x", 0.0, Motion.d(0.3)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "modulate:a", 1.0, Motion.d(0.26))
 	t.chain().tween_callback(p.queue_free)
+
+
+func _stop_push(p: Control) -> void:
+	## Stops a page's slide-in if it is still running (fast back taps).
+	var t = p.get_meta("push_tw", null)
+	if t is Tween and t.is_valid():
+		t.kill()
 
 
 func _clear_stack() -> void:
 	for p in _stack:
+		_stop_push(p)
 		p.queue_free()
 	_stack.clear()
 	var base: Control = _pages[_current]
 	base.position.x = 0.0
 	base.modulate.a = 1.0
+	base.visible = true
 
 
 func show_page(i: int) -> void:
@@ -158,17 +170,17 @@ func show_page(i: int) -> void:
 	Kit.tick(6)
 	# Old page fades out quickly, new page fades in with a short slide.
 	var to := old.create_tween()
-	to.tween_property(old, "modulate:a", 0.0, 0.1)
+	to.tween_property(old, "modulate:a", 0.0, Motion.d(0.1))
 	to.tween_callback(func():
 		old.visible = false
 		old.modulate.a = 1.0
 		old.position.x = 0.0)
 	new.visible = true
 	new.modulate.a = 0.0
-	new.position.x = 18.0 * dir
+	new.position.x = 0.0 if Motion.reduced() else 18.0 * dir
 	var tn := new.create_tween().set_parallel(true)
-	tn.tween_property(new, "modulate:a", 1.0, Motion.d(0.22)).set_delay(0.06)
-	tn.tween_property(new, "position:x", 0.0, Motion.d(Motion.STANDARD)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(0.06)
+	tn.tween_property(new, "modulate:a", 1.0, Motion.d(0.22)).set_delay(Motion.d(0.06))
+	tn.tween_property(new, "position:x", 0.0, Motion.d(Motion.STANDARD)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT).set_delay(Motion.d(0.06))
 
 
 func _notification(what: int) -> void:
@@ -231,8 +243,18 @@ var _deal_open := false
 
 func _show_deal() -> void:
 	## Shows the waiting deal when nothing else is open. One line, two choices.
+	## Also shows the welcome-back card after time away.
+	if Game.away_unseen and not Kit.has_open():
+		Game.away_unseen = false
+		var capped := Game.away_seconds > Data.OFFLINE_CAP_H * 3600.0
+		Kit.sheet("Welcome back", "Away %s · your companies earned" % Game.clock(Game.away_seconds), [
+			{"text": "Collect " + Game.money_short(Game.away_earned), "style": "primary"},
+		], true, _away_note(capped))
+		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
+	if not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0:
+		return  # wait until the player is on a main tab and not tapping
 	_deal_open = true
 	var d: Dictionary = Game.deal
 	var sh := Kit.sheet(d["title"], d["text"], [
@@ -251,3 +273,10 @@ func _show_deal() -> void:
 		_deal_open = false
 		if Game.deal == d:
 			Game.decline_deal())
+
+
+func _away_note(capped: bool) -> Control:
+	var l := UI.label("Earnings stop after %d hours away, so check in twice a day." % int(Data.OFFLINE_CAP_H) if capped else "", 13, UI.SUB)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.visible = capped
+	return l

@@ -77,4 +77,4 @@ func set_active(i: int) -> void:
 		if on:
 			ic.pivot_offset = ic.size / 2.0
 			ic.scale = Vector2(0.86, 0.86)
-			ic.create_tween().tween_property(ic, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			ic.create_tween().tween_property(ic, "scale", Vector2.ONE, Motion.d(0.28)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

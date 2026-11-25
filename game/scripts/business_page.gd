@@ -68,7 +68,7 @@ func refresh() -> void:
 		_boost.value_l.add_theme_color_override("font_color", UI.RED)
 	else:
 		_boost.set_texts("×2 income", "Ready again in", Game.clock(Game.ibost_cooldown_left()))
-	_count.text = "%d of %d" % [Game.companies(), Data.BUSINESSES.size()]
+	_count.text = "%d of %d owned" % [Game.companies(), Data.BUSINESSES.size()]
 	_empty.visible = Game.companies() == 0
 	for b in Data.BUSINESSES:
 		var id: String = b["id"]
