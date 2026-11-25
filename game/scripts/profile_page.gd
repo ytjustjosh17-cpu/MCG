@@ -12,6 +12,7 @@ var _vib_row: Row
 var _upd_row: Row
 var _motion_row: Row
 var _report_row: Row
+var _rival_row: Row
 var _storage_row: Row
 var _checking := false
 var _upd_card: PanelContainer
@@ -122,6 +123,12 @@ func build() -> void:
 		Kit.tick()
 		push_page.emit(AchievementsPage.new()))
 	ac.add_child(_ach_row)
+	separator(ac, 50)
+	_rival_row = Row.new("trophy")
+	_rival_row.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(RivalsPage.new()))
+	ac.add_child(_rival_row)
 
 	var st := card()
 	_vib_row = Row.new("vibrate", "", false)
@@ -199,6 +206,7 @@ func refresh() -> void:
 	var days := int((Game.now() - Game.started_at) / 86400.0) + 1
 	_stats[2].text = "%d day%s" % [days, "" if days == 1 else "s"]
 	_ach_row.set_texts("Achievements", "", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
+	_rival_row.set_texts("Rivals", "", "%d / %d beaten" % [Game.rivals_beaten(), Data.RIVALS.size()])
 	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
 	_motion_row.set_texts("Reduce motion", "", "On" if Game.reduce_motion else "Off")
 	_upd_row.set_texts("Updates", "", "v" + Updater.current_version())

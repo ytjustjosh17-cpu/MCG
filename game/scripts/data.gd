@@ -130,6 +130,28 @@ const HOMES := [ # name, place, price, scene
 ]
 const HOME_BONUS := 0.01  # extra income per step up (kept small on purpose)
 
+# ---- managers ------------------------------------------------------------
+const MANAGER_CUT := 0.10        # share of that company's income they keep
+const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
+
+# ---- deals ---------------------------------------------------------------
+const DEAL_EVERY_MIN := [20.0, 40.0]  # minutes of play (app open) between deals
+
+# ---- rivals --------------------------------------------------------------
+# Made-up tycoons to overtake. Their fortunes are fixed targets.
+const RIVALS := [ # name, what they run, net worth
+	["Dara Quill", "Corner shops", 5.0e4],
+	["Otto Brannigan", "Taxis", 5.0e5],
+	["Maeve Holloway", "Shipping", 5.0e6],
+	["Rufus Penrose", "Factories", 5.0e7],
+	["Ines Calloway", "Property", 5.0e8],
+	["Bram Okonkwo", "Banking", 5.0e9],
+	["Saskia Thorne", "Football", 5.0e10],
+	["Lorcan Vey", "Oil", 5.0e11],
+	["Hester Marchbank", "Airlines", 5.0e12],
+	["The Ashgrove Family", "Everything", 5.0e13],
+]
+
 # ---- collections -------------------------------------------------------
 const COLLECTIONS := [
 	{"id": "watches", "name": "Watches", "bonus": 0.05, "items": [

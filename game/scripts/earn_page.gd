@@ -3,6 +3,7 @@ extends Control
 ## Earn tab, tower first: net worth, the big tower to tap, and three icon buttons.
 
 signal open_tab(index: int)
+signal push_page(page: Control)
 
 const NAV_SPACE := 92.0
 
@@ -122,12 +123,7 @@ func _refresh() -> void:
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
 	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, can, "MAX" if maxed else Game.money_short(Game.level_cost()))
-	var done := 0
-	var tasks := Game.daily_tasks()
-	for t in tasks:
-		if t["done"]:
-			done += 1
-	_tasks.set_state(UI.TEXT, -1.0, done < tasks.size() and Game.taps > 0)
+	_tasks.set_state(UI.TEXT, -1.0, Game.goals_open() > 0 and Game.taps > 0)
 	_tick()
 
 
@@ -146,10 +142,7 @@ func _tick() -> void:
 
 func _show_tasks() -> void:
 	Kit.tick()
-	var lines: Array = []
-	for t in Game.daily_tasks():
-		lines.append(("✓  " if t["done"] else "○  ") + "%s  %d/%d" % [t["text"], mini(int(t["progress"]), int(t["goal"])), t["goal"]])
-	Kit.sheet("Today", "\n".join(lines) + "\n\nEach pays %s." % Game.money_short(Game.daily_reward()), [{"text": "Done", "style": "primary"}])
+	push_page.emit(GoalsPage.new())
 
 
 func _on_level_up() -> void:

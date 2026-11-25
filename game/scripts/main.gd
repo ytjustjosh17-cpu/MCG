@@ -36,6 +36,17 @@ func _ready() -> void:
 	earn.open_tab.connect(show_page)
 	Game.achievement.connect(func(title: String, reward: float):
 		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
+	Game.goal_done.connect(func(scope: String, text: String, reward: float):
+		Kit.celebrate("Daily goal done" if scope == "daily" else "Weekly goal done", text, "+" + Game.money_short(reward)))
+	Game.rival_beaten.connect(func(i: int):
+		var r: Array = Data.RIVALS[i]
+		Kit.celebrate("Rival beaten", "You passed %s" % r[0], "#%d" % (Data.RIVALS.size() - i)))
+	Game.deal_ready.connect(func(_d): _show_deal())
+	var dt := Timer.new()
+	dt.wait_time = 1.0
+	dt.autostart = true
+	dt.timeout.connect(_show_deal)
+	add_child(dt)
 	Game.market_news.connect(func(item: Dictionary):
 		# Only tell the player about news that touches what they own.
 		var sym := String(item.get("sym", ""))
@@ -194,3 +205,30 @@ func _apply_safe_area() -> void:
 	_nav.offset_right = -16
 	_nav.offset_bottom = -(12 + bottom)
 	_nav.offset_top = _nav.offset_bottom - 64
+
+
+var _deal_open := false
+
+
+func _show_deal() -> void:
+	## Shows the waiting deal when nothing else is open. One line, two choices.
+	if Game.deal.is_empty() or _deal_open or Kit.has_open():
+		return
+	_deal_open = true
+	var d: Dictionary = Game.deal
+	var sh := Kit.sheet(d["title"], d["text"], [
+		{"text": d["yes"], "style": "primary", "call": func():
+			_deal_open = false
+			if Game.accept_deal():
+				Kit.toast("Deal done", true)
+			else:
+				Kit.toast("Couldn't afford it")},
+		{"text": "No thanks", "style": "plain", "call": func():
+			_deal_open = false
+			Game.decline_deal()},
+	])
+	# Swiping the sheet away counts as "No thanks".
+	sh.tree_exited.connect(func():
+		_deal_open = false
+		if Game.deal == d:
+			Game.decline_deal())

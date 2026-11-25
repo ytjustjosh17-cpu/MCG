@@ -137,9 +137,39 @@ func _run() -> void:
 	_check(not game.move_home(), "can't move without the money")
 	var goal: Dictionary = game.next_goal()
 	_check(not goal.is_empty() and float(goal["cost"]) > 0.0, "next goal: %s" % goal.get("text", "none"))
+	# Weekly goals, deals, managers and rivals.
+	_check(game.weekly_tasks().size() == 3, "three weekly goals")
+	var gd := [0]
+	game.goal_done.connect(func(_s, _t, _r): gd[0] += 1)
+	for t in game.daily_tasks():
+		if t["id"] == "taps" and not t["done"]:
+			for i in int(t["goal"]):
+				game.tap()
+	_check(gd[0] >= 0, "goal_done fires without errors")
+	game.cash += 1.0e7
+	game.deal_wait = 0.0
+	game.tick_deals(1.0)
+	_check(not game.deal.is_empty(), "a deal arrives after its wait")
+	var kind: String = game.deal["kind"]
+	_check(game.accept_deal() and game.deal.is_empty(), "accept a %s deal" % kind)
+	_check(float(game.counters.get("deals", 0)) >= 1.0, "deals are counted")
+	game.deal_wait = 0.0
+	game.tick_deals(1.0)
+	game.decline_deal()
+	_check(game.deal.is_empty(), "decline a deal")
+	var bid: String = game.biz.keys()[0]
+	var inc0: float = game.biz_income(bid)
+	_check(game.hire_manager(bid) and game.has_manager(bid), "hire a manager")
+	_check(game.biz_income(bid) < inc0 + 0.001, "manager takes a cut")
+	game.cash = 1.0e9
+	while game.buy_unit(bid):
+		pass
+	game.advance(1.0)
+	_check(game.expanding(bid) or int(game.biz[bid]["stage"]) >= Data.MAX_STAGE, "manager starts the expansion")
+	_check(game.rivals_beaten() >= 1, "beat at least one rival with $1B")
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
-	_check(int(old["version"]) == 4 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
+	_check(int(old["version"]) == 5 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")
@@ -173,6 +203,13 @@ func _run() -> void:
 		pg._on_scrub(1.0, 3, 10)
 		pg._on_scrub(-1.0, -1, 0)
 		_check(pg._price.text.begins_with("$"), "%s page shows a price" % spec[1])
+		main.pop()
+		await create_timer(0.5).timeout
+	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd"]:
+		var gp = load(path).new()
+		main.push(gp)
+		await create_timer(0.5).timeout
+		_check(gp.body.get_child_count() > 2, "%s builds" % path.get_file())
 		main.pop()
 		await create_timer(0.5).timeout
 	var np = load("res://scripts/news_page.gd").new()

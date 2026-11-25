@@ -5,13 +5,16 @@ extends Node
 signal changed
 signal tapped(amount: float)
 signal achievement(title: String, reward: float)
+signal goal_done(scope: String, text: String, reward: float)
+signal deal_ready(deal: Dictionary)
+signal rival_beaten(index: int)
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -55,6 +58,10 @@ var mergers := {}      # id -> true
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
 var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]}
+var weekly := {}       # {week, tasks: [...]}, same shape as daily
+var deal := {}         # the offer waiting for an answer, if any
+var deal_wait := 1500.0  # seconds of play until the next deal
+var payouts: Array = []  # [{amount, at}] money owed later by a deal
 var history: Array = []
 var vibrate := true
 var reduce_motion := false
@@ -224,7 +231,139 @@ func biz_income(id: String) -> float:
 	v *= merger_mult(id) * global_mult()
 	if ibost_active():
 		v *= 2.0
+	if s.get("manager", false):
+		v *= 1.0 - Data.MANAGER_CUT
 	return v
+
+
+# ==== managers =============================================================
+
+func manager_cost(id: String) -> float:
+	return Data.expansion_cost(Data.business(id), int(biz[id]["stage"])) * Data.MANAGER_COST_X if biz.has(id) else 0.0
+
+
+func has_manager(id: String) -> bool:
+	return biz.has(id) and bool(biz[id].get("manager", false))
+
+
+func hire_manager(id: String) -> bool:
+	if not biz.has(id) or has_manager(id) or cash < manager_cost(id):
+		return false
+	cash -= manager_cost(id)
+	biz[id]["manager"] = true
+	GameLog.info("biz", "Manager hired for %s" % id)
+	recalc()
+	return true
+
+
+func _managers_work() -> void:
+	## Managers start the next expansion as soon as a company is full and
+	## there's cash for it. They never buy units.
+	for id in biz.keys():
+		if has_manager(id) and int(biz[id]["units"]) >= capacity(id) and can_expand(id):
+			start_expansion(id)
+
+
+# ==== deals ================================================================
+
+func tick_deals(dt: float) -> void:
+	## Only counts time with the app open, so deals never pile up while away.
+	if not deal.is_empty() or biz.is_empty():
+		return
+	deal_wait -= dt
+	if deal_wait <= 0.0:
+		deal_wait = randf_range(Data.DEAL_EVERY_MIN[0], Data.DEAL_EVERY_MIN[1]) * 60.0
+		deal = roll_deal()
+		if not deal.is_empty():
+			deal_ready.emit(deal)
+
+
+func roll_deal() -> Dictionary:
+	var ids: Array = biz.keys()
+	ids.shuffle()
+	var id: String = ids[0]
+	var name := String(biz[id]["name"])
+	var inc := maxf(income_per_hour, 100.0)
+	var kinds := ["order"]
+	if int(biz[id]["units"]) >= 2:
+		kinds.append("buyer")
+	if int(biz[id]["stage"]) < Data.MAX_STAGE and not expanding(id) and float(biz[id].get("discount", 1.0)) >= 1.0:
+		kinds.append("supplier")
+	match kinds[randi() % kinds.size()]:
+		"buyer":
+			var price := unit_price(id) * 2.0
+			return {"kind": "buyer", "id": id, "value": price,
+				"title": "A buyer for one outlet", "text": "%s · they pay %s" % [name, money_short(price)],
+				"yes": "Sell for " + money_short(price)}
+		"supplier":
+			return {"kind": "supplier", "id": id, "value": expansion_cost(id) * 0.25,
+				"title": "Supplier discount", "text": "%s · next expansion 25%% off" % name,
+				"yes": "Take it"}
+	var cost := inc / 6.0  # ten minutes of income
+	return {"kind": "order", "id": id, "value": cost,
+		"title": "Rush order", "text": "%s · pay %s, get %s back in 1 h" % [name, money_short(cost), money_short(cost * 1.3)],
+		"yes": "Pay " + money_short(cost)}
+
+
+func accept_deal() -> bool:
+	if deal.is_empty():
+		return false
+	var d := deal
+	var id := String(d["id"])
+	var ok := false
+	if biz.has(id):
+		match d["kind"]:
+			"buyer":
+				if int(biz[id]["units"]) >= 2:
+					biz[id]["units"] = int(biz[id]["units"]) - 1
+					_pay(float(d["value"]))
+					ok = true
+			"supplier":
+				biz[id]["discount"] = 0.75
+				ok = true
+			"order":
+				if cash >= float(d["value"]):
+					cash -= float(d["value"])
+					payouts.append({"amount": float(d["value"]) * 1.3, "at": now() + 3600.0})
+					ok = true
+	deal = {}
+	if ok:
+		_bump("deals")
+		_task_progress("deal", 1)
+		recalc()
+	return ok
+
+
+func decline_deal() -> void:
+	deal = {}
+
+
+func _pay_out() -> void:
+	var t := now()
+	for i in range(payouts.size() - 1, -1, -1):
+		if t >= float(payouts[i]["at"]):
+			_pay(float(payouts[i]["amount"]))
+			payouts.remove_at(i)
+
+
+# ==== rivals ================================================================
+
+func rivals_beaten() -> int:
+	var nw := net_worth()
+	var n := 0
+	for r in Data.RIVALS:
+		if nw >= float(r[2]):
+			n += 1
+	return n
+
+
+func _check_rivals() -> void:
+	var n := rivals_beaten()
+	var best := int(counters.get("rivals", 0))
+	if n > best:
+		counters["rivals"] = float(n)
+		for i in range(best, n):
+			rival_beaten.emit(i)
 
 
 func open_business(id: String, name: String) -> bool:
@@ -261,7 +400,9 @@ func buy_unit(id: String) -> bool:
 
 
 func expansion_cost(id: String) -> float:
-	return Data.expansion_cost(Data.business(id), int(biz[id]["stage"])) if biz.has(id) else 0.0
+	if not biz.has(id):
+		return 0.0
+	return Data.expansion_cost(Data.business(id), int(biz[id]["stage"])) * float(biz[id].get("discount", 1.0))
 
 
 func expansion_seconds(id: String) -> float:
@@ -286,6 +427,7 @@ func start_expansion(id: String) -> bool:
 	var c := expansion_cost(id)
 	cash -= c
 	biz[id]["invested"] = float(biz[id]["invested"]) + c
+	biz[id]["discount"] = 1.0
 	biz[id]["exp_until"] = now() + expansion_seconds(id)
 	GameLog.info("biz", "Expansion started: %s to stage %d (%s)" % [id, int(biz[id]["stage"]) + 1, clock(expansion_seconds(id))])
 	_mark()
@@ -982,6 +1124,14 @@ func _build_achievements() -> Array:
 		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
+	for n in [1, 10, 50]:
+		a.append({"id": "deals_%d" % n, "title": "%d deal%s" % [n, "" if n == 1 else "s"], "m": "deals", "goal": float(n)})
+	for n in [1, 5, 11]:
+		a.append({"id": "managers_%d" % n, "title": "%d manager%s" % [n, "" if n == 1 else "s"], "m": "managers", "goal": float(n)})
+	for n in [1, 5, 10]:
+		a.append({"id": "rivals_%d" % n, "title": "Beat %d rival%s" % [n, "" if n == 1 else "s"], "m": "rivals", "goal": float(n)})
+	for n in [10, 50]:
+		a.append({"id": "goals_%d" % n, "title": "%d goals done" % n, "m": "goals", "goal": float(n)})
 	for n in [1, 4, 8]:
 		a.append({"id": "home_%d" % n, "title": Data.HOMES[n][0], "m": "home", "goal": float(n)})
 	for n in [1, 3, 6]:
@@ -1016,6 +1166,15 @@ func metric(m: String) -> float:
 			return float(n)
 		"mergers": return float(mergers.size())
 		"home": return float(home)
+		"deals": return float(counters.get("deals", 0))
+		"rivals": return float(rivals_beaten())
+		"goals": return float(counters.get("goals_done", 0))
+		"managers":
+			var n := 0
+			for id in biz.keys():
+				if has_manager(id):
+					n += 1
+			return float(n)
 		"level": return float(level)
 		"boosts": return float(boosts_used)
 	return 0.0
@@ -1060,6 +1219,7 @@ func _ensure_daily() -> void:
 
 func daily_tasks() -> Array:
 	_ensure_daily()
+	_ensure_weekly()
 	return daily["tasks"]
 
 
@@ -1067,22 +1227,83 @@ func daily_reward() -> float:
 	return maxf(1000.0, income_per_hour * 1.5)
 
 
-func _task_progress(id: String, n: int) -> void:
-	if daily.is_empty():
+func _task_progress(id: String, n: float) -> void:
+	_advance(daily, id, n, "daily")
+	_advance(weekly, id, n, "weekly")
+
+
+func _advance(book: Dictionary, id: String, n: float, scope: String) -> void:
+	if book.is_empty():
 		return
-	for t in daily.get("tasks", []):
+	for t in book.get("tasks", []):
 		if t["id"] == id and not t["done"]:
-			t["progress"] = int(t["progress"]) + n
-			if int(t["progress"]) >= int(t["goal"]):
+			t["progress"] = float(t["progress"]) + n
+			if float(t["progress"]) >= float(t["goal"]):
 				t["done"] = true
-				var r := daily_reward()
-				_earn(r)
-				achievement.emit("Daily task done", r)
+				var r := daily_reward() if scope == "daily" else weekly_reward()
+				_pay(r)
+				_bump("goals_done")
+				goal_done.emit(scope, String(t["text"]), r)
+
+
+func _week() -> int:
+	## Weeks start on Monday (1 Jan 1970 was a Thursday).
+	return int(floor((now() / 86400.0 + 3.0) / 7.0))
+
+
+func _ensure_weekly() -> void:
+	if int(weekly.get("week", -1)) == _week():
+		return
+	var earn_goal := maxf(50000.0, income_per_hour * 30.0)
+	var pool := [
+		{"id": "taps", "text": "Tap your tower %s times" % group(2500), "goal": 2500.0},
+		{"id": "units", "text": "Buy 30 units for your companies", "goal": 30.0},
+		{"id": "expand", "text": "Finish 4 expansions", "goal": 4.0},
+		{"id": "invest", "text": "Make 12 investments", "goal": 12.0},
+		{"id": "earn", "text": "Earn %s" % money_short(earn_goal), "goal": earn_goal, "money": true},
+		{"id": "deal", "text": "Take 3 deals", "goal": 3.0},
+	]
+	pool.shuffle()
+	var tasks: Array = []
+	for i in 3:
+		var t: Dictionary = pool[i]
+		tasks.append({"id": t["id"], "text": t["text"], "goal": t["goal"], "progress": 0.0, "done": false, "money": t.get("money", false)})
+	weekly = {"week": _week(), "tasks": tasks}
+
+
+func weekly_tasks() -> Array:
+	_ensure_weekly()
+	return weekly["tasks"]
+
+
+func weekly_reward() -> float:
+	return maxf(5000.0, income_per_hour * 3.0)
+
+
+func week_left() -> float:
+	return float(_week() + 1) * 7.0 * 86400.0 - 3.0 * 86400.0 - now()
+
+
+func goals_open() -> int:
+	var n := 0
+	for t in daily_tasks() + weekly_tasks():
+		if not t["done"]:
+			n += 1
+	return n
 
 
 # ==== time ===============================================================
 
 func _earn(v: float) -> void:
+	cash += v
+	total_earned += v
+	if v > 0.0:
+		_advance(weekly, "earn", v, "weekly")
+	_mark()
+
+
+func _pay(v: float) -> void:
+	## Rewards: count as earnings but not towards the "earn" goal.
 	cash += v
 	total_earned += v
 	_mark()
@@ -1108,7 +1329,9 @@ func advance(dt: float, earn_income := true) -> void:
 	## Moves the game forward. Used each frame and by the simulator.
 	if not (dt > 0.0):
 		return  # clock went backwards (or NaN): never undo progress
+	_pay_out()
 	if earn_income:
+		_managers_work()
 		if income_per_hour > 0.0:
 			_earn(income_per_hour * dt / 3600.0)
 		_accrue(dt)
@@ -1143,13 +1366,16 @@ func _process(delta: float) -> void:
 		flush_changes()
 	var was_boosting := ibost_active()
 	advance(delta)
+	tick_deals(delta)
 	if was_boosting != ibost_active():
 		recalc()
 	_check_timer += delta
 	if _check_timer >= 1.0:
 		_check_timer = 0.0
 		_ensure_daily()
+		_ensure_weekly()
 		_check_achievements()
+		_check_rivals()
 	_save_timer += delta
 	if _save_timer >= 5.0:
 		_save_timer = 0.0
@@ -1188,10 +1414,12 @@ func apply_offline(seconds: float) -> void:
 	recalc()
 	_earn(gained)
 	_accrue(capped)
+	_managers_work()
 	away_earned = cash - before
 	if s > 60.0:
 		GameLog.info("game", "Away for %s, earned %s (income %s/h)" % [clock(s), money(away_earned), money(income_per_hour)])
 	_ensure_daily()
+	_ensure_weekly()
 	_check_achievements()
 
 
@@ -1235,7 +1463,8 @@ func to_dict() -> Dictionary:
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
-		"counters": counters, "daily": daily, "history": history,
+		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
+		"deal_wait": deal_wait, "payouts": payouts,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
 
@@ -1342,6 +1571,10 @@ func _migrate(d: Dictionary) -> Dictionary:
 		# v4 adds homes; everyone starts in the rented room.
 		d["home"] = int(d.get("home", 0))
 		v = 4
+	if v < 5:
+		# v5 adds goals for the week, deals, managers and rivals. Rivals already
+		# passed count as beaten without a pop-up (set after loading).
+		v = 5
 	d["version"] = v
 	return d
 
@@ -1374,6 +1607,10 @@ func _reset_state() -> void:
 	achieved = {}
 	counters = {}
 	daily = {}
+	weekly = {}
+	deal = {}
+	deal_wait = 1500.0
+	payouts = []
 	history = []
 	away_earned = 0.0
 	started_at = now()
@@ -1421,6 +1658,9 @@ func load_game() -> void:
 	achieved = d.get("achieved", {})
 	counters = d.get("counters", {})
 	daily = d.get("daily", {})
+	weekly = d.get("weekly", {})
+	deal_wait = float(d.get("deal_wait", 1500.0))
+	payouts = d.get("payouts", [])
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))
 	reduce_motion = bool(d.get("reduce_motion", false))
@@ -1430,6 +1670,8 @@ func load_game() -> void:
 	apply_offline(now() - float(d.get("saved_at", now())))
 	if history.is_empty():
 		_record_history()
+	if not counters.has("rivals"):
+		counters["rivals"] = float(rivals_beaten())
 
 
 func reset_game() -> void:

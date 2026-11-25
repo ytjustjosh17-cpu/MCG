@@ -134,6 +134,7 @@ func _run() -> void:
 		await _wobble_tap(back.get_global_rect().get_center())
 		_ok(main._stack.size() == 0, "wobbly tap on the back button goes back")
 	# Items tab: wobbly tap on Move, then on the sheet's Move button.
+	g.counters["rivals"] = float(Data.RIVALS.size())  # no "rival beaten" pop-ups mid-test
 	g.cash = 1.0e6
 	g.recalc()
 	main.show_page(3)
