@@ -208,18 +208,10 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 	var w := rect.size.x
 	var h := rect.size.y
 	var o := rect.position
-	for i in int(w * h / 9000.0) + 6:
-		var p := o + Vector2(rng.randf() * w, rng.randf() * h * 0.45)
-		if p.distance_to(sun_c) > sun_r + 6.0:
-			ci.draw_rect(Rect2(p, Vector2(1.5, 1.5)), Color(UI.TEXT, rng.randf_range(0.12, 0.35)), true)
+	# Soft glow round the sun, then the sun itself.
+	for i in 4:
+		_fill(ci, UI.circle_poly(sun_c, sun_r * (1.0 + 0.07 * (4 - i)), 96), clip, Color(sun_col, 0.05))
 	_fill(ci, UI.circle_poly(sun_c, sun_r, 96), clip, sun_col)
-	# Sunset bands: gaps in the lower half of the sun that widen towards the ground.
-	var band_y := sun_c.y + sun_r * 0.12
-	var gap := maxf(1.5, sun_r * 0.025)
-	while band_y < sun_c.y + sun_r:
-		_fill(ci, UI.rect_poly(Rect2(sun_c.x - sun_r - 2.0, band_y, sun_r * 2.0 + 4.0, gap)), clip, UI.SKY)
-		band_y += sun_r * 0.14
-		gap *= 1.45
 	# Far skyline, two layers.
 	for layer in 2:
 		var col := UI.HAZE if layer == 0 else UI.FAR
@@ -237,6 +229,10 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 					var lit := rng.randf() < 0.25
 					_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(UI.RED, 0.55) if lit else UI.HAZE)
 			x += bw + rng.randf_range(0.0, 0.03) * w
+	# Mist low down, like the city is in fog.
+	for i in 5:
+		var y := h * (0.62 + i * 0.08)
+		_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, y), Vector2(w, h - y))), clip, Color(UI.HAZE, 0.10))
 	# Power pylon on the left with cables running off to the right (big pictures only).
 	if w < 220.0:
 		return

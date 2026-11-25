@@ -38,13 +38,21 @@ static var DISPLAY: Font = _font("Tanker-Regular", "res://assets/fonts/Inter-Sem
 
 
 static func _font(name: String, backup: String) -> Font:
+	## Imported font first; then the raw file the build packs as .bin (the
+	## Android export once left the imported ones out); then Inter.
 	var path := "res://assets/fonts/ext/%s.ttf" % name
-	if not ResourceLoader.exists(path):
+	var f: FontFile = null
+	if ResourceLoader.exists(path):
+		f = load(path) as FontFile
+	if f == null:
+		var raw := FileAccess.get_file_as_bytes("res://assets/fonts/ext/%s.bin" % name)
+		if raw.size() > 1000:
+			f = FontFile.new()
+			f.data = raw
+	if f == null:
 		return load(backup)
-	var f: Font = load(path)
-	if f is FontFile:
-		# Any glyph the font lacks comes from Inter.
-		(f as FontFile).fallbacks = [load(backup)]
+	# Any glyph the font lacks comes from Inter.
+	f.fallbacks = [load(backup)]
 	return f
 
 
