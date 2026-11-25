@@ -185,6 +185,56 @@ func _run() -> void:
 	game.ui["invest_tab"] = 2
 	var dd: Dictionary = game.to_dict()
 	_check(int(dd["ui"]["invest_tab"]) == 2 and dd.has("streak"), "screen choices and streak are saved")
+	# Quality of life 2: bulk actions, next achievement, sorting, quiet deals.
+	game.cash = 1.0e9
+	for b in Data.BUSINESSES:
+		if not game.owns(b["id"]):
+			game.open_business(b["id"], "Fill Test")
+			break
+	var nb: int = game.fill_all()
+	var full := true
+	for id in game.biz.keys():
+		if int(game.biz[id]["units"]) < game.capacity(id):
+			full = false
+	_check(nb > 0 and full, "Fill all fills every company (%d bought)" % nb)
+	var ready: int = game.expandable().size()
+	_check(game.expand_all() == ready, "Expand all starts every ready expansion")
+	var na: Dictionary = game.next_achievement()
+	_check(not na.is_empty() and float(na["progress"]) < 1.0, "next achievement found (%s)" % na.get("title", ""))
+	game.ui["deals_quiet"] = true
+	game.deal = {"kind": "order", "id": game.biz.keys()[0], "value": 1.0, "title": "T", "text": "x", "yes": "Y"}
+	main._show_deal()
+	await create_timer(0.3).timeout
+	_check(not root.get_node("Kit").has_open(), "quiet deals don't pop up")
+	main.open_waiting_deal()
+	await create_timer(0.3).timeout
+	_check(root.get_node("Kit").has_open(), "a quiet deal opens from the Business tab")
+	root.get_node("Kit").close_top()
+	await create_timer(0.4).timeout
+	game.ui["deals_quiet"] = false
+	game.deal = {}
+	main.show_page(2)
+	await create_timer(0.5).timeout
+	var inv2 = main._pages[2]
+	inv2._seg.select(0, true)
+	game.ui["sort"] = "up"
+	inv2.refresh()
+	var first_row: Control = null
+	var col: Node = inv2._share_rows["NRV"].get_parent()
+	for ch in col.get_children():
+		if ch is Row:
+			first_row = ch
+			break
+	var best_sym := ""
+	var best_ch := -1e9
+	for st in Data.STOCKS:
+		if game.change_pct(st[0], 1440) > best_ch:
+			best_ch = game.change_pct(st[0], 1440)
+			best_sym = st[0]
+	_check(first_row == inv2._share_rows[best_sym], "Rising sort puts the biggest riser first")
+	game.ui["sort"] = ""
+	main.show_page(0)
+	await create_timer(0.4).timeout
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
 	_check(int(old["version"]) == 6 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
@@ -322,11 +372,14 @@ func _run() -> void:
 	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("LMN") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("LMN"), keep_staked])
 	_check(game.hist_h["NRV"].size() >= 160, "charts rebuilt after restore")
 
-	# Offline earnings are capped at 8 hours.
+	# Offline earnings are capped at 8 hours (goals off, so a goal reward
+	# landing at the same moment isn't counted).
+	game.weekly = {"week": game._week(), "tasks": []}
+	game.daily = {"day": game._today(), "tasks": []}
 	var inc: float = game.income_per_hour
 	var c1: float = game.cash
 	game.apply_offline(24 * 3600)
-	_check(game.cash - c1 <= inc * 8.0 * 1.2 + 1.0, "offline capped near 8 h")
+	_check(game.away_earned <= inc * 8.0 * 1.2 + 1.0, "offline capped near 8 h (%.1f h, boost %s, managers %s)" % [game.away_earned / maxf(inc, 1.0), game.ibost_active(), game.metric("managers")])  # rewards may also land
 	game.reset_game()
 
 	# Storage stays bounded: logs rotate and the save file stays small.

@@ -12,6 +12,8 @@ var _last_push_ms := -10000
 
 
 func _ready() -> void:
+	if bool(Game.ui.get("keep_awake", false)):
+		DisplayServer.screen_set_keep_on(true)
 	# Default font for everything, including overlays.
 	var th := Theme.new()
 	th.default_font = UI.REG
@@ -35,6 +37,7 @@ func _ready() -> void:
 		if p.has_signal("push_page"):
 			p.push_page.connect(push)
 	earn.open_tab.connect(show_page)
+	(_pages[1] as BusinessPage).deal_open.connect(open_waiting_deal)
 	Game.achievement.connect(func(title: String, reward: float):
 		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
 	Game.goal_done.connect(func(scope: String, text: String, reward: float):
@@ -57,7 +60,7 @@ func _ready() -> void:
 		for k in Game.shares.keys():
 			if Game.sector_of(k) == sym:
 				mine = true
-		if mine:
+		if mine and not bool(Game.ui.get("news_quiet", false)):
 			Kit.toast("%s · %s" % [item["text"], AssetDetail.change_text(float(item["pct"]))], float(item["pct"]) >= 0.0))
 	Game.expansion_done.connect(func(id: String, stage: int):
 		Kit.haptic("success")
@@ -277,6 +280,14 @@ func _apply_safe_area() -> void:
 
 
 var _deal_open := false
+var _deal_forced := false
+
+
+func open_waiting_deal() -> void:
+	## From the Business tab: show the waiting deal now.
+	_deal_forced = true
+	Game.last_tap_at = 0.0
+	_show_deal()
 
 
 func _show_deal() -> void:
@@ -296,7 +307,11 @@ func _show_deal() -> void:
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
-	if not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0 or Kit._cele_open:
+	if bool(Game.ui.get("deals_quiet", false)) and not _deal_forced:
+		return  # quiet mode: the deal waits on the Business tab
+	var forced := _deal_forced
+	_deal_forced = false
+	if not forced and (not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0 or Kit._cele_open):
 		return  # wait until the player is on a main tab and not tapping
 	_deal_open = true
 	var d: Dictionary = Game.deal

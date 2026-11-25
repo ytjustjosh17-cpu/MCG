@@ -48,6 +48,8 @@ func _run() -> void:
 	g.buy_item("watches", 1)
 	g.home = 3
 	g.counters["rivals"] = float(Data.RIVALS.size())  # no pop-ups during the shots
+	g.streak_day = g._today()  # no daily-gift pop-up either
+	g.streak_unseen = []
 	g.cash = 2.4e5
 	g.recalc()
 	for i in 8:
@@ -145,5 +147,20 @@ func _run() -> void:
 	main._show_deal()
 	await create_timer(0.5).timeout
 	await _shot("21_streak")
+	await create_timer(2.6).timeout
+	var card = main.find_child("TowerCard", true, false)
+	for k in 60:
+		card._do_tap(card.size * 0.5)
+		await create_timer(0.02).timeout
+	await _shot("22_combo")
+	main.show_page(4)
+	await create_timer(0.6).timeout
+	main._pages[4].scroll.scroll_vertical = 900
+	await _shot("23_settings")
+	main.show_page(2)
+	g.ui["sort"] = "up"
+	main._pages[2]._seg.select(0, true)
+	main._pages[2]._paint_sort()
+	await _shot("24_sorted")
 	g.reset_game()
 	quit()
