@@ -2,6 +2,7 @@
 
 One world: a dark teal city at dusk with a single red sun.
 Brutalist bones (big blunt type, hard shapes, lit windows), Apple manners (calm motion, glass, generous space, little text).
+Reference mood: "red sun" dystopian brutalism. Concrete blocks in teal haze, one huge flat red sun, sagging cables, a few red windows. No sunset stripes, no neon colours.
 If a new screen doesn't look like it belongs in that world, it isn't done.
 
 Check any design change against this page and against `tools/check_rules.py` (R1 to R4).
@@ -96,7 +97,7 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - A golden sun sometimes drifts across the tower (max 4 a day, only while playing). Tap it for a small prize.
 - Filters and sorts are drop-downs (`Kit.drop_pill()` + `Kit.pick()`), never rows of chips. Lists don't jump while you look at them.
 - Earn shows cash to the penny ($1,385.62) as the big number; net worth sits below it.
-- Art scenes share one backdrop (`Art.backdrop`): stars, sun with sunset bands, far skyline, and a pylon with hanging cables on big pictures.
+- Art scenes share one backdrop (`Art.backdrop`): sun with a soft glow, far skyline, low mist, and a pylon with hanging cables on big pictures.
 - Profile shows the next achievement. The nav bar names only the active tab.
 
 ## Words and terms

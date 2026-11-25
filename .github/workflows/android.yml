@@ -75,6 +75,7 @@ jobs:
           ls -la assets/fonts/ext
           for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
             test -s assets/fonts/ext/$n.ttf || { echo "::error::Font $n is missing"; exit 1; }
+            cp assets/fonts/ext/$n.ttf assets/fonts/ext/$n.bin   # raw copy, packed as-is
           done
 
       - name: Import project
@@ -110,7 +111,7 @@ jobs:
         run: |
           command -v unzip >/dev/null || (apt-get update -qq && apt-get install -y -qq unzip)
           for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
-            unzip -l build/Sol.apk | grep -q "$n.ttf" || { echo "::error::$n is not in the APK"; exit 1; }
+            unzip -l build/Sol.apk | grep -qE "$n\.(ttf|bin)" || { echo "::error::$n is not in the APK"; exit 1; }
           done
           echo "Fonts are in the APK"
 

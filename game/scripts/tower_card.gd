@@ -96,6 +96,25 @@ func _draw() -> void:
 	_fill_clipped(UI.rect_poly(Rect2(tx - 4.0, top, tw + 8.0, 6.0)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx, top, tw, h)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw, top + 8.0, tw * 0.1, h)), clip, UI.SIDE)
+	# Concrete panel seams on the face.
+	var seam := Color(UI.HAZE, 0.35)
+	for k in [0.5]:
+		draw_rect(Rect2(tx + tw * k - 0.5, top + 8.0, 1.0, h), seam, true)
+	var py: float = g["pitch_y"]
+	var fy: float = top + 18.0 - py * 0.25
+	while fy < h:
+		draw_rect(Rect2(tx + 2.0, fy, tw - 4.0, 1.0), seam, true)
+		fy += py
+	# Air-con boxes hanging off a few floors on the shaded side.
+	for row in [3, 7, 12]:
+		var ay: float = top + 18.0 + row * py
+		if ay < h - 30.0:
+			_fill_clipped(UI.rect_poly(Rect2(tx + tw + tw * 0.1, ay, tw * 0.09, g["win_h"])), clip, UI.INK)
+	# Cables from the roof edge out across the sun, sagging.
+	for k in 3:
+		var a := Vector2(tx + tw, top + 4.0 + k * 10.0)
+		var b := Vector2(w + 8.0, h * (0.06 + k * 0.09))
+		Art._wire(self, a, b, h * (0.015 + k * 0.01), clip, UI.INK, 1.3)
 	# Street: ground strip and two lamps.
 	_fill_clipped(UI.rect_poly(Rect2(0, h - 10.0, w, 10.0)), clip, UI.INK)
 	for lx in [w * 0.04, w * 0.95]:
@@ -121,9 +140,16 @@ func _draw() -> void:
 			if absf((1.0 - row_pos) - _wave) < 0.12:
 				c = UI.FLASH
 		draw_rect(r, c, true)
-	var nb := Rect2(w * 0.86, h * 0.68, w * 0.2, h * 0.4)
+	var nb := Rect2(w * 0.86, h * 0.46, w * 0.2, h * 0.6)
 	_fill_clipped(UI.rect_poly(nb), clip, UI.WINDOW)
 	_fill_clipped(UI.rect_poly(Rect2(nb.position + Vector2(10, 14), Vector2(8, 7))), clip, UI.RED)
+	# A tall red sign on the neighbour block, made-up marks.
+	var sign := Rect2(nb.position.x - w * 0.02, nb.position.y + h * 0.08, w * 0.05, h * 0.13)
+	_fill_clipped(UI.rect_poly(sign.grow(2.0)), clip, UI.INK)
+	_fill_clipped(UI.rect_poly(sign), clip, Color(UI.RED, 0.85))
+	for m in 4:
+		var my := sign.position.y + 5.0 + m * sign.size.y * 0.23
+		_fill_clipped(UI.rect_poly(Rect2(sign.position.x + 3.0, my, sign.size.x - 6.0 - (m % 2) * 4.0, 2.0)), clip, UI.INK)
 
 
 func _process(delta: float) -> void:
