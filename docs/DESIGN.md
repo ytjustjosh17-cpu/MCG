@@ -98,6 +98,8 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - A golden sun sometimes drifts across the tower (max 4 a day, only while playing). Tap it for a small prize.
 - Filters and sorts are drop-downs (`Kit.drop_pill()` + `Kit.pick()`), never rows of chips. Lists don't jump while you look at them.
 - Earn shows cash to the penny ($1,385.62) as the big number; net worth sits below it.
+- Every art kind has its own setting in `Art.SCENES`: where the sun sits and how big, the skyline (city, dense, cranes, hills, none) and the ground (street, water with the sun's reflection, runway, field). Only some get a pylon. A new kind needs its own entry, so no two pictures look alike.
+- Company rows on the Business tab are compact: picture, name, stage and units, income, a thin bar, and a red dot only when something can be bought.
 - Art scenes share one backdrop (`Art.backdrop`): sun with a soft glow, far skyline, low mist, and a pylon with hanging cables on big pictures.
 - Profile shows the next achievement. The nav bar names only the active tab.
 

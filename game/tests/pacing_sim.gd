@@ -165,7 +165,8 @@ func _milestones() -> void:
 	if g.biz.size() >= 1: _mark("biz1", "First company")
 	if g.biz.size() >= 3: _mark("biz3", "Three companies")
 	if g.biz.size() >= 6: _mark("biz6", "Six companies")
-	if g.biz.size() >= 11: _mark("biz11", "All eleven companies")
+	if g.biz.size() >= 11: _mark("biz11", "Eleven companies")
+	if g.biz.size() >= Data.BUSINESSES.size(): _mark("bizall", "All companies")
 	if g.props_owned() >= 1: _mark("prop1", "First property")
 	for e in [5, 6, 7, 8, 9, 10, 11, 12]:
 		if nw >= pow(10.0, e): _mark("nw%d" % e, "Net worth $1e%d" % e)

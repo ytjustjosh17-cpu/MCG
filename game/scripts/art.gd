@@ -132,6 +132,145 @@ static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2) -
 			for xx in range(14, 108, 12):
 				_rect(ci, o, s, xx, 48, 6, 5, win)
 			_rect(ci, o, s, 38, 30, 8, 5, red if lit > 0 else win)
+		"van":
+			_rect(ci, o, s, 14, 30, 70, 32, ink)
+			_poly(ci, o, s, [[84, 62], [84, 38], [98, 38], [108, 50], [108, 62]], ink)
+			_rect(ci, o, s, 24, 36, 40, 12, red if lit > 0 else win)
+			_poly(ci, o, s, [[20, 36], [68, 36], [72, 30], [16, 30]], ink)
+			_rect(ci, o, s, 22, 26, 50, 3, ink)
+			_rect(ci, o, s, 88, 41, 9, 7, win)
+			for wx in [30, 94]:
+				_circle(ci, o, s, wx, 63, 6, ink)
+				_circle(ci, o, s, wx, 63, 2.4, win)
+		"gym":
+			_rect(ci, o, s, 12, 30, 96, 40, ink)
+			_rect(ci, o, s, 12, 24, 96, 6, ink)
+			for wx in [18, 40, 62, 84]:
+				_rect(ci, o, s, wx, 36, 18, 22, win)
+			_rect(ci, o, s, 40, 36, 18, 22, red if lit > 0 else win)
+			# A big dumbbell sign on the roof.
+			_rect(ci, o, s, 44, 12, 32, 3, ink)
+			_rect(ci, o, s, 40, 7, 6, 13, ink)
+			_rect(ci, o, s, 74, 7, 6, 13, ink)
+		"hotel":
+			_rect(ci, o, s, 34, 2, 52, 68, ink)
+			_rect(ci, o, s, 22, 50, 76, 20, ink)
+			_rect(ci, o, s, 52, -6, 16, 8, ink)
+			for yy in range(8, 46, 7):
+				for xx in [40, 50, 60, 70]:
+					_rect(ci, o, s, xx, yy, 6, 3, win)
+			_rect(ci, o, s, 60, 15, 6, 3, red if lit > 0 else win)
+			_rect(ci, o, s, 40, 36, 6, 3, red if lit > 1 else win)
+			_rect(ci, o, s, 50, 58, 20, 12, red if lit > 0 else win)
+		"mast":
+			_poly(ci, o, s, [[54, 70], [60, 2], [66, 70]], ink)
+			_rect(ci, o, s, 59, -8, 2, 12, ink)
+			for yy in [18, 34, 50]:
+				_rect(ci, o, s, 50, yy, 20, 2, ink)
+			_circle(ci, o, s, 60, -8, 2.5, red if lit > 0 else win)
+			_rect(ci, o, s, 74, 42, 34, 28, ink)
+			_rect(ci, o, s, 80, 48, 22, 10, win)
+			_rect(ci, o, s, 80, 48, 8, 10, red if lit > 1 else win)
+			_circle(ci, o, s, 92, 36, 6, ink)
+		"mine":
+			_poly(ci, o, s, [[40, 70], [50, 10], [56, 10], [66, 70]], ink)
+			_rect(ci, o, s, 44, 6, 18, 6, ink)
+			_circle(ci, o, s, 53, 9, 7, ink)
+			_circle(ci, o, s, 53, 9, 3, win)
+			_rect(ci, o, s, 70, 40, 38, 30, ink)
+			_poly(ci, o, s, [[8, 70], [22, 52], [36, 70]], ink)
+			_rect(ci, o, s, 76, 48, 8, 6, red if lit > 0 else win)
+			_rect(ci, o, s, 92, 48, 8, 6, win)
+			_rect(ci, o, s, 64, 30, 30, 3, ink)
+		"rocket":
+			_rect(ci, o, s, 52, 14, 14, 56, ink)
+			_poly(ci, o, s, [[52, 14], [59, 0], [66, 14]], ink)
+			_poly(ci, o, s, [[52, 56], [44, 70], [52, 70]], ink)
+			_poly(ci, o, s, [[66, 56], [74, 70], [66, 70]], ink)
+			_circle(ci, o, s, 59, 26, 3, red if lit > 0 else win)
+			# Launch tower beside it.
+			_rect(ci, o, s, 80, 6, 6, 64, ink)
+			for yy in range(10, 66, 10):
+				_rect(ci, o, s, 66, yy, 14, 2, ink)
+			_rect(ci, o, s, 86, 6, 10, 3, ink)
+			_circle(ci, o, s, 83, 4, 2, red if lit > 1 else win)
+		"terrace":
+			_poly(ci, o, s, [[8, 30], [112, 30], [104, 20], [16, 20]], ink)
+			_rect(ci, o, s, 8, 30, 104, 40, ink)
+			for i in 4:
+				var xx := 14 + i * 26
+				_rect(ci, o, s, xx, 38, 9, 9, win)
+				_rect(ci, o, s, xx + 12, 50, 7, 20, win)
+				_rect(ci, o, s, xx + 18, 12, 4, 8, ink)
+			_rect(ci, o, s, 40, 38, 9, 9, red if lit > 0 else win)
+		"cottage":
+			_poly(ci, o, s, [[22, 38], [52, 14], [82, 38]], ink)
+			_rect(ci, o, s, 26, 38, 52, 32, ink)
+			_rect(ci, o, s, 64, 10, 6, 16, ink)
+			_rect(ci, o, s, 34, 46, 10, 10, red if lit > 0 else win)
+			_rect(ci, o, s, 52, 50, 10, 20, win)
+			# Tree beside it.
+			_rect(ci, o, s, 96, 46, 3, 24, ink)
+			_circle(ci, o, s, 97, 40, 11, ink)
+		"loft":
+			_rect(ci, o, s, 10, 22, 100, 48, ink)
+			_poly(ci, o, s, [[10, 22], [30, 12], [50, 22], [70, 12], [90, 22], [110, 12], [110, 22]], ink)
+			for xx in range(16, 106, 16):
+				_rect(ci, o, s, xx, 30, 10, 14, win)
+				_rect(ci, o, s, xx, 50, 10, 14, win)
+			_rect(ci, o, s, 48, 30, 10, 14, red if lit > 0 else win)
+			_rect(ci, o, s, 80, 50, 10, 14, red if lit > 1 else win)
+		"granary":
+			_rect(ci, o, s, 20, 30, 42, 40, ink)
+			_poly(ci, o, s, [[16, 30], [41, 10], [66, 30]], ink)
+			for i in 3:
+				_rect(ci, o, s, 72 + i * 13, 16, 11, 54, ink)
+				_circle(ci, o, s, 77.5 + i * 13, 16, 5.5, ink)
+			_rect(ci, o, s, 34, 40, 14, 12, red if lit > 0 else win)
+		"villa":
+			_rect(ci, o, s, 14, 40, 92, 30, ink)
+			_rect(ci, o, s, 40, 22, 56, 18, ink)
+			_rect(ci, o, s, 36, 20, 64, 3, ink)
+			_rect(ci, o, s, 46, 27, 44, 9, win)
+			_rect(ci, o, s, 20, 48, 30, 12, red if lit > 0 else win)
+			_rect(ci, o, s, 60, 48, 40, 12, win)
+			_rect(ci, o, s, 2, 64, 30, 6, win)
+		"offices":
+			_rect(ci, o, s, 22, 10, 40, 60, ink)
+			_rect(ci, o, s, 66, 26, 40, 44, ink)
+			for yy in range(16, 66, 6):
+				_rect(ci, o, s, 26, yy, 32, 2, win)
+			for yy in range(32, 66, 6):
+				_rect(ci, o, s, 70, yy, 32, 2, win)
+			_rect(ci, o, s, 26, 28, 14, 2, red if lit > 0 else win)
+			_rect(ci, o, s, 82, 44, 14, 2, red if lit > 1 else win)
+		"spire":
+			_poly(ci, o, s, [[40, 70], [50, 6], [60, -14], [70, 6], [80, 70]], ink)
+			_rect(ci, o, s, 59, -24, 2, 12, ink)
+			for yy in range(14, 66, 8):
+				_rect(ci, o, s, 54, yy, 12, 2, win)
+			_rect(ci, o, s, 54, 30, 12, 2, red if lit > 0 else win)
+			_circle(ci, o, s, 60, -24, 2, red)
+		"arena":
+			_poly(ci, o, s, [[6, 70], [10, 44], [30, 32], [90, 32], [110, 44], [114, 70]], ink)
+			for xx in range(16, 108, 8):
+				_rect(ci, o, s, xx, 48, 3, 18, win)
+			_rect(ci, o, s, 30, 28, 60, 3, red if lit > 0 else win)
+		"sphere":
+			_rect(ci, o, s, 56, 40, 8, 30, ink)
+			_circle(ci, o, s, 60, 28, 24, ink)
+			for yy in [18, 26, 34]:
+				_rect(ci, o, s, 42, yy, 36, 2, win)
+			_rect(ci, o, s, 54, 26, 12, 2, red if lit > 0 else win)
+			_rect(ci, o, s, 30, 64, 60, 6, ink)
+		"island":
+			_poly(ci, o, s, [[4, 70], [24, 54], [96, 54], [116, 70]], ink)
+			_rect(ci, o, s, 40, 38, 40, 16, ink)
+			_rect(ci, o, s, 46, 42, 10, 6, red if lit > 0 else win)
+			_rect(ci, o, s, 62, 42, 12, 6, win)
+			for px in [20, 96]:
+				_poly(ci, o, s, [[px, 54], [px + 2, 30], [px + 4, 54]], ink)
+				_poly(ci, o, s, [[px - 10, 32], [px + 2, 26], [px + 14, 32], [px + 2, 30]], ink)
 		_:
 			_rect(ci, o, s, 30, 20, 60, 50, ink)
 
@@ -199,63 +338,156 @@ static func pylon(ci: CanvasItem, base: Vector2, h: float, clip: PackedVector2Ar
 	return tips
 
 
-static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_c: Vector2, sun_r: float, sun_col: Color, seed_v := 7) -> void:
-	## Dusk sky: faint stars, the sun with sunset bands, a far skyline with a few
-	## lit windows, and a power pylon with sagging cables.
+# Each kind gets its own setting so no two pictures look alike.
+# sun: [x, y, size] as shares of the picture; sky: "city", "dense", "cranes",
+# "hills", "flat" (open land) or "none"; ground: "street", "water", "runway", "field".
+const SCENES := {
+	"shop": {"sun": [0.88, 0.2, 0.62], "sky": "city", "ground": "street", "pylon": true},
+	"van": {"sun": [0.2, 0.35, 0.5], "sky": "city", "ground": "street", "pylon": false},
+	"taxi": {"sun": [0.75, 0.45, 0.55], "sky": "dense", "ground": "street", "pylon": true},
+	"ship": {"sun": [0.5, 0.55, 0.45], "sky": "cranes", "ground": "water", "pylon": false},
+	"factory": {"sun": [0.3, 0.3, 0.55], "sky": "city", "ground": "field", "pylon": true},
+	"crane": {"sun": [0.15, 0.25, 0.5], "sky": "cranes", "ground": "field", "pylon": false},
+	"dealer": {"sun": [0.85, 0.35, 0.5], "sky": "city", "ground": "street", "pylon": false},
+	"gym": {"sun": [0.25, 0.2, 0.42], "sky": "dense", "ground": "street", "pylon": false},
+	"screen": {"sun": [0.55, 0.12, 0.3], "sky": "dense", "ground": "street", "pylon": false},
+	"hotel": {"sun": [0.62, 0.42, 0.8], "sky": "none", "ground": "water", "pylon": false},
+	"mast": {"sun": [0.45, 0.62, 0.7], "sky": "hills", "ground": "field", "pylon": true},
+	"bank": {"sun": [0.5, 0.3, 0.6], "sky": "dense", "ground": "street", "pylon": false},
+	"stadium": {"sun": [0.12, 0.5, 0.55], "sky": "city", "ground": "field", "pylon": false},
+	"mine": {"sun": [0.8, 0.4, 0.75], "sky": "hills", "ground": "field", "pylon": true},
+	"rig": {"sun": [0.4, 0.6, 0.6], "sky": "none", "ground": "water", "pylon": false},
+	"plane": {"sun": [0.2, 0.22, 0.35], "sky": "flat", "ground": "runway", "pylon": false},
+	"rocket": {"sun": [0.3, 0.55, 0.9], "sky": "hills", "ground": "field", "pylon": false},
+	"house": {"sun": [0.82, 0.3, 0.55], "sky": "city", "ground": "street", "pylon": true},
+	"terrace": {"sun": [0.2, 0.25, 0.45], "sky": "city", "ground": "street", "pylon": true},
+	"cottage": {"sun": [0.75, 0.55, 0.6], "sky": "hills", "ground": "field", "pylon": false},
+	"flats": {"sun": [0.85, 0.25, 0.6], "sky": "dense", "ground": "street", "pylon": false},
+	"loft": {"sun": [0.5, 0.2, 0.4], "sky": "cranes", "ground": "street", "pylon": false},
+	"granary": {"sun": [0.82, 0.5, 0.55], "sky": "hills", "ground": "field", "pylon": true},
+	"villa": {"sun": [0.75, 0.5, 0.65], "sky": "none", "ground": "water", "pylon": false},
+	"offices": {"sun": [0.2, 0.3, 0.5], "sky": "dense", "ground": "street", "pylon": false},
+	"tower": {"sun": [0.85, 0.22, 0.6], "sky": "dense", "ground": "street", "pylon": false},
+	"spire": {"sun": [0.5, 0.35, 0.75], "sky": "dense", "ground": "street", "pylon": false},
+	"arena": {"sun": [0.15, 0.4, 0.5], "sky": "city", "ground": "field", "pylon": false},
+	"sphere": {"sun": [0.7, 0.3, 0.7], "sky": "dense", "ground": "water", "pylon": false},
+	"resort": {"sun": [0.25, 0.55, 0.6], "sky": "none", "ground": "water", "pylon": false},
+	"island": {"sun": [0.5, 0.58, 0.7], "sky": "none", "ground": "water", "pylon": false},
+}
+
+
+static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_c: Vector2, sun_r: float, sun_col: Color, seed_v := 7, opt := {}) -> void:
+	## Dusk sky: the sun with a soft glow, a far skyline (or hills, or nothing),
+	## low mist, the ground, and on some pictures a pylon with hanging cables.
 	ci.draw_colored_polygon(clip, UI.SKY)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_v
 	var w := rect.size.x
 	var h := rect.size.y
 	var o := rect.position
+	var sky: String = opt.get("sky", "city")
+	var ground: String = opt.get("ground", "street")
+	var gh := h * 0.14 if ground == "water" else 0.0
+	# Mist low down, behind the sun so it stays clean.
+	for i in 5:
+		var y := h * (0.62 + i * 0.08)
+		_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, y), Vector2(w, h - y))), clip, Color(UI.HAZE, 0.10))
 	# Soft glow round the sun, then the sun itself.
 	for i in 4:
 		_fill(ci, UI.circle_poly(sun_c, sun_r * (1.0 + 0.07 * (4 - i)), 96), clip, Color(sun_col, 0.05))
 	_fill(ci, UI.circle_poly(sun_c, sun_r, 96), clip, sun_col)
-	# Far skyline, two layers.
-	for layer in 2:
-		var col := UI.HAZE if layer == 0 else UI.FAR
-		var x := -rng.randf() * 20.0
-		while x < w:
-			var bw := rng.randf_range(0.06, 0.14) * w
-			var bh := rng.randf_range(0.10, 0.26 if layer == 0 else 0.18) * h + layer * 0.0
-			var r := Rect2(o + Vector2(x, h - bh), Vector2(bw, bh))
-			_fill(ci, UI.rect_poly(r), clip, col)
-			if rng.randf() < 0.3:
-				_fill(ci, UI.rect_poly(Rect2(r.position + Vector2(bw * 0.45, -bh * 0.18), Vector2(1.5, bh * 0.18))), clip, col)
-			if layer == 1:
-				for k in rng.randi_range(0, 3):
-					var wp := r.position + Vector2(rng.randf_range(3.0, maxf(4.0, bw - 6.0)), rng.randf_range(6.0, maxf(7.0, bh - 6.0)))
-					var lit := rng.randf() < 0.25
-					_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(UI.RED, 0.55) if lit else UI.HAZE)
-			x += bw + rng.randf_range(0.0, 0.03) * w
-	# Mist low down, like the city is in fog.
-	for i in 5:
-		var y := h * (0.62 + i * 0.08)
-		_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, y), Vector2(w, h - y))), clip, Color(UI.HAZE, 0.10))
-	# Power pylon on the left with cables running off to the right (big pictures only).
-	if w < 220.0:
+	var base_y := h - gh
+	match sky:
+		"hills":
+			for layer in 2:
+				var pts := PackedVector2Array()
+				pts.append(o + Vector2(-4, base_y))
+				var n := 7
+				for i in n + 1:
+					var x := w * i / float(n)
+					var y := base_y - h * rng.randf_range(0.08, 0.22 if layer == 0 else 0.14)
+					pts.append(o + Vector2(x, y))
+				pts.append(o + Vector2(w + 4, base_y))
+				_fill(ci, pts, clip, UI.HAZE if layer == 0 else UI.FAR)
+		"city", "dense", "cranes":
+			var tall := 0.38 if sky == "dense" else 0.26
+			for layer in 2:
+				var col := UI.HAZE if layer == 0 else UI.FAR
+				var x := -rng.randf() * 20.0
+				while x < w:
+					var bw := rng.randf_range(0.05, 0.12 if sky == "dense" else 0.14) * w
+					var bh := rng.randf_range(0.10, tall if layer == 0 else tall * 0.7) * h
+					var r := Rect2(o + Vector2(x, base_y - bh), Vector2(bw, bh))
+					_fill(ci, UI.rect_poly(r), clip, col)
+					if rng.randf() < 0.3:
+						_fill(ci, UI.rect_poly(Rect2(r.position + Vector2(bw * 0.45, -bh * 0.18), Vector2(1.5, bh * 0.18))), clip, col)
+					if layer == 1:
+						for k in rng.randi_range(0, 3):
+							var wp := r.position + Vector2(rng.randf_range(3.0, maxf(4.0, bw - 6.0)), rng.randf_range(6.0, maxf(7.0, bh - 6.0)))
+							var lit := rng.randf() < 0.25
+							_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(UI.RED, 0.55) if lit else UI.HAZE)
+					x += bw + rng.randf_range(0.0, 0.03) * w
+			if sky == "cranes":
+				for k in 2:
+					var cx := w * (0.15 + k * 0.45 + rng.randf() * 0.1)
+					var ch := h * rng.randf_range(0.45, 0.6)
+					var top := o + Vector2(cx, base_y - ch)
+					_fill(ci, UI.rect_poly(Rect2(top, Vector2(maxf(2.0, w * 0.012), ch))), clip, UI.FAR)
+					_fill(ci, UI.rect_poly(Rect2(top + Vector2(-w * 0.12, 0), Vector2(w * 0.26, maxf(2.0, h * 0.015)))), clip, UI.FAR)
+					_fill(ci, UI.rect_poly(Rect2(top + Vector2(w * 0.11, 0), Vector2(1.0, ch * 0.3))), clip, UI.FAR)
+		"flat":
+			_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, base_y - h * 0.05), Vector2(w, h * 0.05))), clip, UI.FAR)
+	match ground:
+		"water":
+			var wr := Rect2(o + Vector2(0, base_y), Vector2(w, gh + 1.0))
+			_fill(ci, UI.rect_poly(wr), clip, UI.FAR)
+			# The sun's reflection: broken red lines on the water.
+			var ry := base_y + 3.0
+			var k := 0
+			while ry < h - 2.0:
+				var half := sun_r * (0.55 - k * 0.08) * rng.randf_range(0.7, 1.0)
+				if half > 2.0:
+					_fill(ci, UI.rect_poly(Rect2(Vector2(sun_c.x - half, o.y + ry), Vector2(half * 2.0, 1.5))), clip, Color(UI.RED, 0.45))
+				ry += maxf(3.0, gh * 0.18)
+				k += 1
+		"runway":
+			var rr := Rect2(o + Vector2(0, h - h * 0.08), Vector2(w, h * 0.08))
+			_fill(ci, UI.rect_poly(rr), clip, UI.INK)
+			var lx := 6.0
+			while lx < w:
+				ci.draw_rect(Rect2(o + Vector2(lx, h - h * 0.05), Vector2(3, 1.5)), Color(UI.FLASH, 0.55), true)
+				lx += w * 0.06
+	if not bool(opt.get("pylon", true)) or w < 220.0:
 		return
+	# Power pylon with cables running off both sides.
 	var ph := h * 0.5
-	var base := o + Vector2(w * 0.13, h - h * 0.02)
+	var px: float = opt.get("pylon_x", 0.13)
+	var base := o + Vector2(w * px, h - h * 0.02)
 	var tips := pylon(ci, base, ph, clip)
 	for t in tips:
-		# Cables run off both edges, dipping between towers.
 		_wire(ci, t, t + Vector2(w * 1.1, -h * 0.02), h * 0.08, clip, UI.INK, maxf(1.0, h * 0.006))
 		_wire(ci, t + Vector2(-w * 0.5, -h * 0.01), t, h * 0.05, clip, UI.INK, maxf(1.0, h * 0.006))
 
 
-static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2) -> void:
-	## Dusk backdrop and the silhouette, clipped to a rounded rect.
+static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2, seed_key := "") -> void:
+	## The kind's own backdrop and its silhouette, clipped to a rounded rect.
 	var clip := UI.rounded_rect_poly(rect, radius)
-	var r := sun_r if sun_r > 0.0 else rect.size.y * 0.62
-	var sc := rect.position + Vector2(rect.size.x - r * 0.5, r * 0.28)
-	backdrop(ci, rect, clip, sc, r, UI.RED, int(rect.size.x) + kind.length())
+	var opt: Dictionary = SCENES.get(kind, SCENES["shop"])
+	var sun: Array = opt["sun"]
+	var r := sun_r if sun_r > 0.0 else rect.size.y * float(sun[2])
+	var sc := rect.position + Vector2(rect.size.x * float(sun[0]), rect.size.y * float(sun[1]))
+	# Pylon goes on whichever side the sun isn't.
+	var o2 := opt.duplicate()
+	o2["pylon_x"] = 0.13 if float(sun[0]) > 0.5 else 0.08
+	backdrop(ci, rect, clip, sc, r, UI.RED, hash(seed_key if seed_key != "" else kind), o2)
 	var s := minf(rect.size.x / 150.0, (rect.size.y - 10.0) / 78.0)
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
+	if String(opt.get("ground", "")) == "water":
+		o.y -= rect.size.y * 0.06
 	draw(ci, kind, o, s, lit)
-	var ground := Rect2(rect.position + Vector2(0, rect.size.y - 4.0 * s), Vector2(rect.size.x, 4.0 * s + 1.0))
-	_fill(ci, UI.rect_poly(ground), clip, UI.INK)
+	if String(opt.get("ground", "")) != "water":
+		var ground := Rect2(rect.position + Vector2(0, rect.size.y - 4.0 * s), Vector2(rect.size.x, 4.0 * s + 1.0))
+		_fill(ci, UI.rect_poly(ground), clip, UI.INK)
 
 
 class Scene extends Control:
@@ -263,6 +495,7 @@ class Scene extends Control:
 	var kind := "shop"
 	var radius := 16.0
 	var lit := 2
+	var seed_id := ""   # e.g. the company id, so same-size cards still differ
 
 	func _init(k := "shop", r := 16.0) -> void:
 		kind = k
@@ -273,4 +506,4 @@ class Scene extends Control:
 	func _draw() -> void:
 		if size.x < 20.0 or size.y < 20.0:
 			return
-		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, 0.0, lit)
+		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, 0.0, lit, seed_id)

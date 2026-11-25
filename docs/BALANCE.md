@@ -12,11 +12,12 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.3 to 8.5 |
-| 50% complete | 15 to 21 | 17.8 to 18.3 |
-| 75% complete | 28 to 38 | 32.8 to 33.8 |
-| 90% complete | 33 to 46 | 43.5 to 44.3 |
-| All 6 mergers | 35 to 50 | 44.3 to 45.9 |
+| 25% complete | 7 to 10 | 9.3 to 9.5 |
+| 50% complete | 15 to 21 | 19.9 to 20.8 |
+| 75% complete | 28 to 38 | 33.3 to 34.3 |
+| 90% complete | 33 to 46 | 43.3 to 44.3 |
+| All 6 mergers | 35 to 50 | 43.3 to 44.3 |
+| All 17 companies | 35 to 45 | 38.9 to 40.3 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
 
@@ -24,6 +25,8 @@ Other players, measured by the agent play-testers:
 - Twice a day: about 1.4 × slower than the robot. Fine.
 - Once a day: about 3 × slower (90% around day 98), because time away pays at most 8 hours.
 - Heavy completionist (48 minutes a day): 100% around day 55. After that there is nothing new to do yet (see "Open questions").
+
+Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain, Hotel, TV station, Mining) and one sits above the Airline (Space launch). New companies earn a little less per pound than their neighbours, so the late game does not speed up.
 
 ## How money flows
 

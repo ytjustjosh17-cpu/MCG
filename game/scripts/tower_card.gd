@@ -18,8 +18,17 @@ var _wave := -1.0
 var _beacon_on := true
 
 
+var _sky: Control
+var _sky_boost := false
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_sky = TowerSky.new()
+	_sky.show_behind_parent = true
+	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_sky)
 	Game.changed.connect(queue_redraw)
 	resized.connect(_reshape)
 
@@ -73,9 +82,7 @@ func _draw() -> void:
 	var h := size.y
 	var g := _geo()
 	var clip := UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), RADIUS)
-	var sun_r := minf(w * 0.42, h * 0.34)
-	var sun_col := UI.RED.lightened(0.12) if Game.boost_active() else UI.RED
-	Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, Vector2(w * 0.78, h * 0.24), sun_r, sun_col, 4401)
+	# The sky, sun, skyline and pylon live on _sky (drawn behind, only when needed).
 	var tx: float = g["tx"]
 	var tw: float = g["tw"]
 	var top: float = g["top"]
@@ -169,6 +176,9 @@ func _process(delta: float) -> void:
 			_flicker_time -= delta
 			if _flicker_time <= 0.0:
 				queue_redraw()
+	if Game.boost_active() != _sky_boost:
+		_sky_boost = Game.boost_active()
+		_sky.queue_redraw()
 	# Roof light blinks: redraw only when it switches.
 	var on := fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
 	if on != _beacon_on and not Game.reduce_motion and is_visible_in_tree():
@@ -281,3 +291,18 @@ func _spawn_float(pos: Vector2, v: float) -> void:
 	tw.chain().tween_callback(func():
 		_float_count -= 1
 		l.queue_free())
+
+
+class TowerSky extends Control:
+	## Static backdrop for the tower; redraws on resize or when the boost starts or ends.
+	func _init() -> void:
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		if w < 100.0 or h < 100.0:
+			return
+		var clip := UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), TowerCard.RADIUS)
+		var sun_col := UI.RED.lightened(0.12) if Game.boost_active() else UI.RED
+		Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, Vector2(w * 0.78, h * 0.24), minf(w * 0.42, h * 0.34), sun_col, 4401)
