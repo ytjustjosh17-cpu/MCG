@@ -146,8 +146,19 @@ func celebrate() -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _on_button(event.position):
+			return  # Level up, Boost and the like: only the tower itself taps
 		_do_tap(event.position)
 		accept_event()
+
+
+func _on_button(pos: Vector2) -> bool:
+	## True when the press lands on one of the card's own buttons.
+	var gp := get_global_transform() * pos
+	for ch in get_children():
+		if ch is BaseButton and ch.is_visible_in_tree() and (ch as Control).get_global_rect().has_point(gp):
+			return true
+	return false
 
 
 func _do_tap(pos: Vector2) -> void:
@@ -177,7 +188,7 @@ func _combo_tick(pos: Vector2) -> void:
 	_combo = _combo + 1 if t - _combo_ms < COMBO_GAP_MS else 1
 	_combo_ms = t
 	if _combo_l == null:
-		_combo_l = UI.display("", 26, UI.TEXT)
+		_combo_l = UI.display("", 30, UI.TEXT)
 		_combo_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		add_child(_combo_l)
 		var timer := Timer.new()
@@ -185,19 +196,17 @@ func _combo_tick(pos: Vector2) -> void:
 		timer.autostart = true
 		timer.timeout.connect(_combo_fade)
 		add_child(timer)
-	_combo_l.size = Vector2(160, 34)
-	_combo_l.position = Vector2(size.x - 176, 12)
+	_combo_l.size = Vector2(220, 40)
+	_combo_l.position = Vector2(size.x - 236, 10)
 	_combo_l.visible = _combo >= 10
 	_combo_l.modulate.a = 1.0
-	_combo_l.text = "×%d" % _combo
+	_combo_l.text = "%d combo" % _combo
 	if _combo in COMBO_MARKS:
-		_combo_l.add_theme_color_override("font_color", UI.RED)
+		# Stays TEXT: red would vanish against the sun behind it.
 		Kit.haptic("medium")
 		Motion.pop(_combo_l, 1.25)
 		if not Motion.reduced():
 			add_child(Confetti.new(pos, 40))
-	elif _combo % 50 == 1:
-		_combo_l.add_theme_color_override("font_color", UI.TEXT)
 
 
 func _combo_fade() -> void:

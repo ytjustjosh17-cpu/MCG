@@ -11,6 +11,7 @@ var _icons: Array = []
 var _labels: Array = []
 var _active := 0
 var _badges: Array = []
+var _want: Array = []  # badge wanted per tab; never shown on the active tab
 
 
 func _ready() -> void:
@@ -41,19 +42,21 @@ func _ready() -> void:
 		var ic := Icon.new(TABS[i][0], UI.SUB, 26.0)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(ic)
-		var l := UI.label("", 1, UI.SUB)
+		var l := UI.label(TABS[i][1], 11, UI.TEXT, true)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.visible = false
 		col.add_child(l)
 		b.tooltip_text = TABS[i][1]
 		_buttons.append(b)
 		var dot := ColorRect.new()
 		dot.color = UI.RED
-		dot.size = Vector2(8, 8)
+		dot.size = Vector2(7, 7)
 		dot.visible = false
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(dot)
-		b.resized.connect(func(): dot.position = Vector2(b.size.x / 2.0 + 10.0, 10.0))
+		b.resized.connect(func(): dot.position = Vector2(b.size.x / 2.0 + 12.0, 8.0))
 		_badges.append(dot)
+		_want.append(false)
 		_icons.append(ic)
 		_labels.append(l)
 	set_active(0)
@@ -61,13 +64,16 @@ func _ready() -> void:
 
 func set_badge(i: int, on: bool) -> void:
 	if i < _badges.size():
-		_badges[i].visible = on
+		_want[i] = on
+		_badges[i].visible = on and i != _active
 
 
 func set_active(i: int) -> void:
 	_active = i
 	for k in range(_buttons.size()):
 		var on := k == i
+		_badges[k].visible = _want[k] and not on
+		(_labels[k] as Label).visible = on
 		var b: Button = _buttons[k]
 		var bg: StyleBox = UI.box(Color(UI.TEXT, 0.1), 26) if on else StyleBoxEmpty.new()
 		b.add_theme_stylebox_override("normal", bg)
