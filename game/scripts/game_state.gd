@@ -1166,7 +1166,7 @@ func next_goal() -> Dictionary:
 			break
 	for id in biz.keys():
 		if int(biz[id]["units"]) < capacity(id):
-			c.append({"icon": "business", "text": "+1 outlet · %s" % biz[id]["name"], "cost": unit_price(id), "tab": 1})
+			c.append({"icon": "business", "text": "+1 %s · %s" % [Data.business(id).get("unit", "unit"), biz[id]["name"]], "cost": unit_price(id), "tab": 1})
 	if next_home_cost() > 0.0:
 		c.append({"icon": "home", "text": String(Data.HOMES[home + 1][0]), "cost": next_home_cost(), "tab": 3})
 	for i in range(Data.PROPERTIES.size()):
@@ -1336,7 +1336,7 @@ func _build_achievements() -> Array:
 	for e in range(4, 16):  # up to $1Qa, so the late game still has goals
 		var g := pow(10.0, e)
 		a.append({"id": "worth_%d" % e, "title": "Worth %s" % money_short(g), "m": "worth", "goal": g})
-	for n in [1, 3, 6, 11]:
+	for n in [1, 3, 6, 11, Data.BUSINESSES.size()]:
 		a.append({"id": "biz_%d" % n, "title": "%d compan%s" % [n, "y" if n == 1 else "ies"], "m": "biz", "goal": float(n)})
 	for n in [10, 30, 60, 99]:
 		a.append({"id": "stages_%d" % n, "title": "%d expansions" % n, "m": "expansions", "goal": float(n)})

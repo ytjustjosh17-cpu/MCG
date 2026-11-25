@@ -215,79 +215,90 @@ func _on_boost() -> void:
 		Kit.toast("Ready in " + Game.clock(Game.ibost_cooldown_left()))
 
 
-class CardArt extends Art.Scene:
-	## Narrow card art with a small sun, so the red isn't repeated loudly.
-	func _draw() -> void:
-		if size.x < 20.0 or size.y < 20.0:
-			return
-		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, size.x * 0.3, lit)
-
-
 class BizCard extends Button:
-	const ART_W := 90.0
+	## One compact row: picture, name and status, income, and a thin bar
+	## (units filled, or time left on an expansion).
+	const ART_W := 76.0
 	var id := ""
 	var _scene: Art.Scene
 	var _name: Label
-	var _type: Label
-	var _income: Label
 	var _status: Label
+	var _income: Label
 	var _mark: ColorRect
+	var _track: ColorRect
+	var _fill: ColorRect
 
 	func _init(biz_id: String) -> void:
 		id = biz_id
 		focus_mode = Control.FOCUS_NONE
-		custom_minimum_size = Vector2(0, 124)
+		custom_minimum_size = Vector2(0, 84)
 		var bg := UI.box(UI.PANEL, 16)
 		for st in ["normal", "hover", "pressed", "focus"]:
 			add_theme_stylebox_override(st, bg)
 		var b := Data.business(id)
-		_scene = CardArt.new(b["kind"], 16.0)
-		_scene.modulate.a = 0.5  # quiet, so the red sun isn't repeated loudly
+		_scene = Art.Scene.new(b["kind"], 12.0)
+		_scene.seed_id = id
 		add_child(_scene)
 		_name = UI.label("", 17, UI.TEXT, true)
-		_type = UI.label("", 13, UI.SUB)
-		_income = UI.label("", 22, UI.TEXT, true)
-		_status = UI.label("", 13, UI.TEXT)
+		_name.clip_text = true
+		_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_status = UI.label("", 13, UI.SUB)
+		_income = UI.label("", 17, UI.TEXT, true)
+		_income.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_mark = ColorRect.new()
 		_mark.color = UI.RED
 		_mark.size = Vector2(8, 8)
-		_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		for n in [_name, _type, _income, _status, _mark]:
+		_track = ColorRect.new()
+		_track.color = UI.TRACK
+		_fill = ColorRect.new()
+		_fill.color = UI.TEXT
+		for n in [_name, _status, _income, _mark, _track, _fill]:
+			(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 			add_child(n)
 		resized.connect(_layout)
 
 	func _layout() -> void:
-		_scene.position = Vector2(size.x - ART_W, 0)
-		_scene.size = Vector2(ART_W, size.y)
-		_name.position = Vector2(16, 14)
-		# Long names end in "..." instead of running under the art.
-		_name.clip_text = true
-		_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		_name.size = Vector2(maxf(40.0, size.x - ART_W - 28), 24)
-		_type.position = Vector2(16, 36)
-		_income.position = Vector2(16, size.y - 58)
-		_mark.position = Vector2(16, size.y - 24)
-		_status.position = Vector2(30, size.y - 31)
+		_scene.position = Vector2(10, 10)
+		_scene.size = Vector2(ART_W, size.y - 20)
+		var x := ART_W + 24.0
+		var right := size.x - 16.0
+		_income.size = Vector2(110, 24)
+		_income.position = Vector2(right - 110, 16)
+		_name.position = Vector2(x, 16)
+		_name.size = Vector2(maxf(40.0, right - 116 - x), 24)
+		_status.position = Vector2(x, 42)
+		_mark.position = Vector2(right - 8, 48)
+		_track.position = Vector2(x, size.y - 16)
+		_track.size = Vector2(right - x, 3)
+		_fill.position = _track.position
+		refresh()
 
 	func refresh() -> void:
+		if not Game.biz.has(id):
+			return
 		var s: Dictionary = Game.biz[id]
 		_name.text = s["name"]
-		_type.text = "Stage %d" % s["stage"]
 		_income.text = Game.money_short(Game.biz_income(id)) + " /h"
 		_scene.lit = 1 + int(s["stage"]) / 4
 		_scene.queue_redraw()
 		var cap := Game.capacity(id)
 		var units := int(s["units"])
+		var frac := float(units) / float(maxi(1, cap))
+		var unit_word: String = Data.business(id).get("units", "units")
 		if Game.expanding(id):
-			_status.text = "Expanding " + Game.clock(Game.expansion_left(id))
+			_status.text = "Stage %d · expanding %s" % [s["stage"], Game.clock(Game.expansion_left(id))]
+			frac = 1.0 - Game.expansion_left(id) / maxf(1.0, Game.expansion_seconds(id))
 			_mark.visible = false
 		elif units >= cap and int(s["stage"]) < Data.MAX_STAGE:
-			_status.text = "Full · Expand"
+			_status.text = "Stage %d · full, expand" % s["stage"]
 			_mark.visible = Game.can_expand(id)
 		elif units >= cap:
-			_status.text = "Full"
+			_status.text = "Stage %d · max" % s["stage"]
 			_mark.visible = false
 		else:
-			_status.text = "%d/%d units" % [units, cap]
+			_status.text = "Stage %d · %d/%d %s" % [s["stage"], units, cap, unit_word]
 			_mark.visible = Game.cash >= Game.unit_price(id)
-		_status.position.x = 30 if _mark.visible else 16
+		_fill.size = Vector2(_track.size.x * clampf(frac, 0.0, 1.0), 3)
+		# Name gets all the room the income doesn't need.
+		var iw := _income.get_theme_font("font").get_string_size(_income.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
+		_name.size.x = maxf(40.0, size.x - 16.0 - iw - 12.0 - _name.position.x)
