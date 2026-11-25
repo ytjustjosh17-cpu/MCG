@@ -19,8 +19,10 @@ var _share_seps := {}   # sym -> divider line above that row
 var _coin_seps := {}
 var _sort_pills: Array = []
 var _order_key := {}   # list -> last order, so rows only move when it changes
+var _sorted := {}   # list -> [mode, order]; kept until the player asks again
 const SORTS := [["", "Sort"], ["owned", "Owned first"], ["up", "Rising"], ["down", "Falling"]]
 var _news_rows: Array = []   # one news Row per tab that has one
+var _mood_box: Control
 var _mood_bar: Control
 var _mood_label: Label
 var _mood_value := 50.0
@@ -35,7 +37,13 @@ func build() -> void:
 	_seg.changed.connect(func(i):
 		Kit.haptic("selection")
 		Game.ui["invest_tab"] = i
+		_sorted.clear()
 		refresh_view())
+	# Lists re-sort only when the page is shown or a choice is made, so a
+	# row never jumps away just as the player taps it.
+	visibility_changed.connect(func():
+		if is_visible_in_tree():
+			_sorted.clear())
 	_seg.select(int(Game.ui.get("invest_tab", 0)))
 	body.add_child(_seg)
 	var sc := card()
@@ -59,6 +67,18 @@ func build() -> void:
 	right.add_child(_sum_right)
 	_sum_line2 = UI.label("", 13, UI.SUB)
 	sp.add_child(_sum_line2)
+	# Crypto only: market mood as one line with a bar under it.
+	var mb := VBoxContainer.new()
+	mb.add_theme_constant_override("separation", 2)
+	sp.add_child(mb)
+	_mood_box = mb
+	_mood_label = UI.label("", 13, UI.SUB)
+	mb.add_child(_mood_label)
+	_mood_bar = Control.new()
+	_mood_bar.custom_minimum_size = Vector2(0, 14)
+	_mood_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mood_bar.draw.connect(_draw_mood)
+	mb.add_child(_mood_bar)
 
 	# ---- shares ----
 	var shares_box := VBoxContainer.new()
@@ -106,9 +126,9 @@ func build() -> void:
 	var props_v := card()
 	for i in range(Data.PROPERTIES.size()):
 		if i > 0:
-			separator(props_v, 80)
-		var p: Array = Data.PROPERTIES[i]
-		var r := Row.new("", p[3])
+			separator(props_v, 50)
+		var r := Row.new("home")
+		(r.lead as Icon).set_style(UI.SUB)
 		var idx := i
 		r.pressed.connect(func(): _property(idx))
 		props_v.add_child(r)
@@ -118,28 +138,15 @@ func build() -> void:
 	var coins_box := VBoxContainer.new()
 	coins_box.add_theme_constant_override("separation", 12)
 	body.add_child(coins_box)
-	var mc := card(coins_box)
-	var mp := padded(mc, 16, 8)
-	var mh := HBoxContainer.new()
-	mh.add_theme_constant_override("separation", 8)
-	mp.add_child(mh)
-	var gi := Icon.new("gauge", UI.SUB, 18.0)
-	gi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	mh.add_child(gi)
-	var ml := UI.label("Market mood", 13, UI.SUB)
-	ml.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mh.add_child(ml)
-	_mood_label = UI.label("", 15, UI.TEXT, true)
-	mh.add_child(_mood_label)
-	_mood_bar = Control.new()
-	_mood_bar.custom_minimum_size = Vector2(0, 14)
-	_mood_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_mood_bar.draw.connect(_draw_mood)
-	mp.add_child(_mood_bar)
 	coins_box.add_child(_news_card())
+	# One-line header: "Coins" on the left, the sort drop-down on the right.
 	var sort_row := HBoxContainer.new()
+	var cl := UI.label("Coins", 15, UI.SUB)
+	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sort_row.add_child(cl)
 	var csp := _sort_pill()
-	csp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	csp.custom_minimum_size.x = 150
 	sort_row.add_child(csp)
 	coins_box.add_child(sort_row)
 	var coins_v := card(coins_box)
@@ -164,8 +171,11 @@ func _news_card() -> Control:
 	pc.mouse_filter = Control.MOUSE_FILTER_PASS
 	var r := Row.new("news")
 	r.title_l.add_theme_font_size_override("font_size", 15)
-	r.title_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	r.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.title_l.clip_text = true
+	r.title_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	r.title_l.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.value_l.add_theme_font_size_override("font_size", 15)
 	r.pressed.connect(func():
 		Kit.tick()
 		push_page.emit(NewsPage.new()))
@@ -190,7 +200,7 @@ func _draw_mood() -> void:
 		c.a = 1.0 if t * 100.0 <= _mood_value else 0.25
 		_mood_bar.draw_rect(Rect2(w * i / n, y, w / n - 1.0, hgt), c)
 	var x := clampf(w * _mood_value / 100.0, 6.0, w - 6.0)
-	_mood_bar.draw_rect(Rect2(x - 6.0, y - 3.0, 12.0, 12.0), UI.RED)
+	_mood_bar.draw_rect(Rect2(x - 6.0, y - 3.0, 12.0, 12.0), UI.TEXT)
 
 
 static func mood_name(v: float) -> String:
@@ -226,12 +236,15 @@ func _latest_news(kind: String) -> Dictionary:
 
 
 func _set_news(r: Row, it: Dictionary) -> void:
+	## One line: the headline, then the move it caused.
 	if it.is_empty():
-		r.set_texts("No news yet", "News moves prices")
-		r.note_l.visible = false
+		r.set_texts("No news")
+		r.title_l.add_theme_color_override("font_color", UI.SUB)
 	else:
-		r.set_texts(String(it["text"]), NewsPage.ago(float(it["t"])))
-		r.set_change(float(it["pct"]))
+		var pct := float(it["pct"])
+		r.set_texts(String(it["text"]), "", "%s%.1f%%" % ["▲ +" if pct >= 0.0 else "▼ −", absf(pct)])
+		r.title_l.add_theme_color_override("font_color", UI.TEXT)
+		r.value_l.add_theme_color_override("font_color", UI.change_color(pct))
 
 
 func refresh() -> void:
@@ -246,8 +259,12 @@ func refresh() -> void:
 			_sum_right_sub.text = "Dividends"
 			_sum_right.text = Game.money_short(Game.dividends_per_hour()) + " /h"
 			_sum_right.add_theme_color_override("font_color", UI.TEXT)
-			_sum_line2.text = "%s%s all time · %s paid out" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), Game.money_short(float(Game.counters.get("dividends_earned", 0.0)))]
-			_sum_line2.visible = v > 0.0 or float(Game.counters.get("dividends_earned", 0.0)) > 0.0
+			var paid_out := float(Game.counters.get("dividends_earned", 0.0))
+			_sum_line2.text = "%s%s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain))]
+			if paid_out > 0.0:
+				_sum_line2.text += " · %s paid" % Game.money_short(paid_out)
+			_sum_line2.visible = v > 0.0 or paid_out > 0.0
+			_mood_box.visible = false
 			_set_news(_news_rows[0], _latest_news("share"))
 			var first := true
 			var stocks := _ordered(Data.STOCKS, Game.shares, "shares", _share_rows, _share_seps)
@@ -261,24 +278,25 @@ func refresh() -> void:
 				if not r.visible:
 					continue
 				var held := Game.holding(Game.shares, st[0])
-				var sub: String = st[0] + (" · " + Game.money_short(held * Game.price(st[0])) if held > 0 else " · %.1f%%" % (float(st[3]) * 1000.0))
+				var sub: String = st[0] + (" · " + Game.money_short(held * Game.price(st[0])) if held > 0 else "")
 				r.set_texts(st[1], sub, AssetDetail.price_text(Game.price(st[0])))
 				r.set_change(Game.change_pct(st[0], 1440))
 				r.mark.visible = held > 0
 		1:
-			_sum_sub.text = "Property · %d of %d owned" % [Game.props_owned(), Data.PROPERTIES.size()]
+			_sum_sub.text = "Property · %d / %d" % [Game.props_owned(), Data.PROPERTIES.size()]
 			_sum_value.text = Game.money(Game.props_value())
 			_sum_right_sub.text = "Rent"
 			_sum_right.text = Game.money_short(Game.rent_per_hour()) + " /h"
 			_sum_right.add_theme_color_override("font_color", UI.TEXT)
 			_sum_line2.visible = false
+			_mood_box.visible = false
 			for i in range(Data.PROPERTIES.size()):
 				var p: Array = Data.PROPERTIES[i]
 				var r: Row = _prop_rows[i]
 				if Game.prop_owned(i):
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
 				else:
-					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "+%s /h" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
+					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
 				r.mark.visible = Game.prop_owned(i)
 				r.modulate.a = 1.0 if (Game.prop_owned(i) or Game.cash >= Game.prop_price(i)) else 0.6
 		2:
@@ -290,11 +308,11 @@ func refresh() -> void:
 			_sum_right.text = ("▲ +" if gain >= 0 else "▼ −") + Game.money_short(absf(gain))
 			_sum_right.add_theme_color_override("font_color", UI.change_color(gain))
 			var sph := Game.staking_per_hour()
-			_sum_line2.text = "Staking earns %s /h" % Game.money_short(sph)
+			_sum_line2.text = "Staking %s /h" % Game.money_short(sph)
 			_sum_line2.visible = sph > 0.0
+			_mood_box.visible = true
 			_mood_value = Game.market_mood()
-			_mood_label.text = mood_name(_mood_value)
-			_mood_label.add_theme_color_override("font_color", UI.DOWN if _mood_value < 40.0 else (UI.UP if _mood_value > 60.0 else UI.TEXT))
+			_mood_label.text = "Mood · " + mood_name(_mood_value)
 			_mood_bar.queue_redraw()
 			_set_news(_news_rows[1], _latest_news("coin"))
 			var first_c := true
@@ -317,6 +335,7 @@ func _sort_pill() -> Button:
 		Kit.pick("Sort", opts, String(Game.ui.get("sort", "")), func(v):
 			Kit.haptic("selection")
 			Game.ui["sort"] = String(v)
+			_sorted.clear()
 			_paint_sort()
 			refresh()))
 	Kit.press_fx(b)
@@ -338,6 +357,9 @@ func _paint_sort() -> void:
 func _ordered(list: Array, book: Dictionary, key: String, rows: Dictionary, seps: Dictionary) -> Array:
 	## The list in the chosen order; rows are moved only when the order changes.
 	var mode := String(Game.ui.get("sort", ""))
+	var keep: Array = _sorted.get(key, [])
+	if keep.size() == 2 and keep[0] == mode:
+		return keep[1]
 	var out := list.duplicate()
 	match mode:
 		"owned":
@@ -346,6 +368,7 @@ func _ordered(list: Array, book: Dictionary, key: String, rows: Dictionary, seps
 			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) > Game.change_pct(b[0], 1440))
 		"down":
 			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) < Game.change_pct(b[0], 1440))
+	_sorted[key] = [mode, out]
 	var sig := ""
 	for it in out:
 		sig += String(it[0]) + ","
@@ -369,8 +392,10 @@ func _property(i: int) -> void:
 	var price := Game.prop_price(i)
 	var rent := price * Data.RENT_PER_H * Game.global_mult()
 	var can := Game.cash >= price
-	Kit.sheet(p[0], "%s · %s\nEarns %s rent an hour. You can improve it later." % [p[1], Game.money(price), Game.money(rent)], [
-		{"text": ("Buy for " + Game.money_short(price)) if can else ("Need " + Game.money_short(price - Game.cash) + " more"), "style": "primary", "disabled": not can, "call": func():
+	var wait := Game.eta(price)
+	var need := "Need " + Game.money_short(price - Game.cash) + (" · " + wait if wait != "" else "")
+	Kit.sheet(p[0], "%s /h rent" % Game.money(rent), [
+		{"text": ("Buy · " + Game.money_short(price)) if can else need, "style": "primary", "disabled": not can, "call": func():
 			if Game.buy_property(i):
 				Kit.toast("You own " + String(p[0]), true)},
 		{"text": "Close", "style": "plain"},

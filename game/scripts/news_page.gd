@@ -26,7 +26,7 @@ func refresh() -> void:
 		m.add_theme_constant_override("margin_left", 16)
 		m.custom_minimum_size = Vector2(0, 56)
 		_list.add_child(m)
-		var l := UI.label("Quiet market. Check back soon.", 15, UI.SUB)
+		var l := UI.label("No news yet", 15, UI.SUB)
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		m.add_child(l)
 		return
@@ -50,10 +50,10 @@ static func ago(t: float) -> String:
 	if s < 60.0:
 		return "now"
 	if s < 3600.0:
-		return "%d min ago" % int(s / 60.0)
+		return "%dm" % int(s / 60.0)
 	if s < 86400.0:
-		return "%d h ago" % int(s / 3600.0)
-	return "%d d ago" % int(s / 86400.0)
+		return "%dh" % int(s / 3600.0)
+	return "%dd" % int(s / 86400.0)
 
 
 static func news_row(item: Dictionary, chevron: bool) -> Row:
