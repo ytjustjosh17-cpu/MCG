@@ -148,7 +148,7 @@ func refresh() -> void:
 		_mgr_btn.visible = false
 	else:
 		_mgr_title.text = "Manager"
-		_mgr_body.text = "Expands when full, even while you're away · keeps %d%%" % cut
+		_mgr_body.text = "Starts the next expansion when full · keeps %d%%" % cut
 		_mgr_btn.visible = true
 		_mgr_btn.text = "Hire · " + Game.money_short(Game.manager_cost(id))
 		Page.set_enabled(_mgr_btn, Game.cash >= Game.manager_cost(id), true)

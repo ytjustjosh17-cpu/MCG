@@ -59,7 +59,7 @@ func _cancel_press() -> void:
 	var b := _down_btn
 	_cancelled.append(b)
 	b.disabled = true
-	b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.15)
+	b.create_tween().tween_property(b, "scale", Vector2.ONE, Motion.d(0.15))
 
 
 func _restore() -> void:
@@ -122,7 +122,7 @@ func press_fx(c: Control) -> void:
 		if Game.reduce_motion:
 			return
 		var t := Motion.tween(b, "press")
-		t.tween_property(b, "scale", Vector2(0.97, 0.97), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT))
+		t.tween_property(b, "scale", Vector2(0.97, Motion.d(0.97)), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT))
 	b.button_up.connect(func():
 		var t := Motion.tween(b, "press")
 		t.tween_property(b, "scale", Vector2.ONE, Motion.d(0.2)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT))
@@ -191,7 +191,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 				_stack.remove_at(i)
 				break
 		var tw := root.create_tween().set_parallel(true)
-		tw.tween_property(panel, "position:y", scr.y + 8.0, 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(panel, "position:y", scr.y + 8.0, Motion.d(0.22)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tw.tween_property(dim, "color:a", 0.0, 0.22)
 		tw.chain().tween_callback(func():
 			root.queue_free()
@@ -239,7 +239,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 						close.call()
 					else:
 						var back := root.create_tween()
-						back.tween_property(panel, "position:y", geo["rest"], 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+						back.tween_property(panel, "position:y", geo["rest"], Motion.d(0.3)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			elif e is InputEventMouseMotion and drag["on"]:
 				panel.position.y = geo["rest"] + maxf(0.0, e.global_position.y - drag["y0"]))
 	_stack.append({"root": root, "close": func(): close.call() if dismissable else null})
@@ -336,7 +336,7 @@ func _present_alert(root: Control, card: Control, col: Control, dim: ColorRect) 
 	card.pivot_offset = card.size / 2.0
 	card.scale = Vector2(1.08, 1.08)
 	var tw := root.create_tween().set_parallel(true)
-	tw.tween_property(card, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(card, "scale", Vector2.ONE, Motion.d(0.24)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	tw.tween_property(card, "modulate:a", 1.0, 0.18)
 	tw.tween_property(dim, "color:a", DIM.a, 0.2)
 
@@ -375,11 +375,11 @@ func _present_toast(pill: Control, l: Label, red_mark: bool) -> void:
 	pill.position = Vector2((scr.x - w) / 2.0, y - 60.0)
 	var tw := pill.create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(pill, "position:y", y, 0.4).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(pill, "position:y", y, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	tw.tween_property(pill, "modulate:a", 1.0, 0.2)
 	tw.chain().tween_interval(2.2)
 	tw.chain().set_parallel(true)
-	tw.tween_property(pill, "position:y", y - 40.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(pill, "position:y", y - 40.0, Motion.d(0.3)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(pill, "modulate:a", 0.0, 0.3)
 	tw.chain().tween_callback(pill.queue_free)
 
@@ -456,13 +456,15 @@ func _next_celebration() -> void:
 		closing[0] = true
 		var tc := root.create_tween().set_parallel(true)
 		tc.tween_property(card, "modulate:a", 0.0, 0.18)
-		tc.tween_property(card, "position:y", card.position.y - 12.0, 0.18)
+		tc.tween_property(card, "position:y", card.position.y - 12.0, Motion.d(0.18))
 		tc.tween_property(dim, "color:a", 0.0, 0.22)
 		tc.chain().tween_callback(func():
 			root.queue_free()
 			_next_celebration())
-	# Tap anywhere to close, or it goes by itself.
-	dim.gui_input.connect(func(e: InputEvent):
-		if e is InputEventMouseButton and e.pressed:
-			close.call())
-	get_tree().create_timer(2.6).timeout.connect(close)
+	# It never blocks: taps go straight through, and it leaves by itself.
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for n in card.find_children("*", "Control", true, false):
+		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	get_tree().create_timer(2.4).timeout.connect(close)

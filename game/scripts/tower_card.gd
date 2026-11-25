@@ -162,6 +162,8 @@ func _do_tap(pos: Vector2) -> void:
 
 
 func _spawn_float(pos: Vector2, v: float) -> void:
+	if Motion.reduced():
+		return  # no rising numbers with Reduce motion on
 	var l := UI.label("+" + Game.money_short(v), 22, UI.TEXT, true)
 	add_child(l)
 	l.position = pos + Vector2(-30, -40)

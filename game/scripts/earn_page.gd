@@ -71,10 +71,12 @@ func _ready() -> void:
 	_level_btn = IconButton.new("level", 64.0)
 	_level_btn.custom_minimum_size = Vector2(80, 86)
 	_level_btn.pressed.connect(_on_level_up)
+	_level_btn.mouse_filter = Control.MOUSE_FILTER_STOP  # don't also count as a tower tap
 	_card.add_child(_level_btn)
 	_boost_btn = IconButton.new("bolt", 64.0)
 	_boost_btn.custom_minimum_size = Vector2(80, 86)
 	_boost_btn.pressed.connect(_on_boost)
+	_boost_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	_card.add_child(_boost_btn)
 
 	resized.connect(_layout)
@@ -160,9 +162,15 @@ func _on_level_up() -> void:
 		Game.flush_changes()
 	elif Game.level < Data.MAX_LEVEL:
 		Motion.shake(_level_btn)
+		Kit.toast("Level up · need %s more" % Game.money_short(Game.level_cost() - Game.cash))
 
 
 func _on_boost() -> void:
+	if Game.boost_ready() and Game.taps < 20:
+		# Don't waste the boost before the player knows to tap.
+		Motion.shake(_boost_btn)
+		Kit.toast("Tap the tower first, then use ×3")
+		return
 	if Game.start_boost():
 		Kit.haptic("medium")
 		Motion.pop(_boost_btn, 1.1)

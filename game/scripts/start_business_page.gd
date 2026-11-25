@@ -71,7 +71,7 @@ func refresh() -> void:
 		elif can:
 			(parts[2] as Label).text = Game.money(b["cost"])
 		else:
-			(parts[2] as Label).text = Game.money_short(float(b["cost"]) - Game.cash) + " more needed"
+			(parts[2] as Label).text = Game.money_short(float(b["cost"])) + " · need " + Game.money_short(float(b["cost"]) - Game.cash)
 		(parts[3] as Control).modulate.a = 1.0 if (can or owned) else 0.45
 
 

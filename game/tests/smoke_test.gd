@@ -212,6 +212,21 @@ func _run() -> void:
 		_check(gp.body.get_child_count() > 2, "%s builds" % path.get_file())
 		main.pop()
 		await create_timer(0.5).timeout
+	# Opening a page and backing out very fast must not leave a blank tab.
+	main.show_page(2)
+	await create_timer(0.5).timeout
+	main._pages[2]._open("share", "OSB")
+	await create_timer(0.1).timeout
+	main._on_back()
+	await create_timer(1.0).timeout
+	_check(main._pages[2].visible and main._pages[2].modulate.a > 0.95, "fast back leaves the tab visible")
+	main._pages[2]._open("share", "OSB")
+	await create_timer(0.15).timeout
+	main.show_page(2)
+	await create_timer(1.0).timeout
+	_check(main._pages[2].modulate.a > 0.95 and absf(main._pages[2].position.x) < 1.0, "tapping the same tab mid-slide leaves it clean")
+	main.show_page(0)
+	await create_timer(0.4).timeout
 	var np = load("res://scripts/news_page.gd").new()
 	main.push(np)
 	await create_timer(0.5).timeout
@@ -320,5 +335,39 @@ func _run() -> void:
 	_check(not FileAccess.file_exists("user://update.apk"), "old update file is deleted")
 	main.show_page(0)
 
+	# Exploit fixes from play-testing.
+	game.reset_game()
+	game.sim_time = 1.8e9
+	game.cash = 1.0e6
+	game.open_business("shop", "Test Shop")
+	game.open_business("taxi", "Test Taxi")
+	game.weekly = {"week": game._week(), "tasks": []}
+	game.daily = {"day": game._today(), "tasks": []}
+	game.recalc()
+	var plain: float = game.income_per_hour
+	if game.ibost_ready():
+		game.start_ibost()
+	game.recalc()
+	var cash_ib: float = game.cash
+	game.sim_time += 12 * 3600.0
+	game.apply_offline(12 * 3600.0)
+	var paid: float = game.away_earned  # achievements may also pay out here
+	_check(paid <= plain * 12.0 * 1.02 + 10.0, "x2 boost isn't paid twice while away (%.1f h of income)" % (paid / maxf(plain, 1.0)))
+	var bid2: String = game.biz.keys()[0]
+	game.cash = 1.0e12
+	while game.buy_unit(bid2):
+		pass
+	game.deal = {"kind": "buyer", "id": bid2, "value": game.unit_price(bid2) / Data.UNIT_PRICE_GROWTH * 1.15}
+	var cash_b: float = game.cash
+	game.accept_deal()
+	game.buy_unit(bid2)
+	_check(game.cash - cash_b < game.unit_price(bid2) * 0.2, "selling an outlet to a buyer and rebuying isn't a money loop")
+	var code2: String = game.backup_code()
+	var p1: float = game.price("DRF")
+	game.sim_time += 8 * 3600.0
+	game.restore_code(code2)
+	_check(absf(game.price("DRF") - p1) < p1 * 0.001, "restoring a backup doesn't re-roll prices")
+	game.sim_time = -1.0
+	game.reset_game()
 	print("Failures: ", _fails)
 	quit(1 if _fails > 0 else 0)

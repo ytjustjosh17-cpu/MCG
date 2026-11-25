@@ -67,6 +67,9 @@ var vibrate := true
 var reduce_motion := false
 var started_at := 0.0
 var away_earned := 0.0
+var away_seconds := 0.0
+var away_unseen := false  # show the welcome-back card once
+var last_tap_at := 0.0
 
 # ---- runtime -------------------------------------------------------------
 var sim_time := -1.0   # set by the pacing simulator
@@ -98,7 +101,7 @@ func now() -> float:
 # ==== tapping and levels =================================================
 
 func tap_value() -> float:
-	return Data.tap_base(level) + income_per_hour * 0.002
+	return Data.tap_base(level) + income_per_hour * 0.0012
 
 
 func next_tap_value() -> float:
@@ -183,6 +186,7 @@ func start_ibost() -> bool:
 func tap() -> float:
 	var v := tap_value() * (BOOST_MULT if boost_active() else 1.0)
 	taps += 1
+	last_tap_at = now()
 	_task_progress("taps", 1)
 	_earn(v)
 	tapped.emit(v)
@@ -231,15 +235,18 @@ func biz_income(id: String) -> float:
 	v *= merger_mult(id) * global_mult()
 	if ibost_active():
 		v *= 2.0
-	if s.get("manager", false):
-		v *= 1.0 - Data.MANAGER_CUT
+	if s.get("manager", false) and int(s["stage"]) < Data.MAX_STAGE:
+		v *= 1.0 - Data.MANAGER_CUT  # no cut once fully expanded
 	return v
 
 
 # ==== managers =============================================================
 
 func manager_cost(id: String) -> float:
-	return Data.expansion_cost(Data.business(id), int(biz[id]["stage"])) * Data.MANAGER_COST_X if biz.has(id) else 0.0
+	if not biz.has(id):
+		return 0.0
+	var st := mini(int(biz[id]["stage"]), Data.MAX_STAGE - 1)
+	return Data.expansion_cost(Data.business(id), st) * Data.MANAGER_COST_X
 
 
 func has_manager(id: String) -> bool:
@@ -291,7 +298,7 @@ func roll_deal() -> Dictionary:
 		kinds.append("supplier")
 	match kinds[randi() % kinds.size()]:
 		"buyer":
-			var price := unit_price(id) * 2.0
+			var price := unit_price(id) / Data.UNIT_PRICE_GROWTH * 1.15  # a bit over what the last outlet cost
 			return {"kind": "buyer", "id": id, "value": price,
 				"title": "A buyer for one outlet", "text": "%s · they pay %s" % [name, money_short(price)],
 				"yes": "Sell for " + money_short(price)}
@@ -301,7 +308,7 @@ func roll_deal() -> Dictionary:
 				"yes": "Take it"}
 	var cost := inc / 6.0  # ten minutes of income
 	return {"kind": "order", "id": id, "value": cost,
-		"title": "Rush order", "text": "%s · pay %s, get %s back in 1 h" % [name, money_short(cost), money_short(cost * 1.3)],
+		"title": "Rush order", "text": "%s · pay %s now, get %s in an hour" % [name, money_short(cost), money_short(cost * 1.3)],
 		"yes": "Pay " + money_short(cost)}
 
 
@@ -316,6 +323,7 @@ func accept_deal() -> bool:
 			"buyer":
 				if int(biz[id]["units"]) >= 2:
 					biz[id]["units"] = int(biz[id]["units"]) - 1
+					biz[id]["invested"] = maxf(0.0, float(biz[id]["invested"]) - unit_price(id))
 					_pay(float(d["value"]))
 					ok = true
 			"supplier":
@@ -349,6 +357,12 @@ func _pay_out() -> void:
 # ==== rivals ================================================================
 
 func rivals_beaten() -> int:
+	## Rivals you've passed. Once passed they stay passed, even if spending
+	## drops your net worth for a while.
+	return maxi(_rivals_live(), int(counters.get("rivals", 0)))
+
+
+func _rivals_live() -> int:
 	var nw := net_worth()
 	var n := 0
 	for r in Data.RIVALS:
@@ -358,7 +372,7 @@ func rivals_beaten() -> int:
 
 
 func _check_rivals() -> void:
-	var n := rivals_beaten()
+	var n := _rivals_live()
 	var best := int(counters.get("rivals", 0))
 	if n > best:
 		counters["rivals"] = float(n)
@@ -594,10 +608,10 @@ func sell_asset(kind: String, sym: String, fraction: float) -> float:
 	var qty := float(book[sym]["qty"]) * fraction
 	var total := float(book[sym]["qty"]) + float(book[sym].get("staked", 0.0))
 	var cost := float(book[sym]["cost"]) * (qty / total if total > 0.0 else 0.0)
-	var got := qty * price(sym)
+	var got := qty * price(sym) * (1.0 - Data.SELL_SPREAD)
 	cash += got
 	if kind == "coin":
-		_bump("crypto_profit", maxf(0.0, got - cost))
+		_bump("crypto_profit", got - cost)  # losses count too
 	book[sym]["qty"] = float(book[sym]["qty"]) - qty
 	book[sym]["cost"] = float(book[sym]["cost"]) - cost
 	if float(book[sym]["qty"]) <= 1e-9 and float(book[sym].get("staked", 0.0)) <= 1e-9:
@@ -638,13 +652,13 @@ func _market_tick(minutes := 1) -> void:
 	var keep := pow(0.999976, m)
 	for k in moods.keys():
 		moods[k] = clampf(exp(log(maxf(float(moods[k]), 1e-6)) * keep), 0.2, 5.0)
-	var pull_s := 1.0 - pow(1.0 - 0.05, m)
+	var pull_s := 1.0 - pow(1.0 - 0.004, m)  # drifts back to fair over hours, not minutes
 	for s in Data.STOCKS:
 		var sym: String = s[0]
 		var fair := float(s[2]) * exp(Data.STOCK_GROWTH * ticks) * float(moods.get(sym, 1.0)) * float(moods.get(s[4], 1.0))
 		var vol: float = Data.SECTOR_VOL.get(s[4], 0.006)
-		_step(sym, fair, pull_s, vol * sqrt(m))
-	var pull_c := 1.0 - pow(1.0 - 0.03, m)
+		_step(sym, fair, pull_s, vol * 0.45 * sqrt(m))
+	var pull_c := 1.0 - pow(1.0 - 0.003, m)
 	for c in Data.COINS:
 		var sym: String = c[0]
 		# Coins wander in boom and bust phases that change every few hours.
@@ -653,7 +667,7 @@ func _market_tick(minutes := 1) -> void:
 		fair_log[sym] = float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m
 		fair_log[sym] = lerpf(float(fair_log[sym]), log(float(c[2])), 0.0004 * m)
 		var fair := exp(float(fair_log[sym]))
-		_step(sym, fair, pull_c, float(c[3]) * sqrt(m))
+		_step(sym, fair, pull_c, float(c[3]) * 0.3 * sqrt(m))
 	if randf() < m / Data.NEWS_EVERY_MIN:
 		_news_event()
 
@@ -952,14 +966,30 @@ func next_goal() -> Dictionary:
 		if not biz.has(b["id"]):
 			c.append({"icon": "business", "text": String(b["name"]), "cost": float(b["cost"]), "tab": 1})
 			break
+	for id in biz.keys():
+		if int(biz[id]["units"]) < capacity(id):
+			c.append({"icon": "business", "text": "+1 outlet · %s" % biz[id]["name"], "cost": unit_price(id), "tab": 1})
 	if next_home_cost() > 0.0:
 		c.append({"icon": "home", "text": String(Data.HOMES[home + 1][0]), "cost": next_home_cost(), "tab": 3})
 	for i in range(Data.PROPERTIES.size()):
 		if not prop_owned(i):
 			c.append({"icon": "invest", "text": String(Data.PROPERTIES[i][0]), "cost": prop_price(i), "tab": 2})
 	for m in Data.MERGERS:
-		if not mergers.has(m["id"]) and merger_ready(m):
+		if mergers.has(m["id"]):
+			continue
+		if merger_ready(m):
 			c.append({"icon": "pie", "text": String(m["name"]), "cost": float(m["cost"]), "tab": 1})
+			continue
+		# Not ready: show the next thing it needs that money can buy.
+		for n in m["needs"]:
+			var st := need_status(n)
+			if st[0]:
+				continue
+			if n[0] == "shares" or n[0] == "crypto":
+				var have := book_value(shares if n[0] == "shares" else coins)
+				c.append({"icon": "invest", "text": "%s for %s" % [st[1], m["name"]], "cost": float(n[1]) - have, "tab": 2})
+			break
+		break
 	if c.is_empty():
 		return {}
 	# Skip small stuff: a goal should be worth saving for.
@@ -1124,7 +1154,7 @@ func _build_achievements() -> Array:
 		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
-	for n in [1, 10, 50]:
+	for n in [1, 10, 25]:
 		a.append({"id": "deals_%d" % n, "title": "%d deal%s" % [n, "" if n == 1 else "s"], "m": "deals", "goal": float(n)})
 	for n in [1, 5, 11]:
 		a.append({"id": "managers_%d" % n, "title": "%d manager%s" % [n, "" if n == 1 else "s"], "m": "managers", "goal": float(n)})
@@ -1202,13 +1232,15 @@ func _ensure_daily() -> void:
 	if int(daily.get("day", -1)) == _today():
 		return
 	var pool := [
-		{"id": "taps", "text": "Tap your tower %d times", "goal": 300},
-		{"id": "units", "text": "Buy %d units for your companies", "goal": 5},
-		{"id": "expand", "text": "Finish %d expansion", "goal": 1},
+		{"id": "taps", "text": "Tap your tower %d times", "goal": 200},
 		{"id": "invest", "text": "Make %d investments", "goal": 3},
 	]
+	if _units_left() >= 5:
+		pool.append({"id": "units", "text": "Buy %d units for your companies", "goal": 5})
+	if _can_still_expand():
+		pool.append({"id": "expand", "text": "Finish %d expansion", "goal": 1})
 	if biz.is_empty():
-		pool = [pool[0], {"id": "taps", "text": "Tap your tower %d times", "goal": 600}]
+		pool = [{"id": "taps", "text": "Tap your tower %d times", "goal": 400}]
 	pool.shuffle()
 	var tasks: Array = []
 	for i in range(mini(3, pool.size())):
@@ -1246,6 +1278,21 @@ func _advance(book: Dictionary, id: String, n: float, scope: String) -> void:
 				goal_done.emit(scope, String(t["text"]), r)
 
 
+func _units_left() -> int:
+	## Units that could still be bought, counting future stages.
+	var n := 0
+	for id in biz.keys():
+		n += Data.MAX_STAGE * Data.UNITS_PER_STAGE - int(biz[id]["units"])
+	return n
+
+
+func _can_still_expand() -> bool:
+	for id in biz.keys():
+		if int(biz[id]["stage"]) < Data.MAX_STAGE:
+			return true
+	return false
+
+
 func _week() -> int:
 	## Weeks start on Monday (1 Jan 1970 was a Thursday).
 	return int(floor((now() / 86400.0 + 3.0) / 7.0))
@@ -1256,13 +1303,14 @@ func _ensure_weekly() -> void:
 		return
 	var earn_goal := maxf(50000.0, income_per_hour * 30.0)
 	var pool := [
-		{"id": "taps", "text": "Tap your tower %s times" % group(2500), "goal": 2500.0},
-		{"id": "units", "text": "Buy 30 units for your companies", "goal": 30.0},
-		{"id": "expand", "text": "Finish 4 expansions", "goal": 4.0},
-		{"id": "invest", "text": "Make 12 investments", "goal": 12.0},
+		{"id": "taps", "text": "Tap your tower %s times" % group(1200), "goal": 1200.0},
+		{"id": "invest", "text": "Make 10 investments", "goal": 10.0},
 		{"id": "earn", "text": "Earn %s" % money_short(earn_goal), "goal": earn_goal, "money": true},
-		{"id": "deal", "text": "Take 3 deals", "goal": 3.0},
 	]
+	if _units_left() >= 30:
+		pool.append({"id": "units", "text": "Buy 30 units for your companies", "goal": 30.0})
+	if _can_still_expand():
+		pool.append({"id": "expand", "text": "Finish 3 expansions", "goal": 3.0})
 	pool.shuffle()
 	var tasks: Array = []
 	for i in 3:
@@ -1404,18 +1452,22 @@ func apply_offline(seconds: float) -> void:
 	if ibost_until > 0.0:
 		var start := now() - s
 		ib_part = clampf(ibost_until - start, 0.0, capped)
-	# Business income during the boosted part was double.
+	# Work out income without the x2 boost, then add the boosted hours back.
+	var keep_ib := ibost_until
+	ibost_until = 0.0
+	recalc()
 	var base := income_per_hour
-	if ibost_active():
-		base = income_per_hour - business_per_hour() * 0.5
-	var biz_base := business_per_hour() * (0.5 if ibost_active() else 1.0)
+	var biz_base := business_per_hour()
+	ibost_until = keep_ib
 	var gained := base * capped / 3600.0 + biz_base * ib_part / 3600.0
 	advance(s, false)
 	recalc()
 	_earn(gained)
 	_accrue(capped)
-	_managers_work()
 	away_earned = cash - before
+	away_seconds = s
+	away_unseen = s >= 600.0 and away_earned > 0.0
+	_managers_work()
 	if s > 60.0:
 		GameLog.info("game", "Away for %s, earned %s (income %s/h)" % [clock(s), money(away_earned), money(income_per_hour)])
 	_ensure_daily()
@@ -1429,7 +1481,11 @@ func _accrue(dt: float) -> void:
 	for sym in coins.keys():
 		var st := staked(sym)
 		if st > 0.0:
-			var gain := st * stake_rate(sym) * dt / 3600.0
+			var per_h := st * stake_rate(sym)
+			var p := price(sym)
+			if p > 0.0:
+				per_h = minf(per_h, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / p)
+			var gain := per_h * dt / 3600.0
 			coins[sym]["staked"] = st + gain
 			counters["stake_earned"] = float(counters.get("stake_earned", 0.0)) + gain * price(sym)
 
@@ -1464,7 +1520,7 @@ func to_dict() -> Dictionary:
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
-		"deal_wait": deal_wait, "payouts": payouts,
+		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
 
@@ -1532,6 +1588,7 @@ func restore_code(text: String) -> bool:
 	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
 	if f == null:
 		return false
+	d["saved_at"] = now()  # no time passes on restore, so it can't re-roll the market
 	f.store_string(JSON.stringify(d))
 	f.close()
 	if FileAccess.file_exists(SAVE_PATH):
@@ -1660,6 +1717,7 @@ func load_game() -> void:
 	daily = d.get("daily", {})
 	weekly = d.get("weekly", {})
 	deal_wait = float(d.get("deal_wait", 1500.0))
+	deal = d.get("deal", {})
 	payouts = d.get("payouts", [])
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))
@@ -1718,7 +1776,7 @@ static func money(v: float) -> String:
 static func money_short(v: float) -> String:
 	var a := absf(v)
 	var sign := "-" if v < 0.0 else ""
-	if a < 1000.0:
+	if a < 999.5:
 		return sign + ("$%d" % int(round(a)) if a >= 100.0 else "$%.2f" % a)
 	# Three significant figures, no trailing zeros: $32K, $1.2M, $12.27M, $383K.
 	var units := BIG_UNITS

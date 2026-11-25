@@ -135,7 +135,9 @@ const MANAGER_CUT := 0.10        # share of that company's income they keep
 const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 
 # ---- deals ---------------------------------------------------------------
-const DEAL_EVERY_MIN := [20.0, 40.0]  # minutes of play (app open) between deals
+const DEAL_EVERY_MIN := [12.0, 25.0]  # minutes of play (app open) between deals
+const SELL_SPREAD := 0.005  # shares and coins sell for 0.5% under the price
+const STAKE_CAP := 0.05     # staking pays at most 5% of your hourly income per coin
 
 # ---- rivals --------------------------------------------------------------
 # Made-up tycoons to overtake. Their fortunes are fixed targets.
