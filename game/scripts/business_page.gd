@@ -16,7 +16,8 @@ func _init() -> void:
 
 func build() -> void:
 	_income = CountLabel.new(func(v): return Game.money_short(v) + " /h")
-	_income.add_theme_font_size_override("font_size", 34)
+	_income.add_theme_font_size_override("font_size", 40)
+	_income.add_theme_font_override("font", UI.DISPLAY)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	body.add_child(_income)
 	var c := card()

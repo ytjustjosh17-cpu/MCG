@@ -10,6 +10,8 @@ its game design or any part of them, without the owner's written permission.
 
 Third-party components keep their own licences:
 - Inter font: SIL Open Font License 1.1 (game/assets/fonts/LICENSE.txt)
+- Switzer and Tanker fonts: ITF Free Font License (fontshare.com). Not included
+  in this repository; the build downloads them from Fontshare.
 - Phosphor icons: MIT License (game/assets/icons/LICENSE-phosphor.txt)
 - Godot Engine: MIT License (https://godotengine.org/license)
 

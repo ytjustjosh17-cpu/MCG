@@ -61,7 +61,8 @@ func build() -> void:
 
 	body.add_child(UI.label("Fortune", 13, UI.SUB))
 	_fortune = CountLabel.new(Game.money)
-	_fortune.add_theme_font_size_override("font_size", 34)
+	_fortune.add_theme_font_size_override("font_size", 40)
+	_fortune.add_theme_font_override("font", UI.DISPLAY)
 	_fortune.add_theme_color_override("font_color", UI.TEXT)
 	body.add_child(_fortune)
 	var chart := NetChart.new()

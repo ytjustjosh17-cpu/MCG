@@ -60,7 +60,7 @@ func build() -> void:
 	head.add_child(hv)
 	var tag := UI.label("%s · %s" % [sym, a[4] if kind == "share" else "Crypto"], 13, UI.asset_color(sym))
 	hv.add_child(tag)
-	_price = UI.label("", 34)
+	_price = UI.display("", 40)
 	hv.add_child(_price)
 	_change = UI.label("", 13)
 	hv.add_child(_change)

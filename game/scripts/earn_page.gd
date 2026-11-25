@@ -42,7 +42,7 @@ func _ready() -> void:
 
 	_worth = CountLabel.new(Game.money_short)
 	_worth.add_theme_font_size_override("font_size", 44)
-	_worth.add_theme_font_override("font", UI.SEMI)
+	_worth.add_theme_font_override("font", UI.DISPLAY)
 	_worth.add_theme_color_override("font_color", UI.TEXT)
 	_worth.set_value(Game.net_worth(), true)
 	add_child(_worth)

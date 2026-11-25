@@ -27,8 +27,30 @@ const SECTOR_COL := {
 const COIN_COL := [Color("#D9A75E"), Color("#82BDB2"), Color("#B8A58E"), Color("#D6CCB2"), Color("#9DC3DF"),
 	Color("#E39573"), Color("#C9B6D9"), Color("#A9D3C6"), Color("#E3CB84"), Color("#A8D8E6")]
 
-const REG := preload("res://assets/fonts/Inter-Regular.ttf")
-const SEMI := preload("res://assets/fonts/Inter-SemiBold.ttf")
+# Type: Switzer for text, Tanker for big numbers and titles (both from
+# Fontshare, ITF Free Font License). They can't be stored in this public repo,
+# so the build downloads them into assets/fonts/ext. Inter (OFL) is the backup.
+static var REG: Font = _font("Switzer-Regular", "res://assets/fonts/Inter-Regular.ttf")
+static var SEMI: Font = _font("Switzer-Semibold", "res://assets/fonts/Inter-SemiBold.ttf")
+static var DISPLAY: Font = _font("Tanker-Regular", "res://assets/fonts/Inter-SemiBold.ttf")
+
+
+static func _font(name: String, backup: String) -> Font:
+	var path := "res://assets/fonts/ext/%s.ttf" % name
+	if not ResourceLoader.exists(path):
+		return load(backup)
+	var f: Font = load(path)
+	if f is FontFile:
+		# Any glyph the font lacks comes from Inter.
+		(f as FontFile).fallbacks = [load(backup)]
+	return f
+
+
+static func display(text: String, size: int, color: Color = TEXT) -> Label:
+	## Big numbers and page titles.
+	var l := label(text, size, color)
+	l.add_theme_font_override("font", DISPLAY)
+	return l
 
 
 static func label(text: String, size: int, color: Color = TEXT, semibold := false) -> Label:
