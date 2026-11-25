@@ -14,6 +14,8 @@ const RED := Color("#FF1A0F")
 const INK := Color("#001414")
 const WINDOW := Color("#0A2526")
 const SIDE := Color("#041717")
+const FAR := Color("#03201F")    # distant skyline, a step darker than the sky
+const HAZE := Color("#08403D")   # nearer haze layer and far windows
 const FLASH := Color("#FFC2B8")
 # Accents: used sparingly for markets so each company and coin has its own look.
 const UP := Color("#7FCFA6")

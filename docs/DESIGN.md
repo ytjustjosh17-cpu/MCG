@@ -20,6 +20,7 @@ All colours are tokens in `game/scripts/ui.gd`. Never write a hex colour anywher
 | `SUB` | `#8FAAA6` | Secondary text |
 | `DIM` | `#4F6E6C` | Chevrons, unimportant marks |
 | `TRACK` | `#2A4A4B` | Empty part of bars |
+| `FAR` / `HAZE` | `#03201F` / `#08403D` | Distant skyline layers in art |
 | `RED` | `#FF1A0F` | The sun, lit windows, the active tab, one alert per screen |
 | `INK` | `#001414` | Text on light fills |
 | `UP` / `DOWN` | `#7FCFA6` / `#EE7A6B` | Price and money changes only |
@@ -94,6 +95,8 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - Tap combo counter on the tower ("25 COMBO") is just for fun and pays nothing extra.
 - A golden sun sometimes drifts across the tower (max 4 a day, only while playing). Tap it for a small prize.
 - Filters and sorts are drop-downs (`Kit.drop_pill()` + `Kit.pick()`), never rows of chips. Lists don't jump while you look at them.
+- Earn shows cash to the penny ($1,385.62) as the big number; net worth sits below it.
+- Art scenes share one backdrop (`Art.backdrop`): stars, sun with sunset bands, far skyline, and a pylon with hanging cables on big pictures.
 - Profile shows the next achievement. The nav bar names only the active tab.
 
 ## Words and terms

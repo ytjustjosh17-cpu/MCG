@@ -2058,6 +2058,16 @@ static func money(v: float) -> String:
 	return money_short(v)
 
 
+static func cash_text(v: float) -> String:
+	## Exact cash to the penny: $1,385.62. Very large amounts fall back to $1.23Qa.
+	var a := absf(v)
+	if a >= 1e15:
+		return money_short(v)
+	var whole := floorf(a)
+	var pence := int(floor((a - whole) * 100.0 + 0.0001))
+	return ("-" if v < 0.0 else "") + "$" + group(int(whole)) + ".%02d" % pence
+
+
 static func money_short(v: float) -> String:
 	var a := absf(v)
 	var sign := "-" if v < 0.0 else ""

@@ -15,6 +15,7 @@ var _flicker_index := -1
 var _flicker_time := 0.0
 var _flicker_wait := 3.0
 var _wave := -1.0
+var _beacon_on := true
 
 
 func _ready() -> void:
@@ -65,11 +66,6 @@ func _fill_clipped(poly: PackedVector2Array, clip: PackedVector2Array, c: Color)
 			draw_colored_polygon(piece, c)
 
 
-func _line_clipped(a: Vector2, b: Vector2, clip: PackedVector2Array, c: Color, w: float) -> void:
-	for piece in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([a, b]), clip):
-		draw_polyline(piece, c, w, true)
-
-
 func _draw() -> void:
 	if size.x < 100.0 or size.y < 100.0 or _rows == 0:
 		return
@@ -77,18 +73,35 @@ func _draw() -> void:
 	var h := size.y
 	var g := _geo()
 	var clip := UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), RADIUS)
-	draw_colored_polygon(clip, UI.SKY)
 	var sun_r := minf(w * 0.42, h * 0.34)
 	var sun_col := UI.RED.lightened(0.12) if Game.boost_active() else UI.RED
-	_fill_clipped(UI.circle_poly(Vector2(w * 0.78, h * 0.24), sun_r, 96), clip, sun_col)
-	_line_clipped(Vector2(w * 0.25, -6), Vector2(w + 6, h * 0.5), clip, UI.INK, 1.4)
-	_line_clipped(Vector2(w * 0.3, h + 6), Vector2(w + 6, h * 0.12), clip, UI.INK, 1.1)
+	Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, Vector2(w * 0.78, h * 0.24), sun_r, sun_col, 4401)
 	var tx: float = g["tx"]
 	var tw: float = g["tw"]
 	var top: float = g["top"]
+	# Roof: plant room, water tank on legs, antenna with a red light.
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw * 0.15, top - tw * 0.12, tw * 0.3, tw * 0.12)), clip, UI.INK)
+	var tank := Rect2(tx + tw * 0.62, top - tw * 0.16, tw * 0.18, tw * 0.1)
+	_fill_clipped(UI.rect_poly(tank), clip, UI.INK)
+	for lx in [tank.position.x + 2.0, tank.end.x - 4.0]:
+		_fill_clipped(UI.rect_poly(Rect2(lx, tank.end.y, 2.0, tw * 0.06)), clip, UI.INK)
+	var mast_x := tx + tw * 0.3
+	var mast_top := top - tw * 0.55
+	_fill_clipped(UI.rect_poly(Rect2(mast_x - 1.0, mast_top, 2.5, tw * 0.45)), clip, UI.INK)
+	_fill_clipped(UI.rect_poly(Rect2(mast_x - 5.0, mast_top + tw * 0.12, 11.0, 2.0)), clip, UI.INK)
+	var beacon_on := Game.reduce_motion or fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
+	if beacon_on:
+		draw_circle(Vector2(mast_x + 0.25, mast_top), 3.0, UI.RED)
+	# Body with a ledge at the top and the shaded side.
+	_fill_clipped(UI.rect_poly(Rect2(tx - 4.0, top, tw + 8.0, 6.0)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx, top, tw, h)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw, top + 8.0, tw * 0.1, h)), clip, UI.SIDE)
+	# Street: ground strip and two lamps.
+	_fill_clipped(UI.rect_poly(Rect2(0, h - 10.0, w, 10.0)), clip, UI.INK)
+	for lx in [w * 0.04, w * 0.95]:
+		_fill_clipped(UI.rect_poly(Rect2(lx, h - 46.0, 2.0, 36.0)), clip, UI.INK)
+		_fill_clipped(UI.rect_poly(Rect2(lx - 6.0, h - 48.0, 10.0, 3.0)), clip, UI.INK)
+		draw_rect(Rect2(lx - 5.0, h - 45.0, 8.0, 2.0), Color(UI.FLASH, 0.5), true)
 	var lit := {}
 	for k in range(mini(lit_count(), _order.size())):
 		lit[_order[k]] = true
@@ -130,6 +143,11 @@ func _process(delta: float) -> void:
 			_flicker_time -= delta
 			if _flicker_time <= 0.0:
 				queue_redraw()
+	# Roof light blinks: redraw only when it switches.
+	var on := fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
+	if on != _beacon_on and not Game.reduce_motion and is_visible_in_tree():
+		_beacon_on = on
+		queue_redraw()
 	if _wave >= 0.0:
 		_wave += delta * 1.6
 		if _wave > 1.2:
