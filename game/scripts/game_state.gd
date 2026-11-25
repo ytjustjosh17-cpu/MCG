@@ -11,7 +11,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -48,6 +48,7 @@ var moods := {}        # sym or sector -> news effect on fair price
 var trends := {}       # coin -> current trend per minute
 var fair_log := {}     # coin -> log of fair price
 var news: Array = []   # newest last: {t, text, sym, pct}
+var home := 0         # index into Data.HOMES
 var props := {}        # "index" -> {imps: [bool...]}
 var items := {}        # "col:index" -> true
 var mergers := {}      # id -> true
@@ -208,6 +209,7 @@ func global_mult() -> float:
 	for c in Data.COLLECTIONS:
 		if collection_done(c["id"]):
 			m += float(c["bonus"])
+	m += Data.HOME_BONUS * float(home)
 	if mergers.has("holding"):
 		m *= 2.0
 	return m
@@ -798,6 +800,59 @@ func sell_item(col: String, i: int) -> float:
 	return got
 
 
+# ==== next goal =============================================================
+
+func next_goal() -> Dictionary:
+	## The cheapest next big step, shown on the Earn screen so there's always
+	## something to save for. tab: which tab opens when tapped.
+	var c: Array = []
+	for b in Data.BUSINESSES:
+		if not biz.has(b["id"]):
+			c.append({"icon": "business", "text": String(b["name"]), "cost": float(b["cost"]), "tab": 1})
+			break
+	if next_home_cost() > 0.0:
+		c.append({"icon": "home", "text": String(Data.HOMES[home + 1][0]), "cost": next_home_cost(), "tab": 3})
+	for i in range(Data.PROPERTIES.size()):
+		if not prop_owned(i):
+			c.append({"icon": "invest", "text": String(Data.PROPERTIES[i][0]), "cost": prop_price(i), "tab": 2})
+	for m in Data.MERGERS:
+		if not mergers.has(m["id"]) and merger_ready(m):
+			c.append({"icon": "pie", "text": String(m["name"]), "cost": float(m["cost"]), "tab": 1})
+	if c.is_empty():
+		return {}
+	# Skip small stuff: a goal should be worth saving for.
+	var big: Array = c.filter(func(g): return float(g["cost"]) >= cash * 0.1)
+	if not big.is_empty():
+		c = big
+	var best: Dictionary = c[0]
+	for g in c:
+		if float(g["cost"]) < float(best["cost"]):
+			best = g
+	return best
+
+
+# ==== home ================================================================
+
+func home_value() -> float:
+	return float(Data.HOMES[home][2])
+
+
+func next_home_cost() -> float:
+	return float(Data.HOMES[home + 1][2]) if home + 1 < Data.HOMES.size() else -1.0
+
+
+func move_home() -> bool:
+	## Moves one step up the ladder. The old home isn't sold: you keep it.
+	var c := next_home_cost()
+	if c < 0.0 or cash < c:
+		return false
+	cash -= c
+	home += 1
+	GameLog.info("game", "Moved to %s" % Data.HOMES[home][0])
+	recalc()
+	return true
+
+
 func items_value() -> float:
 	var v := 0.0
 	for k in items.keys():
@@ -862,7 +917,7 @@ func business_value() -> float:
 
 
 func net_worth() -> float:
-	return cash + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value()
+	return cash + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
 
 
 func business_per_hour() -> float:
@@ -898,7 +953,8 @@ func completion() -> float:
 	var it := float(items.size()) / float(total_items)
 	var ac := float(achieved.size()) / float(maxi(1, _achievements.size()))
 	var lv := float(level - 1) / float(Data.MAX_LEVEL - 1)
-	return 0.40 * bz + 0.15 * mg + 0.15 * pr + 0.15 * it + 0.10 * ac + 0.05 * lv
+	var hm := float(home) / float(Data.HOMES.size() - 1)
+	return 0.36 * bz + 0.15 * mg + 0.15 * pr + 0.15 * it + 0.10 * ac + 0.04 * lv + 0.05 * hm
 
 
 # ==== achievements ========================================================
@@ -926,6 +982,8 @@ func _build_achievements() -> Array:
 		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
+	for n in [1, 4, 8]:
+		a.append({"id": "home_%d" % n, "title": Data.HOMES[n][0], "m": "home", "goal": float(n)})
 	for n in [1, 3, 6]:
 		a.append({"id": "merge_%d" % n, "title": "%d merger%s" % [n, "" if n == 1 else "s"], "m": "mergers", "goal": float(n)})
 	for n in [5, 10, 20, 25]:
@@ -957,6 +1015,7 @@ func metric(m: String) -> float:
 					n += 1
 			return float(n)
 		"mergers": return float(mergers.size())
+		"home": return float(home)
 		"level": return float(level)
 		"boosts": return float(boosts_used)
 	return 0.0
@@ -1175,7 +1234,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "achieved": achieved,
+		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "history": history,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
@@ -1279,11 +1338,16 @@ func _migrate(d: Dictionary) -> Dictionary:
 		# v3 adds day and week price history; rebuild it from the current prices.
 		d["price_hist"] = {}
 		v = 3
+	if v < 4:
+		# v4 adds homes; everyone starts in the rented room.
+		d["home"] = int(d.get("home", 0))
+		v = 4
 	d["version"] = v
 	return d
 
 
 func _reset_state() -> void:
+	home = 0
 	cash = 0.0
 	total_earned = 0.0
 	level = 1
@@ -1352,6 +1416,7 @@ func load_game() -> void:
 	news = d.get("news", [])
 	props = d.get("props", {})
 	items = d.get("items", {})
+	home = clampi(int(d.get("home", 0)), 0, Data.HOMES.size() - 1)
 	mergers = d.get("mergers", {})
 	achieved = d.get("achieved", {})
 	counters = d.get("counters", {})

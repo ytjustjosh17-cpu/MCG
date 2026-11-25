@@ -133,5 +133,29 @@ func _run() -> void:
 		var back: Button = sb.body.get_child(0)
 		await _wobble_tap(back.get_global_rect().get_center())
 		_ok(main._stack.size() == 0, "wobbly tap on the back button goes back")
+	# Items tab: wobbly tap on Move, then on the sheet's Move button.
+	g.cash = 1.0e6
+	g.recalc()
+	main.show_page(3)
+	await create_timer(0.8).timeout
+	var items = main._pages[3]
+	items.refresh()
+	await process_frame
+	await _wobble_tap(items._move.get_global_rect().get_center())
+	var kit = root.get_node("Kit")
+	var sheet_btn: Button = null
+	for n in kit.find_children("*", "Button", true, false):
+		if n.is_visible_in_tree() and String(n.text).begins_with("Move for"):
+			sheet_btn = n
+	_ok(sheet_btn != null, "wobbly tap on Move opens the sheet")
+	if sheet_btn:
+		await _wobble_tap(sheet_btn.get_global_rect().get_center())
+	_ok(g.home == 1, "wobbly tap on the sheet button moves home")
+	# Earn: the goal card opens a tab.
+	main.show_page(0)
+	await create_timer(0.8).timeout
+	var earn = main._pages[0]
+	await _wobble_tap(earn._goal.get_global_rect().get_center())
+	_ok(main._current != 0, "tapping the goal card opens its tab")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)

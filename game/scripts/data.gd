@@ -114,6 +114,22 @@ const IMPROVEMENTS := [
 	["Parking", 0.06, 0.12], ["Rooftop garden", 0.12, 0.20],
 ]  # name, cost as share of price, extra rent share
 
+# ---- homes -------------------------------------------------------------
+# Where you live. Moving up is a big one-off cost; each home adds a little
+# to all income for good. Index 0 is where everyone starts.
+const HOMES := [ # name, place, price, scene
+	["Rented room", "Ironmere", 0.0, "flats"],
+	["Studio flat", "Port Ellis", 15000.0, "flats"],
+	["Terrace house", "Saltmarsh", 120000.0, "house"],
+	["Town house", "Redmoor", 900000.0, "house"],
+	["Harbour penthouse", "Port Ellis", 8.0e6, "tower"],
+	["Cliff villa", "Saltmarsh", 9.0e7, "house"],
+	["Country estate", "Coldharbour", 1.2e9, "house"],
+	["Sky mansion", "Redmoor", 1.8e10, "tower"],
+	["Island palace", "Tern Islands", 3.0e11, "resort"],
+]
+const HOME_BONUS := 0.01  # extra income per step up (kept small on purpose)
+
 # ---- collections -------------------------------------------------------
 const COLLECTIONS := [
 	{"id": "watches", "name": "Watches", "bonus": 0.05, "items": [

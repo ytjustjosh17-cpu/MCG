@@ -46,6 +46,7 @@ func _run() -> void:
 	g.improve_property(8, 2)
 	g.buy_item("watches", 0)
 	g.buy_item("watches", 1)
+	g.home = 3
 	g.cash = 2.4e5
 	g.recalc()
 	for i in 8:
