@@ -34,8 +34,9 @@ func refresh() -> void:
 		if i < Game.news.size() - 1:
 			separator(_list)
 		var item: Dictionary = Game.news[i]
-		var r := news_row(item, true)
 		var target := String(item.get("sym", ""))
+		var opens := not Game._stock(target).is_empty() or not Game._coin(target).is_empty()
+		var r := news_row(item, opens)
 		r.pressed.connect(func():
 			var k := "share" if not Game._stock(target).is_empty() else ("coin" if not Game._coin(target).is_empty() else "")
 			if k != "":

@@ -630,6 +630,7 @@ func _init_market() -> void:
 			prices[c[0]] = float(c[2])
 	if price_hist.is_empty() or hist_h.is_empty():
 		# Give a new market a week of believable history.
+		var saved := prices.duplicate()
 		_catch_up(HIST_H * 4, now() - 7200.0)
 		_quiet = true
 		for i in 120:
@@ -638,6 +639,29 @@ func _init_market() -> void:
 			_record_prices(1)
 		_quiet = false
 		news.clear()
+		_end_on(saved)
+
+
+func _end_on(saved: Dictionary) -> void:
+	## After building history for an older save, keep the prices the player
+	## saw: scale each history so it ends on the saved price.
+	var ticks := float(counters.get("market_ticks", 0))
+	for sym in saved.keys():
+		var want := float(saved[sym])
+		var now_p := price(sym)
+		if want <= 0.0 or now_p <= 0.0 or not prices.has(sym):
+			continue
+		var f := want / now_p
+		for store in [price_hist, hist_q, hist_h]:
+			var h: Array = store.get(sym, [])
+			for i in range(h.size()):
+				h[i] = _sig(float(h[i]) * f)
+		prices[sym] = want
+		var st := _stock(sym)
+		if not st.is_empty():
+			moods[sym] = clampf(want / (float(st[2]) * exp(Data.STOCK_GROWTH * ticks) * float(moods.get(st[4], 1.0))), 0.2, 5.0)
+		elif not _coin(sym).is_empty():
+			fair_log[sym] = log(want)
 
 
 # ==== property ============================================================

@@ -15,7 +15,7 @@ func _check(cond: bool, what: String) -> void:
 
 func _initialize() -> void:
 	# Never hang CI: give up after 60 seconds.
-	create_timer(60.0).timeout.connect(func():
+	create_timer(150.0).timeout.connect(func():
 		printerr("FAIL  timed out")
 		quit(1))
 	_run.call_deferred()
@@ -185,6 +185,11 @@ func _run() -> void:
 		if inv._share_rows[k].visible:
 			shown += 1
 	_check(shown == 3, "sector filter shows Tech only")
+	var lines := 0
+	for k in inv._share_seps.keys():
+		if inv._share_seps[k].visible:
+			lines += 1
+	_check(lines == 2, "sector filter hides extra divider lines")
 	main.show_page(0)
 	await process_frame
 

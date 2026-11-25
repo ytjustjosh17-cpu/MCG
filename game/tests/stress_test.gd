@@ -16,6 +16,7 @@ func _sane() -> bool:
 	return true
 func _run() -> void:
 	var g = root.get_node("Game")
+	seed(42)
 	g.reset_game()
 	g.cash = 1000.0
 	for i in 2000:

@@ -14,6 +14,7 @@ var _prop_rows := {}
 var _coin_rows := {}
 var _sector := ""
 var _chips := {}
+var _share_seps := {}   # sym -> divider line above that row
 var _news_rows: Array = []   # one news Row per tab that has one
 var _mood_bar: Control
 var _mood_label: Label
@@ -79,6 +80,7 @@ func build() -> void:
 		var st: Array = Data.STOCKS[i]
 		if i > 0:
 			separator(shares_v)
+			_share_seps[st[0]] = shares_v.get_child(shares_v.get_child_count() - 1)
 		var r := Row.new()
 		var sym: String = st[0]
 		r.set_lead(AssetTile.new(sym))
@@ -231,9 +233,14 @@ func refresh() -> void:
 			_sum_line2.text = "%s%s all time · %s paid out" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), Game.money_short(float(Game.counters.get("dividends_earned", 0.0)))]
 			_sum_line2.visible = v > 0.0 or float(Game.counters.get("dividends_earned", 0.0)) > 0.0
 			_set_news(_news_rows[0], _latest_news("share"))
+			var first := true
 			for st in Data.STOCKS:
 				var r: Row = _share_rows[st[0]]
 				r.visible = _sector == "" or st[4] == _sector
+				if _share_seps.has(st[0]):
+					_share_seps[st[0]].visible = r.visible and not first
+				if r.visible:
+					first = false
 				if not r.visible:
 					continue
 				var held := Game.holding(Game.shares, st[0])
