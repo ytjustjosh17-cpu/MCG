@@ -103,6 +103,7 @@ func level_up() -> bool:
 		return false
 	cash -= level_cost()
 	level += 1
+	GameLog.info("game", "Level up to %d" % level)
 	_mark()
 	return true
 
@@ -217,6 +218,7 @@ func open_business(id: String, name: String) -> bool:
 		return false
 	cash -= float(b["cost"])
 	biz[id] = {"name": name, "stage": 1, "units": 1, "exp_until": 0.0, "invested": float(b["cost"])}
+	GameLog.info("biz", "Opened %s (%s) for %s" % [name, id, money(b["cost"])])
 	recalc()
 	return true
 
@@ -270,6 +272,7 @@ func start_expansion(id: String) -> bool:
 	cash -= c
 	biz[id]["invested"] = float(biz[id]["invested"]) + c
 	biz[id]["exp_until"] = now() + expansion_seconds(id)
+	GameLog.info("biz", "Expansion started: %s to stage %d (%s)" % [id, int(biz[id]["stage"]) + 1, clock(expansion_seconds(id))])
 	_mark()
 	return true
 
@@ -281,6 +284,7 @@ func _finish_expansions() -> void:
 		if float(s["exp_until"]) > 0.0 and t >= float(s["exp_until"]):
 			s["exp_until"] = 0.0
 			s["stage"] = int(s["stage"]) + 1
+			GameLog.info("biz", "Expansion done: %s now stage %d" % [id, s["stage"]])
 			_bump("expansions")
 			_task_progress("expand", 1)
 			recalc()
@@ -445,6 +449,7 @@ func buy_property(i: int) -> bool:
 		return false
 	cash -= prop_price(i)
 	props[str(i)] = {"imps": [false, false, false, false, false]}
+	GameLog.info("invest", "Bought property %d (%s)" % [i, Data.PROPERTIES[i][0]])
 	_task_progress("invest", 1)
 	recalc()
 	return true
@@ -471,6 +476,7 @@ func sell_property(i: int) -> float:
 	if not prop_owned(i):
 		return 0.0
 	var got := sell_property_value(i)
+	GameLog.info("invest", "Sold property %d for %s" % [i, money(got)])
 	cash += got
 	props.erase(str(i))
 	recalc()
@@ -588,6 +594,7 @@ func merge(id: String) -> bool:
 				return false
 			cash -= float(m["cost"])
 			mergers[id] = true
+			GameLog.info("game", "Merger done: %s" % id)
 			recalc()
 			return true
 	return false
@@ -703,6 +710,7 @@ func _check_achievements() -> void:
 			continue
 		if metric(a["m"]) >= float(a["goal"]):
 			achieved[a["id"]] = true
+			GameLog.info("game", "Achievement: %s" % a["title"])
 			var reward := maxf(500.0, income_per_hour * 1.0)
 			_earn(reward)
 			achievement.emit(a["title"], reward)
@@ -855,6 +863,8 @@ func apply_offline(seconds: float) -> void:
 	recalc()
 	_earn(gained)
 	away_earned = cash - before
+	if s > 60.0:
+		GameLog.info("game", "Away for %s, earned %s (income %s/h)" % [clock(s), money(away_earned), money(income_per_hour)])
 	_ensure_daily()
 	_check_achievements()
 
@@ -897,7 +907,7 @@ func save_game() -> void:
 		return
 	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
 	if f == null:
-		push_warning("Could not save: %s" % FileAccess.get_open_error())
+		GameLog.error("save", "Could not write save: error %d" % FileAccess.get_open_error())
 		return
 	f.store_string(JSON.stringify(to_dict()))
 	f.close()
@@ -909,6 +919,8 @@ func save_game() -> void:
 			DirAccess.remove_absolute(bak)
 		DirAccess.rename_absolute(main, bak)
 	DirAccess.rename_absolute(tmp, main)
+	if not FileAccess.file_exists(SAVE_PATH):
+		GameLog.error("save", "Save file missing after write")
 	_dirty = false
 
 
@@ -962,14 +974,18 @@ func _reset_state() -> void:
 func load_game() -> void:
 	_reset_state()
 	var d := _read_save(SAVE_PATH)
+	if d.is_empty() and FileAccess.file_exists(SAVE_PATH):
+		GameLog.warn("save", "Main save unreadable, trying backup")
 	if d.is_empty():
 		d = _read_save(SAVE_BAK)
 	if d.is_empty():
+		GameLog.info("save", "No save found, new game")
 		_init_market()
 		recalc()
 		_record_history()
 		return
 	d = _migrate(d)
+	GameLog.info("save", "Loaded save v%d (%s)" % [int(d.get("version", 1)), GameLog.bytes(GameLog.file_size(SAVE_PATH))])
 	cash = float(d.get("cash", 0.0))
 	total_earned = float(d.get("total_earned", 0.0))
 	level = int(d.get("level", 1))
@@ -1001,6 +1017,7 @@ func load_game() -> void:
 
 
 func reset_game() -> void:
+	GameLog.info("game", "Progress reset")
 	_reset_state()
 	_init_market()
 	recalc()

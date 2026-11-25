@@ -56,6 +56,7 @@ func _ready() -> void:
 func push(p: Control) -> void:
 	## Slides a detail page in from the right, over the current tab.
 	_content.add_child(p)
+	GameLog.info("ui", "Open %s" % (p.title if "title" in p else p.name))
 	p.push_page.connect(push)
 	p.pop_page.connect(pop)
 	var w := _content.size.x
@@ -103,6 +104,7 @@ func show_page(i: int) -> void:
 		return
 	var old: Control = _pages[_current]
 	var new: Control = _pages[i]
+	GameLog.info("ui", "Tab %s" % NavBar.TABS[i][1])
 	var dir := 1.0 if i > _current else -1.0
 	_current = i
 	_nav.set_active(i)

@@ -10,6 +10,8 @@ var _stats: Array = []
 var _ach_row: Row
 var _vib_row: Row
 var _upd_row: Row
+var _report_row: Row
+var _storage_row: Row
 var _checking := false
 
 
@@ -99,6 +101,18 @@ func build() -> void:
 			Kit.toast("You're on the latest version")
 		_checking = false)
 
+	section("Help")
+	var hc := card()
+	_report_row = Row.new("list")
+	_report_row.pressed.connect(_on_report)
+	hc.add_child(_report_row)
+	separator(hc, 50)
+	_storage_row = Row.new("", "", false)
+	_storage_row.custom_minimum_size = Vector2(0, 52)
+	_storage_row.pressed.connect(func():
+		Kit.toast("Saves and logs have fixed size limits"))
+	hc.add_child(_storage_row)
+
 	body.add_child(button("Start again", false, _on_reset))
 	var note := UI.label("Saved on this phone. Updates keep your progress.", 13, UI.SUB)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -129,6 +143,26 @@ func refresh() -> void:
 	_ach_row.set_texts("Achievements", "Each one pays an hour of income", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
 	_vib_row.set_texts("Vibrate on tap", "", "On" if Game.vibrate else "Off")
 	_upd_row.set_texts("Check for updates", "", "v" + Updater.current_version())
+	_report_row.set_texts("Copy problem report", "Paste it to Claude to fix issues", "")
+	if not _storage_timer_started:
+		_storage_timer_started = true
+		_update_storage()
+
+
+var _storage_timer_started := false
+
+
+func _update_storage() -> void:
+	_storage_row.set_texts("Storage used", "Save and logs, capped", GameLog.bytes(GameLog.storage_used()))
+
+
+func _on_report() -> void:
+	Kit.tick()
+	var n := GameLog.copy_report()
+	Kit.sheet("Report copied", "A problem report (%s) is on your clipboard.\n\nOpen the Claude app, paste it into the chat, and say what went wrong." % GameLog.bytes(n), [
+		{"text": "Done", "style": "primary"},
+	])
+	_update_storage()
 
 
 func _check_updates() -> void:

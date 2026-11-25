@@ -124,5 +124,27 @@ func _run() -> void:
 	_check(game.cash - c1 <= inc * 8.0 * 1.2 + 1.0, "offline capped near 8 h")
 	game.reset_game()
 
+	# Storage stays bounded: logs rotate and the save file stays small.
+	var gl = root.get_node("GameLog")
+	for i in 6000:
+		gl.info("test", "Filler line %d to check that log files rotate and never grow without limit." % i)
+	_check(gl.logs_size() < 3 * 200000 + 300000, "logs stay capped (%s)" % gl.bytes(gl.logs_size()))
+	var rep: String = gl.report()
+	_check(rep.begins_with("=== Red Sun Holdings problem report") and rep.length() < 120000, "problem report builds and stays small")
+	game.sim_time = game.now()
+	game.cash = 1.0e13
+	for b in Data.BUSINESSES:
+		game.open_business(b["id"], b["names"][0])
+	for i in range(Data.PROPERTIES.size()):
+		game.buy_property(i)
+	for i in 2200:
+		game._record_history()
+	game.advance(30.0 * 86400.0)
+	game.sim_time = -1.0
+	game.save_game()
+	var save_size: int = gl.file_size("user://save.json")
+	_check(save_size < 400000, "save stays small after a month of data (%s)" % gl.bytes(save_size))
+	game.reset_game()
+
 	print("Failures: ", _fails)
 	quit(1 if _fails > 0 else 0)
