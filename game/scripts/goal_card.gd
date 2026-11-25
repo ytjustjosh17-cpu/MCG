@@ -5,6 +5,7 @@ extends Button
 var _icon: Icon
 var _title: Label
 var _sub: Label
+var _chev: Icon
 var _prog := 0.0
 var goal := {}
 
@@ -21,14 +22,17 @@ func _init() -> void:
 	_sub = UI.label("", 13, UI.SUB)
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	add_child(_sub)
+	_chev = Icon.new("chevron", UI.DIM, 14.0)
+	add_child(_chev)
 	resized.connect(_layout)
 	Kit.press_fx(self)
 
 
 func _layout() -> void:
 	_icon.position = Vector2(14, (size.y - 20.0) * 0.5 - 2.0)
-	_sub.size = Vector2(130, 20)
-	_sub.position = Vector2(size.x - 14 - 130, (size.y - 20.0) * 0.5 - 2.0)
+	_chev.position = Vector2(size.x - 12 - 14, (size.y - 14.0) * 0.5 - 2.0)
+	_sub.size = Vector2(110, 20)
+	_sub.position = Vector2(size.x - 32 - 110, (size.y - 20.0) * 0.5 - 2.0)
 	_title.position = Vector2(44, (size.y - 22.0) * 0.5 - 2.0)
 	_title.size = Vector2(maxf(0.0, size.x - 44 - 150), 22)
 
@@ -43,11 +47,26 @@ func set_goal(g: Dictionary) -> void:
 	var ready := _prog >= 1.0
 	_icon.kind = g["icon"]
 	_icon.set_style(UI.RED if ready else UI.SUB)
-	_title.text = String(g["text"])
+	_title.text = title_for(g)
 	var wait := Game.eta(cost)
-	_sub.text = "Ready" if ready else (wait if wait != "" else Game.money_short(cost - Game.cash) + " to go")
+	_sub.text = "Buy now" if ready else (wait if wait != "" else Game.money_short(cost - Game.cash) + " more")
 	_sub.add_theme_color_override("font_color", UI.TEXT if ready else UI.SUB)
 	queue_redraw()
+
+
+static func title_for(g: Dictionary) -> String:
+	## A verb first, so the card says what to do: "Open X", "Buy X", "Move to X".
+	var t := String(g["text"])
+	match String(g["icon"]):
+		"home":
+			return "Move to " + t
+		"business":
+			return ("Buy " + t.substr(3)) if t.begins_with("+1 ") else ("Open " + t)
+		"pie":
+			return "Form " + t
+		"invest":
+			return t if t.contains(" for ") else ("Buy " + t)
+	return t
 
 
 func _draw() -> void:
