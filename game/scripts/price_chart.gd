@@ -9,6 +9,8 @@ var sym := ""
 var range_name := "1H"
 var interactive := false
 var line_col := UI.TEXT
+var avg_price := 0.0   # your average buy price; 0 = none owned, no line
+var show_range := false   # faint high and low prices at the right
 var _touch := -1.0
 var _start := Vector2(-1, -1)
 var _pts := PackedVector2Array()
@@ -90,8 +92,9 @@ func _draw() -> void:
 		hi = lo * 1.001 + 1e-9
 	_pts = PackedVector2Array()
 	var w := size.x - 12.0
+	var pad := 18.0 if show_range else 8.0   # room for the high and low text
 	for i in range(h.size()):
-		var y := size.y - 8.0 - (float(h[i]) - lo) / (hi - lo) * (size.y - 16.0)
+		var y := size.y - pad - (float(h[i]) - lo) / (hi - lo) * (size.y - pad * 2.0)
 		_pts.append(Vector2(w * i / float(h.size() - 1), y))
 	var pts := _pts
 	draw_dashed_line(Vector2(0, pts[0].y), Vector2(size.x, pts[0].y), UI.TRACK, 1.0, 4.0)
@@ -103,6 +106,20 @@ func _draw() -> void:
 		cols.append(Color(line_col, 0.18 * (1.0 - clampf(p.y / size.y, 0.0, 1.0))))
 	draw_polygon(area, cols)
 	draw_polyline(pts, line_col, 2.0, true)
+	var font: Font = UI.REG
+	var fs := 11
+	if avg_price > 0.0 and avg_price >= lo and avg_price <= hi:
+		var ay := size.y - pad - (avg_price - lo) / (hi - lo) * (size.y - pad * 2.0)
+		draw_dashed_line(Vector2(0, ay), Vector2(size.x, ay), Color(UI.SUB, 0.7), 1.0, 2.0)
+		var aw := font.get_string_size("avg", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_rect(Rect2(0, ay - 7.0, aw + 8.0, 14.0), UI.BG)
+		draw_string(font, Vector2(4.0, ay + 4.0), "avg", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UI.SUB)
+	if show_range:
+		var faint := Color(UI.SUB, 0.6)
+		var tw := 120.0
+		var x0 := size.x - 24.0 - tw
+		draw_string(font, Vector2(x0, float(fs)), AssetDetail.price_text(hi), HORIZONTAL_ALIGNMENT_RIGHT, tw, fs, faint)
+		draw_string(font, Vector2(x0, size.y - 2.0), AssetDetail.price_text(lo), HORIZONTAL_ALIGNMENT_RIGHT, tw, fs, faint)
 	if _touch >= 0.0:
 		var i := clampi(int(round(_touch / w * float(h.size() - 1))), 0, h.size() - 1)
 		var p := pts[i]

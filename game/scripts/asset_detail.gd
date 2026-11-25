@@ -11,12 +11,10 @@ var _price: Label
 var _change: Label
 var _seg: Segmented
 var _chart: PriceChart
+var _own_card: Control
 var _own: Label
-var _worth: Label
-var _avg: Label
 var _profit: Label
 var _extra: Label
-var _extra_name: Label
 var _sell: Button
 var _stake_card: Control
 var _staked: Label
@@ -66,6 +64,7 @@ func build() -> void:
 	hv.add_child(_change)
 	_chart = PriceChart.new(sym, "1H", true)
 	_chart.line_col = UI.asset_color(sym)
+	_chart.show_range = true
 	_chart.custom_minimum_size = Vector2(0, 180)
 	_chart.scrub.connect(_on_scrub)
 	body.add_child(_chart)
@@ -79,19 +78,7 @@ func build() -> void:
 		_chart.set_range(RANGES[i])
 		refresh())
 	body.add_child(_seg)
-
-	# What you own.
-	var c := card()
-	_own = _line(c, "You own")
-	separator(c)
-	_worth = _line(c, "Worth")
-	separator(c)
-	_avg = _line(c, "Avg price")
-	separator(c)
-	_profit = _line(c, "Profit")
-	separator(c)
-	_extra = _line(c, "Pays you" if kind == "share" else "Staking earns")
-	_extra_name = _extra.get_parent().get_child(0)
+	# Buy and sell sit right under the chart, so the tab bar never hides them.
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
 	body.add_child(h)
@@ -99,9 +86,18 @@ func build() -> void:
 	h.add_child(_sell)
 	h.add_child(button("Buy", true, _on_buy))
 
+	# What you own: three short lines, hidden when you own none.
+	var c := card()
+	_own_card = c.get_parent()
+	_own = _line(c, "Owned")
+	separator(c)
+	_profit = _line(c, "Profit")
+	separator(c)
+	_extra = _line(c, "Pays" if kind == "share" else "Staking")
+
 	if kind == "coin":
-		section("Staking", "%.2f%% a day" % (Game.stake_rate(sym) * 2400.0))
-		var hint := UI.label("Lock coins for 24 h and they earn more coins.", 13, UI.SUB)
+		section("Lock", "+%.2f%%/day" % (Game.stake_rate(sym) * 2400.0))
+		var hint := UI.label("Lock 24 h. Earn more coins.", 13, UI.SUB)
 		body.add_child(hint)
 		var sc := card()
 		_stake_card = sc.get_parent()
@@ -113,18 +109,18 @@ func build() -> void:
 		body.add_child(sh)
 		_unstake_btn = button("Unlock", false, _on_unstake)
 		sh.add_child(_unstake_btn)
-		_stake_btn = button("Stake", false, _on_stake)
+		_stake_btn = button("Lock", false, _on_stake)
 		sh.add_child(_stake_btn)
 	else:
 		section("Stats")
 		var st := card()
-		_line(st, "Yearly payout").text = "%.1f%%" % (float(a[3]) * 1000.0)
+		_line(st, "Pays").text = "%.2f%% /day" % (float(a[3]) * Data.STOCK_DIV_SCALE * 24.0 * 100.0)
 		separator(st)
 		_line(st, "Sector").text = a[4]
 		separator(st)
-		_hi = _line(st, "Week high")
+		_hi = _line(st, "7d high")
 		separator(st)
-		_lo = _line(st, "Week low")
+		_lo = _line(st, "7d low")
 
 	section("News")
 	_news_box = card()
@@ -197,31 +193,35 @@ func refresh() -> void:
 	var total := free + locked
 	var worth := total * Game.price(sym)
 	var paid: float = float(book[sym]["cost"]) if book.has(sym) else 0.0
-	_own.text = qty_text(total) + (" shares" if kind == "share" else " " + sym)
-	_worth.text = Game.money(worth)
-	_avg.text = price_text(Game.avg_price(book, sym)) if total > 0.0 else "None"
+	var avg := Game.avg_price(book, sym) if total > 0.0 else 0.0
+	_chart.avg_price = avg
+	_own_card.visible = total > 0.0
+	_own.text = "%s · %s" % [qty_text(total), Game.money_short(worth)]
 	var gain := worth - paid
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
-	_profit.text = "None" if total <= 0.0 else "%s%s (%.1f%%)" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct)]
-	_profit.add_theme_color_override("font_color", UI.TEXT if total <= 0.0 else UI.change_color(gain))
-	if total > 0.0 and absf(pct) < 0.05:
-		_profit.text = "No change yet"
+	_profit.text = "%s%s (%.1f%%) · avg %s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct), price_text(avg)]
+	_profit.add_theme_color_override("font_color", UI.change_color(gain))
+	if absf(pct) < 0.05:
+		_profit.text = "No change · avg " + price_text(avg)
 		_profit.add_theme_color_override("font_color", UI.SUB)
 	if kind == "share":
 		var a := _asset()
-		_extra.text = Game.money_short(free * Game.price(sym) * float(a[3]) * Data.STOCK_DIV_SCALE * Game.global_mult()) + " /h"
+		_extra.text = price_text(free * Game.price(sym) * float(a[3]) * Data.STOCK_DIV_SCALE * Game.global_mult()) + " /h"
 		var wk: Array = Game.series(sym, "1W")
 		if wk.size() > 0:
 			_hi.text = price_text(maxf(wk.max(), Game.price(sym)))
 			_lo.text = price_text(minf(wk.min(), Game.price(sym)))
 	else:
-		_extra.text = Game.money_short(locked * Game.stake_rate(sym) * Game.price(sym)) + " /h"
+		_extra.text = "+" + Game.money_short(Game.stake_earn_per_hour(sym)) + " /h"
 		_staked.text = qty_text(locked) + " " + sym
 		var left := Game.stake_left(sym)
 		_stake_info.text = "None" if locked <= 0.0 else ("Ready" if left <= 0.0 else Game.clock(left))
 		Page.set_enabled(_stake_btn, free > 0.0, false)
 		Page.set_enabled(_unstake_btn, locked > 0.0 and left <= 0.0, false)
+		_stake_btn.modulate.a = 1.0 if free > 0.0 else 0.4
+		_unstake_btn.modulate.a = 1.0 if locked > 0.0 and left <= 0.0 else 0.4
 	Page.set_enabled(_sell, free > 0.0, false)
+	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
 	var news_n := int(Game.counters.get("news_total", 0))
 	if news_n != _news_count:
 		_news_count = news_n
@@ -261,7 +261,7 @@ func _on_buy() -> void:
 		var ff: float = f
 		var amt := Game.cash * ff
 		if amt >= 0.01:
-			var label := ("All cash · " if ff >= 1.0 else "%d%% of cash · " % int(ff * 100)) + Game.money_short(amt)
+			var label := Game.money_short(amt) + (" · All" if ff >= 1.0 else " · %d%%" % int(ff * 100))
 			actions.append({"text": label, "style": "primary" if ff == 0.1 else "secondary", "call": func():
 				var spend := Game.cash * ff
 				if Game.buy_asset(kind, sym, spend):
@@ -271,7 +271,7 @@ func _on_buy() -> void:
 		Kit.toast("No cash to spend")
 		return
 	actions.append({"text": "Close", "style": "plain"})
-	Kit.sheet("Buy " + sym, "Price " + price_text(Game.price(sym)), actions)
+	Kit.sheet("Buy " + sym, "", actions, true, UI.display(price_text(Game.price(sym)), 36))
 
 
 func _on_sell() -> void:
@@ -286,22 +286,25 @@ func _on_sell() -> void:
 			if got > 0.0:
 				Kit.haptic("success")
 				Kit.toast("Sold for " + Game.money_short(got))})
-	actions.append({"text": "Keep them", "style": "primary"})
-	Kit.sheet("Sell " + sym, "You have %s worth %s." % [qty_text(free), Game.money(worth)], actions)
+	actions.append({"text": "Close", "style": "plain"})
+	Kit.sheet("Sell " + sym, "", actions, true, UI.display(price_text(Game.price(sym)), 36))
 
 
 func _on_stake() -> void:
 	var free := Game.holding(Game.coins, sym)
+	if free <= 0.0:
+		Kit.sheet("Lock " + sym, "Nothing to lock", [{"text": "Close", "style": "plain"}])
+		return
 	var actions: Array = []
 	for f in [0.5, 1.0]:
 		var ff: float = f
-		var label := ("Stake all · " if ff >= 1.0 else "Stake half · ") + qty_text(free * ff)
+		var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff)
 		actions.append({"text": label, "style": "primary" if ff >= 1.0 else "secondary", "call": func():
 			if Game.stake(sym, ff):
 				Kit.haptic("success")
 				Kit.toast("Locked for 24 h", true)})
 	actions.append({"text": "Close", "style": "plain"})
-	Kit.sheet("Stake " + sym, "Locked coins earn %.2f%% more coins a day.\nYou can't sell them for 24 hours." % (Game.stake_rate(sym) * 2400.0), actions)
+	Kit.sheet("Lock " + sym, "Earns %.2f%% a day.\nLocked 24 h." % (Game.stake_rate(sym) * 2400.0), actions)
 
 
 func _on_unstake() -> void:
