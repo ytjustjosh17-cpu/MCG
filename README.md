@@ -16,10 +16,11 @@ Tap to earn, start companies, trade made-up shares and coins, buy property and b
 
 ## Please read
 
-- **Personal project.** This is not a product. There is no support, and no promise it works on your phone.
-- **Install at your own risk.** If you install it, you accept any problems it causes. See [LICENSE](LICENSE).
-- **It is only a game.** No real money, no real shares, no real crypto. Every company, coin and place is made up. Any likeness to a real one is chance. Nothing here is financial advice.
-- **No ads, no payments, no accounts.**
+This is a personal project, not a product. There is no support, and no promise it works on your phone.
+
+If you install it, you do so at your own risk (see [LICENSE](LICENSE)).
+
+It's only a game. There's no real money, no real shares and no real crypto. Every company, coin and place is made up, and nothing here is financial advice. No ads, no payments, no accounts.
 
 ## Privacy
 

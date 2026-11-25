@@ -16,15 +16,16 @@ const WINDOW := Color("#0A2526")
 const SIDE := Color("#041717")
 const FLASH := Color("#FFC2B8")
 # Accents: used sparingly for markets so each company and coin has its own look.
-const UP := Color("#5EE0A0")
-const DOWN := Color("#FF5A4E")
+const UP := Color("#7FCFA6")
+const DOWN := Color("#EE7A6B")
+# Tonal, slightly muted accents so they sit with the teal instead of shouting.
 const SECTOR_COL := {
-	"Energy": Color("#F2A93B"), "Finance": Color("#E8D9B5"), "Tech": Color("#8C7CFF"),
-	"Transport": Color("#4FC3D9"), "Retail": Color("#FF7A8A"), "Food": Color("#6FD39B"),
-	"Industry": Color("#A7B4BE"),
+	"Energy": Color("#D9A75E"), "Finance": Color("#D6CCB2"), "Tech": Color("#9DC3DF"),
+	"Transport": Color("#82BDB2"), "Retail": Color("#E09C93"), "Food": Color("#A3C995"),
+	"Industry": Color("#AEB7B8"),
 }
-const COIN_COL := [Color("#F2A93B"), Color("#4FC3D9"), Color("#B9A38A"), Color("#E8D9B5"), Color("#3FA7FF"),
-	Color("#FF7A3D"), Color("#C38CFF"), Color("#9FD8C8"), Color("#FFD166"), Color("#7FE3FF")]
+const COIN_COL := [Color("#D9A75E"), Color("#82BDB2"), Color("#B8A58E"), Color("#D6CCB2"), Color("#9DC3DF"),
+	Color("#E39573"), Color("#C9B6D9"), Color("#A9D3C6"), Color("#E3CB84"), Color("#A8D8E6")]
 
 const REG := preload("res://assets/fonts/Inter-Regular.ttf")
 const SEMI := preload("res://assets/fonts/Inter-SemiBold.ttf")
