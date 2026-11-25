@@ -7,6 +7,7 @@ var _pages: Array = []
 var _nav: NavBar
 var _current := 0
 var _back_armed := false
+var _stack: Array = []
 
 
 func _ready() -> void:
@@ -22,17 +23,17 @@ func _ready() -> void:
 	add_child(_content)
 
 	var earn := EarnPage.new()
-	_pages = [
-		earn,
-		PlaceholderPage.new("Business", ["Start shops, taxi firms and more", "Earn money every hour", "Expand and merge companies"]),
-		PlaceholderPage.new("Invest", ["Shares with dividends", "Property with rent", "Crypto with live prices"]),
-		PlaceholderPage.new("Items", ["Cars, jets and yachts", "Collections to complete"]),
-		ProfilePage.new(),
-	]
+	_pages = [earn, BusinessPage.new(), InvestPage.new(), ItemsPage.new(), ProfilePage.new()]
 	for p in _pages:
 		_content.add_child(p)
 		p.visible = false
+		if p.has_signal("push_page"):
+			p.push_page.connect(push)
 	earn.open_tab.connect(show_page)
+	Game.achievement.connect(func(title: String, reward: float):
+		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
+	Game.expansion_done.connect(func(id: String, stage: int):
+		Kit.toast("%s reached stage %d" % [Game.biz[id]["name"], stage], true))
 
 	_nav = NavBar.new()
 	_nav.anchor_left = 0.0
@@ -52,7 +53,52 @@ func _ready() -> void:
 		get_tree().create_timer(3.0).timeout.connect(func(): Updater.check())
 
 
+func push(p: Control) -> void:
+	## Slides a detail page in from the right, over the current tab.
+	_content.add_child(p)
+	p.push_page.connect(push)
+	p.pop_page.connect(pop)
+	var w := _content.size.x
+	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
+	_stack.append(p)
+	p.position.x = w
+	var t := p.create_tween().set_parallel(true)
+	t.tween_property(p, "position:x", 0.0, 0.36).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "position:x", -w * 0.25, 0.36).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "modulate:a", 0.4, 0.36)
+	t.chain().tween_callback(func():
+		if is_instance_valid(under):
+			under.visible = false)
+
+
+func pop() -> void:
+	if _stack.is_empty():
+		return
+	var p: Control = _stack.pop_back()
+	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
+	var w := _content.size.x
+	under.visible = true
+	Kit.tick(5)
+	var t := p.create_tween().set_parallel(true)
+	t.tween_property(p, "position:x", w, 0.26).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(under, "position:x", 0.0, 0.3).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "modulate:a", 1.0, 0.26)
+	t.chain().tween_callback(p.queue_free)
+
+
+func _clear_stack() -> void:
+	for p in _stack:
+		p.queue_free()
+	_stack.clear()
+	var base: Control = _pages[_current]
+	base.position.x = 0.0
+	base.modulate.a = 1.0
+
+
 func show_page(i: int) -> void:
+	if not _stack.is_empty():
+		_clear_stack()
+		_pages[_current].visible = true
 	if i == _current:
 		return
 	var old: Control = _pages[_current]
@@ -90,6 +136,9 @@ func _notification(what: int) -> void:
 
 func _on_back() -> void:
 	if Kit.close_top():
+		return
+	if not _stack.is_empty():
+		pop()
 		return
 	if _current != 0:
 		show_page(0)

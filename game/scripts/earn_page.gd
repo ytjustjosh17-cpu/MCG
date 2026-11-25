@@ -24,6 +24,8 @@ var _row_level_value: Label
 var _row_level_mark: ColorRect
 var _row_boost_value: Label
 var _row_boost_mark: ColorRect
+var _row_tasks_value: Label
+var _row_tasks_mark: ColorRect
 var _card: TowerCard
 var _per_tap: Label
 var _level_btn: Button
@@ -96,7 +98,7 @@ func _build() -> void:
 	var stats := UI.panel(UI.PANEL, 16)
 	stats.name = "Stats"
 	_canvas.add_child(stats)
-	var cols := [["Cash"], ["Business / hr"], ["Companies"]]
+	var cols := [["Cash"], ["Per hour"], ["Companies"]]
 	var vals: Array = []
 	for i in range(3):
 		var v := UI.label("", 17, UI.TEXT, true)
@@ -134,10 +136,10 @@ func _build() -> void:
 	_row_boost_value = r2[0]
 	_row_boost_mark = r2[1]
 	r2[2].pressed.connect(_on_boost)
-	var r3 := _row(list, 2, "business", "Start a business")
-	r3[0].text = "Next update"
-	r3[1].visible = false
-	r3[2].pressed.connect(func(): open_tab.emit(1))
+	var r3 := _row(list, 2, "list", "Daily tasks")
+	_row_tasks_value = r3[0]
+	_row_tasks_mark = r3[1]
+	r3[2].pressed.connect(_show_tasks)
 
 	# Tap card.
 	_card = TowerCard.new()
@@ -279,7 +281,15 @@ func _refresh() -> void:
 
 	_stat_cash.text = Game.money(Game.cash)
 	_stat_hour.text = Game.money_short(Game.income_per_hour)
-	_stat_comp.text = "%d / 10" % Game.companies()
+	_stat_comp.text = "%d / %d" % [Game.companies(), Data.BUSINESSES.size()]
+	var tasks := Game.daily_tasks()
+	var done := 0
+	for t in tasks:
+		if t["done"]:
+			done += 1
+	_row_tasks_value.text = "%d of %d done" % [done, tasks.size()]
+	_row_tasks_mark.visible = false
+	_row_tasks_value.add_theme_color_override("font_color", UI.SUB)
 	_away.text = ("Earned while away +" + Game.money_short(Game.away_earned)) if Game.away_earned > 0.0 else ""
 
 	var cost := Game.level_cost()
@@ -290,7 +300,7 @@ func _refresh() -> void:
 	_row_level_mark.position = Vector2(_row_level_value.position.x + 160 - _row_level_value.get_minimum_size().x - 14, 20)
 
 	_per_tap.text = Game.money(Game.tap_value() * (Game.BOOST_MULT if Game.boost_active() else 1.0)) + " per tap"
-	_level_btn.text = "Level up  " + (Game.money(cost) if cost < 1e6 else Game.money_short(cost))
+	_level_btn.text = "Max level" if Game.level >= Data.MAX_LEVEL else "Level up  " + (Game.money(cost) if cost < 1e6 else Game.money_short(cost))
 	_level_btn.disabled = not can
 	if can:
 		UI.paint(_level_btn, UI.TEXT, UI.INK)
@@ -326,6 +336,14 @@ func _tick() -> void:
 	bolt.position = Vector2(16, 15)
 	_boost_btn.size = Vector2(0, 44)
 	_card.queue_redraw()
+
+
+func _show_tasks() -> void:
+	Kit.tick()
+	var lines: Array = []
+	for t in Game.daily_tasks():
+		lines.append(("✓  " if t["done"] else "•  ") + "%s  (%d/%d)" % [t["text"], mini(int(t["progress"]), int(t["goal"])), t["goal"]])
+	Kit.sheet("Daily tasks", "\n".join(lines) + "\n\nEach one pays %s. New tasks every day." % Game.money_short(Game.daily_reward()), [{"text": "Close", "style": "primary"}])
 
 
 func _on_level_up() -> void:

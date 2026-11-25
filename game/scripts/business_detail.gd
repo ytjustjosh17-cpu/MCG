@@ -1,0 +1,183 @@
+class_name BusinessDetail
+extends Page
+## One company: units, expansion with a real-time timer, and its income.
+
+var id := ""
+var _scene: Art.Scene
+var _type: Label
+var _income: CountLabel
+var _units_title: Label
+var _units_value: Label
+var _slots: GridContainer
+var _buy: Button
+var _buy_max: Button
+var _unit_note: Label
+var _exp_title: Label
+var _exp_body: Label
+var _exp_bar: ProgressBar
+var _exp_btn: Button
+var _boost_note: Label
+
+
+func _init(biz_id := "") -> void:
+	id = biz_id
+	super(Game.biz[id]["name"] if Game.biz.has(id) else "Company", true)
+
+
+func build() -> void:
+	var b := Data.business(id)
+	_type = UI.label("", 15, UI.SUB)
+	body.add_child(_type)
+	_scene = Art.Scene.new(b["kind"], 22.0)
+	_scene.custom_minimum_size = Vector2(0, 190)
+	body.add_child(_scene)
+	var row := HBoxContainer.new()
+	body.add_child(row)
+	_income = CountLabel.new(Game.money)
+	_income.add_theme_font_size_override("font_size", 22)
+	_income.add_theme_font_override("font", UI.SEMI)
+	_income.add_theme_color_override("font_color", UI.TEXT)
+	row.add_child(_income)
+	var ph := UI.label("  per hour", 13, UI.SUB)
+	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(ph)
+	_boost_note = UI.label("", 13, UI.SUB)
+	body.add_child(_boost_note)
+
+	# Units.
+	var uc := card()
+	var up := padded(uc, 16, 10)
+	var uh := HBoxContainer.new()
+	up.add_child(uh)
+	_units_title = UI.label(String(b["units"]).capitalize(), 17, UI.TEXT, true)
+	_units_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	uh.add_child(_units_title)
+	_units_value = UI.label("", 17)
+	uh.add_child(_units_value)
+	_slots = GridContainer.new()
+	_slots.columns = 10
+	_slots.add_theme_constant_override("h_separation", 4)
+	_slots.add_theme_constant_override("v_separation", 4)
+	up.add_child(_slots)
+	for i in range(Data.MAX_STAGE * Data.UNITS_PER_STAGE):
+		var sq := ColorRect.new()
+		sq.custom_minimum_size = Vector2(22, 12)
+		sq.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_slots.add_child(sq)
+	_unit_note = UI.label("", 13, UI.SUB)
+	up.add_child(_unit_note)
+	var bh := HBoxContainer.new()
+	bh.add_theme_constant_override("separation", 8)
+	up.add_child(bh)
+	_buy = button("Buy", true, _on_buy)
+	_buy_max = button("Buy max", false, _on_buy_max)
+	_buy_max.size_flags_stretch_ratio = 0.6
+	bh.add_child(_buy)
+	bh.add_child(_buy_max)
+
+	# Expansion.
+	var ec := card()
+	var ep := padded(ec, 16, 10)
+	_exp_title = UI.label("", 17, UI.TEXT, true)
+	ep.add_child(_exp_title)
+	_exp_body = UI.label("", 15, UI.SUB)
+	_exp_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ep.add_child(_exp_body)
+	_exp_bar = ProgressBar.new()
+	_exp_bar.show_percentage = false
+	_exp_bar.custom_minimum_size = Vector2(0, 6)
+	_exp_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 3))
+	_exp_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 3))
+	ep.add_child(_exp_bar)
+	_exp_btn = button("Expand", true, _on_expand)
+	ep.add_child(_exp_btn)
+	var t := Timer.new()
+	t.wait_time = 0.5
+	t.autostart = true
+	t.timeout.connect(func():
+		if is_visible_in_tree():
+			refresh())
+	add_child(t)
+
+
+func refresh() -> void:
+	if _type == null or not Game.biz.has(id):
+		return
+	var b := Data.business(id)
+	var s: Dictionary = Game.biz[id]
+	var stage := int(s["stage"])
+	var units := int(s["units"])
+	var cap := Game.capacity(id)
+	_type.text = "%s · Stage %d of %d" % [b["name"], stage, Data.MAX_STAGE]
+	_scene.lit = 1 + stage / 4
+	_scene.queue_redraw()
+	_income.set_value(Game.biz_income(id))
+	var notes: Array = []
+	if Game.merger_mult(id) > 1.0:
+		notes.append("Merger bonus ×%.1f" % Game.merger_mult(id))
+	if Game.ibost_active():
+		notes.append("Double income on")
+	_boost_note.text = " · ".join(notes)
+	_boost_note.visible = not notes.is_empty()
+	_units_value.text = "%d / %d" % [units, cap]
+	for i in range(_slots.get_child_count()):
+		var sq: ColorRect = _slots.get_child(i)
+		sq.visible = i < cap
+		sq.color = UI.RED if i < units else UI.TRACK
+	var per_unit := float(b["unit_income"]) * pow(float(b["stage_mult"]), stage - 1) * Game.merger_mult(id) * Game.global_mult()
+	if units >= cap:
+		_unit_note.text = "Full. Expand to make room for more."
+		_buy.text = "Full"
+		Page.set_enabled(_buy, false)
+		Page.set_enabled(_buy_max, false, false)
+	else:
+		var p := Game.unit_price(id)
+		_unit_note.text = "Each %s earns %s an hour" % [b["unit"], Game.money(per_unit)]
+		_buy.text = "Buy %s · %s" % [b["unit"], Game.money_short(p)]
+		Page.set_enabled(_buy, Game.cash >= p)
+		Page.set_enabled(_buy_max, Game.cash >= p, false)
+	if stage >= Data.MAX_STAGE:
+		_exp_title.text = "Fully expanded"
+		_exp_body.text = "This company is as big as it gets. Fill every %s to finish it." % b["unit"]
+		_exp_bar.visible = false
+		_exp_btn.visible = false
+	elif Game.expanding(id):
+		var total := Game.expansion_seconds(id)
+		var left := Game.expansion_left(id)
+		_exp_title.text = "Expanding to stage %d" % (stage + 1)
+		_exp_body.text = Game.clock(left) + " left. It keeps going while the app is closed."
+		_exp_bar.visible = true
+		_exp_bar.max_value = total
+		_exp_bar.value = total - left
+		_exp_btn.visible = false
+	else:
+		var mins := Game.expansion_seconds(id) / 60.0
+		_exp_title.text = "Expand to stage %d" % (stage + 1)
+		_exp_body.text = "+%d %s spaces and ×%.1f income per %s. Takes %s." % [Data.UNITS_PER_STAGE, b["unit"], b["stage_mult"], b["unit"], Game.clock(mins * 60.0)]
+		_exp_bar.visible = false
+		_exp_btn.visible = true
+		_exp_btn.text = "Expand · " + Game.money_short(Game.expansion_cost(id))
+		Page.set_enabled(_exp_btn, Game.can_expand(id))
+
+
+func _on_buy() -> void:
+	if Game.buy_unit(id):
+		Kit.tick(10)
+		Game.flush_changes()
+
+
+func _on_buy_max() -> void:
+	var n := 0
+	while Game.buy_unit(id):
+		n += 1
+	if n > 0:
+		Kit.tick(20)
+		Kit.toast("Bought %d %s" % [n, Data.business(id)["units"] if n > 1 else Data.business(id)["unit"]], true)
+		Game.flush_changes()
+
+
+func _on_expand() -> void:
+	if Game.start_expansion(id):
+		Kit.tick(30)
+		Kit.toast("Expansion started", true)
+		Game.flush_changes()
