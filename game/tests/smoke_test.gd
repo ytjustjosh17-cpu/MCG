@@ -167,9 +167,27 @@ func _run() -> void:
 	game.advance(1.0)
 	_check(game.expanding(bid) or int(game.biz[bid]["stage"]) >= Data.MAX_STAGE, "manager starts the expansion")
 	_check(game.rivals_beaten() >= 1, "beat at least one rival with $1B")
+	# Quality of life: waiting time, streak, tab dots, remembered choices.
+	game.cash = 0.0
+	game.recalc()
+	var e: String = game.eta(game.income_per_hour * 0.5)
+	_check(e.begins_with("~") and e.ends_with("min"), "waiting time reads like ~30 min (%s)" % e)
+	_check(game.eta(-1.0) == "", "no waiting time when you can afford it")
+	var tday: int = game._today()
+	game.streak_day = tday - 1
+	game.streak = 2
+	game._check_streak()
+	_check(game.streak == 3 and not game.streak_unseen.is_empty(), "coming back the next day grows the streak")
+	game.streak_day = tday - 3
+	game._check_streak()
+	_check(game.streak == 1, "missing days resets the streak")
+	_check(game.tab_badges().size() == 4, "tab dots worked out")
+	game.ui["invest_tab"] = 2
+	var dd: Dictionary = game.to_dict()
+	_check(int(dd["ui"]["invest_tab"]) == 2 and dd.has("streak"), "screen choices and streak are saved")
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
-	_check(int(old["version"]) == 5 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
+	_check(int(old["version"]) == 6 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")

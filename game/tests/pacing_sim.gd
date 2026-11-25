@@ -194,6 +194,7 @@ func _run() -> void:
 			g.sim_time = start
 			if gap > 0.0:
 				g.apply_offline(gap)
+			g._check_streak()
 			_session(float(s[1]))
 			g.sim_time += float(s[1])
 			g.advance(float(s[1]))

@@ -27,9 +27,11 @@ func _init() -> void:
 
 func build() -> void:
 	_seg = Segmented.new(["Shares", "Property", "Crypto"])
-	_seg.changed.connect(func(_i):
+	_seg.changed.connect(func(i):
 		Kit.haptic("selection")
+		Game.ui["invest_tab"] = i
 		refresh_view())
+	_seg.select(int(Game.ui.get("invest_tab", 0)))
 	body.add_child(_seg)
 	var sc := card()
 	var sp := padded(sc, 16, 4)
@@ -69,11 +71,15 @@ func build() -> void:
 		b.pressed.connect(func():
 			Kit.haptic("selection")
 			_sector = ss
+			Game.ui["sector"] = ss
 			_paint_chips()
 			refresh())
 		Kit.press_fx(b)
 		flow.add_child(b)
 		_chips[sec] = b
+	_sector = String(Game.ui.get("sector", ""))
+	if not _chips.has(_sector):
+		_sector = ""
 	_paint_chips()
 	var shares_v := card(shares_box)
 	for i in range(Data.STOCKS.size()):

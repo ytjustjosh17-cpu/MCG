@@ -87,7 +87,8 @@ func refresh() -> void:
 	_move.visible = nc > 0.0
 	if nc > 0.0:
 		var can := Game.cash >= nc
-		_move.text = ("Move to %s · %s" % [Data.HOMES[Game.home + 1][0], Game.money_short(nc)]) if can else ("%s · %s to go" % [Data.HOMES[Game.home + 1][0], Game.money_short(nc - Game.cash)])
+		var wait := Game.eta(nc)
+		_move.text = ("Move to %s · %s" % [Data.HOMES[Game.home + 1][0], Game.money_short(nc)]) if can else ("%s · %s" % [Data.HOMES[Game.home + 1][0], wait if wait != "" else Game.money_short(nc - Game.cash) + " to go"])
 		Page.set_enabled(_move, can)
 	var done := 0
 	var bonus := 0.0

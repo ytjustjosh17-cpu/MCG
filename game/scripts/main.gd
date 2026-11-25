@@ -48,6 +48,7 @@ func _ready() -> void:
 	dt.wait_time = 1.0
 	dt.autostart = true
 	dt.timeout.connect(_show_deal)
+	dt.timeout.connect(_update_badges)
 	add_child(dt)
 	Game.market_news.connect(func(item: Dictionary):
 		# Only tell the player about news that touches what they own.
@@ -180,12 +181,17 @@ func show_page(i: int) -> void:
 		_clear_stack()
 		_pages[_current].visible = true
 	if i == _current:
-		# Re-tapping the current tab always leaves it fully shown.
+		# Re-tapping the current tab always leaves it fully shown,
+		# and scrolls it back to the top (like iOS).
 		var cur: Control = _pages[_current]
 		_kill_tab_tween(cur)
 		cur.visible = true
 		cur.modulate.a = 1.0
 		cur.position.x = 0.0
+		var sc = cur.get("scroll")
+		if sc is ScrollContainer and sc.scroll_vertical > 0:
+			var t: Tween = sc.create_tween()
+			t.tween_property(sc, "scroll_vertical", 0, Motion.d(0.35)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 		return
 	var old: Control = _pages[_current]
 	var new: Control = _pages[i]
@@ -278,10 +284,15 @@ func _show_deal() -> void:
 	## Also shows the welcome-back card after time away.
 	if Game.away_unseen and not Kit.has_open():
 		Game.away_unseen = false
-		var capped := Game.away_seconds > Data.OFFLINE_CAP_H * 3600.0
-		Kit.sheet("Welcome back", "Away %s · your companies earned" % Game.clock(Game.away_seconds), [
+		var lines: Array = ["Away %s" % Game.clock(Game.away_seconds)] + Game.away_notes
+		Kit.sheet("Welcome back", "\n".join(lines), [
 			{"text": "Collect " + Game.money_short(Game.away_earned), "style": "primary"},
-		], true, _away_note(capped))
+		])
+		return
+	if not Game.streak_unseen.is_empty() and not Kit.has_open() and not Kit._cele_open:
+		var st: Array = Game.streak_unseen
+		Game.streak_unseen = []
+		Kit.celebrate("Daily gift" if st[0] <= 1 else "Day %d in a row" % st[0], "Come back tomorrow for a bigger gift" if st[0] < 7 else "Top streak gift", "+" + Game.money_short(st[1]))
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
@@ -307,8 +318,8 @@ func _show_deal() -> void:
 			Game.decline_deal())
 
 
-func _away_note(capped: bool) -> Control:
-	var l := UI.label("Earnings stop after %d hours away, so check in twice a day." % int(Data.OFFLINE_CAP_H) if capped else "", 13, UI.SUB)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.visible = capped
-	return l
+func _update_badges() -> void:
+	var b: Array = Game.tab_badges()
+	for i in range(b.size()):
+		_nav.set_badge(i, b[i] and i != _current)
+	_nav.set_badge(4, Updater.has_update())

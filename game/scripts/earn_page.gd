@@ -117,7 +117,11 @@ func _refresh() -> void:
 	if _worth == null:
 		return
 	_worth.set_value(Game.net_worth())
-	_rate.text = ("+%s /h" % Game.money_short(Game.income_per_hour)) if Game.income_per_hour > 0.0 else ""
+	var parts: Array = []
+	if Game.income_per_hour > 0.0:
+		parts.append("+%s /h" % Game.money_short(Game.income_per_hour))
+	parts.append("Cash %s" % Game.money_short(Game.cash))
+	_rate.text = "  ·  ".join(parts)
 	_level_pill.text = "Lv %d" % Game.level
 	var prog := Game.level_progress()
 	for i in 5:
@@ -162,7 +166,8 @@ func _on_level_up() -> void:
 		Game.flush_changes()
 	elif Game.level < Data.MAX_LEVEL:
 		Motion.shake(_level_btn)
-		Kit.toast("Level up · need %s more" % Game.money_short(Game.level_cost() - Game.cash))
+		var wait := Game.eta(Game.level_cost())
+		Kit.toast("Level up · need %s more%s" % [Game.money_short(Game.level_cost() - Game.cash), (" · " + wait) if wait != "" else ""])
 
 
 func _on_boost() -> void:

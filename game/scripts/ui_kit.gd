@@ -412,7 +412,8 @@ func _next_celebration() -> void:
 	dim.color = Color(DIM, 0.0)
 	root.add_child(dim)
 	var w := minf(300.0, scr.x - 56.0)
-	var card := GlassPanel.new(26.0, ALERT_TINT, 10.0)
+	# A solid panel: the glass shader bends the sides of a card this shape.
+	var card := UI.panel(Color(UI.PANEL, 0.97), 26)
 	card.size = Vector2(w, 210)
 	card.position = Vector2((scr.x - w) * 0.5, scr.y * 0.36 - 105.0)
 	card.pivot_offset = card.size * 0.5

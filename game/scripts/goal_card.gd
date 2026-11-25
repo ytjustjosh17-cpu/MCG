@@ -44,7 +44,8 @@ func set_goal(g: Dictionary) -> void:
 	_icon.kind = g["icon"]
 	_icon.set_style(UI.RED if ready else UI.SUB)
 	_title.text = String(g["text"])
-	_sub.text = "Ready" if ready else Game.money_short(cost - Game.cash) + " to go"
+	var wait := Game.eta(cost)
+	_sub.text = "Ready" if ready else (wait if wait != "" else Game.money_short(cost - Game.cash) + " to go")
 	_sub.add_theme_color_override("font_color", UI.TEXT if ready else UI.SUB)
 	queue_redraw()
 

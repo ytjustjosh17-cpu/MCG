@@ -8,13 +8,14 @@ signal achievement(title: String, reward: float)
 signal goal_done(scope: String, text: String, reward: float)
 signal deal_ready(deal: Dictionary)
 signal rival_beaten(index: int)
+signal streak_gift(days: int, amount: float)
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 5
+const SAVE_VERSION := 6
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -70,6 +71,11 @@ var away_earned := 0.0
 var away_seconds := 0.0
 var away_unseen := false  # show the welcome-back card once
 var last_tap_at := 0.0
+var away_notes: Array = []
+var ui := {}          # remembered screen choices (tabs, chart range)
+var streak := 0       # days in a row the game was opened
+var streak_day := -1
+var streak_unseen: Array = []  # [days, gift] to show once
 
 # ---- runtime -------------------------------------------------------------
 var sim_time := -1.0   # set by the pacing simulator
@@ -956,6 +962,48 @@ func sell_item(col: String, i: int) -> float:
 	return got
 
 
+# ==== waiting time ===========================================================
+
+func eta(cost: float) -> String:
+	## Roughly how long until you can afford something from income alone.
+	## Empty if you can already afford it or have no income yet.
+	var need := cost - cash
+	if need <= 0.0 or income_per_hour <= 0.0:
+		return ""
+	var s := need / income_per_hour * 3600.0
+	if s < 60.0:
+		return "under a minute"
+	if s < 3600.0:
+		return "~%d min" % int(ceil(s / 60.0))
+	if s < 48.0 * 3600.0:
+		return "~%d h" % int(ceil(s / 3600.0))
+	return "~%d days" % int(ceil(s / 86400.0))
+
+
+# ==== tab dots ===============================================================
+
+func tab_badges() -> Array:
+	## Which tabs have something worth a look right now (shown as red dots).
+	var earn := level < Data.MAX_LEVEL and can_level_up()
+	var business := false
+	for id in biz.keys():
+		if int(biz[id]["units"]) >= capacity(id) and can_expand(id):
+			business = true
+	for b in Data.BUSINESSES:
+		if not biz.has(b["id"]) and cash >= float(b["cost"]):
+			business = true
+			break
+	for m in Data.MERGERS:
+		if not mergers.has(m["id"]) and merger_ready(m) and cash >= float(m["cost"]):
+			business = true
+	var invest := false
+	for sym in coins.keys():
+		if staked(sym) > 0.0 and stake_left(sym) <= 0.0:
+			invest = true
+	var items := next_home_cost() > 0.0 and cash >= next_home_cost()
+	return [earn, business, invest, items]
+
+
 # ==== next goal =============================================================
 
 func next_goal() -> Dictionary:
@@ -1228,7 +1276,21 @@ func _today() -> int:
 	return int(now() / 86400.0)
 
 
+func _check_streak() -> void:
+	## Coming back on consecutive days builds a streak with a small gift.
+	var today := _today()
+	if streak_day == today:
+		return
+	streak = streak + 1 if streak_day == today - 1 else 1
+	streak_day = today
+	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
+	_pay(gift)
+	streak_unseen = [streak, gift]
+	streak_gift.emit(streak, gift)
+
+
 func _ensure_daily() -> void:
+	_check_streak()
 	if int(daily.get("day", -1)) == _today():
 		return
 	var pool := [
@@ -1460,12 +1522,22 @@ func apply_offline(seconds: float) -> void:
 	var biz_base := business_per_hour()
 	ibost_until = keep_ib
 	var gained := base * capped / 3600.0 + biz_base * ib_part / 3600.0
+	var exp0 := int(counters.get("expansions", 0))
+	var pay0 := payouts.size()
 	advance(s, false)
 	recalc()
 	_earn(gained)
 	_accrue(capped)
 	away_earned = cash - before
 	away_seconds = s
+	away_notes = []
+	var done := int(counters.get("expansions", 0)) - exp0
+	if done > 0:
+		away_notes.append("%d expansion%s finished" % [done, "" if done == 1 else "s"])
+	if pay0 > payouts.size():
+		away_notes.append("Rush orders paid out")
+	if s > Data.OFFLINE_CAP_H * 3600.0:
+		away_notes.append("Earnings stop after %d h away" % int(Data.OFFLINE_CAP_H))
 	away_unseen = s >= 600.0 and away_earned > 0.0
 	_managers_work()
 	if s > 60.0:
@@ -1521,6 +1593,7 @@ func to_dict() -> Dictionary:
 		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
+		"ui": ui, "streak": streak, "streak_day": streak_day,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
 	}
 
@@ -1632,6 +1705,9 @@ func _migrate(d: Dictionary) -> Dictionary:
 		# v5 adds goals for the week, deals, managers and rivals. Rivals already
 		# passed count as beaten without a pop-up (set after loading).
 		v = 5
+	if v < 6:
+		# v6 adds the daily streak and remembered screen choices (defaults are fine).
+		v = 6
 	d["version"] = v
 	return d
 
@@ -1666,6 +1742,9 @@ func _reset_state() -> void:
 	daily = {}
 	weekly = {}
 	deal = {}
+	ui = {}
+	streak = 0
+	streak_day = -1
 	deal_wait = 1500.0
 	payouts = []
 	history = []
@@ -1718,6 +1797,9 @@ func load_game() -> void:
 	weekly = d.get("weekly", {})
 	deal_wait = float(d.get("deal_wait", 1500.0))
 	deal = d.get("deal", {})
+	ui = d.get("ui", {})
+	streak = int(d.get("streak", 0))
+	streak_day = int(d.get("streak_day", -1))
 	payouts = d.get("payouts", [])
 	history = d.get("history", [])
 	vibrate = bool(d.get("vibrate", true))

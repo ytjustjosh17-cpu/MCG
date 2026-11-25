@@ -24,7 +24,7 @@ func refresh() -> void:
 	if _day_box == null:
 		return
 	var left := 86400.0 - fmod(Game.now(), 86400.0)
-	_day_note.text = "New in " + Game.clock(left)
+	_day_note.text = ("Day %d in a row · " % Game.streak if Game.streak > 1 else "") + "New in " + Game.clock(left)
 	_week_note.text = "New in " + Game.clock(Game.week_left())
 	# Rebuild rows only when something changed, so the page doesn't flicker.
 	var sig := str(Game.daily_tasks()) + str(Game.weekly_tasks())
