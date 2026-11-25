@@ -11,6 +11,10 @@ var _stack: Array = []
 
 
 func _ready() -> void:
+	# Default font for everything, including overlays.
+	var th := Theme.new()
+	th.default_font = UI.REG
+	get_tree().root.theme = th
 	var bg := ColorRect.new()
 	bg.color = UI.BG
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

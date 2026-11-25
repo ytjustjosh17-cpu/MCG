@@ -42,6 +42,20 @@ jobs:
           sed -i "s|^config/version=.*|config/version=\"1.0.$BUILD_NUMBER\"|" project.godot
           grep -E "^config/version" project.godot
 
+      - name: Get fonts from Fontshare (not stored in this public repo)
+        working-directory: game
+        run: |
+          # Switzer and Tanker use the ITF Free Font License, which allows
+          # embedding in an app but not sharing the files in a public repo.
+          # If the download fails, the game falls back to Inter.
+          mkdir -p assets/fonts/ext /tmp/fonts
+          for f in switzer tanker; do
+            curl -fsSL --retry 3 -o /tmp/fonts/$f.zip "https://api.fontshare.com/v2/fonts/download/$f" || echo "Could not get $f"
+          done
+          unzip -j -o -q /tmp/fonts/switzer.zip '*/WEB/fonts/Switzer-Regular.ttf' '*/WEB/fonts/Switzer-Semibold.ttf' -d assets/fonts/ext || true
+          unzip -j -o -q /tmp/fonts/tanker.zip '*/WEB/fonts/Tanker-Regular.ttf' -d assets/fonts/ext || true
+          ls -la assets/fonts/ext
+
       - name: Import project
         working-directory: game
         run: godot --headless --import || true

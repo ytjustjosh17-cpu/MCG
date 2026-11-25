@@ -54,7 +54,7 @@ func _ready() -> void:
 		gap.custom_minimum_size = Vector2(0, 44)
 		body.add_child(gap)
 	if title != "":
-		_title_label = UI.label(title, 34, UI.TEXT, true)
+		_title_label = UI.display(title, 40)
 		_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.add_child(_title_label)
 	build()

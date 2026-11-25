@@ -32,7 +32,8 @@ It's only a game. There's no real money, no real shares and no real crypto. Ever
 ## Built with
 
 - [Godot Engine](https://godotengine.org) 4.4 (MIT)
-- [Inter](https://github.com/rsms/inter) font (SIL Open Font License 1.1), see `game/assets/fonts/LICENSE.txt`
+- [Switzer](https://www.fontshare.com/fonts/switzer) and [Tanker](https://www.fontshare.com/fonts/tanker) fonts from Fontshare (ITF Free Font License). They aren't stored here: the build downloads them from Fontshare.
+- [Inter](https://github.com/rsms/inter) font as a backup (SIL Open Font License 1.1), see `game/assets/fonts/LICENSE.txt`
 - [Phosphor](https://github.com/phosphor-icons/core) icons (MIT), see `game/assets/icons/LICENSE-phosphor.txt`
 
 ## Licence
