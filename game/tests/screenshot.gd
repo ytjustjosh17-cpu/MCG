@@ -103,6 +103,9 @@ func _run() -> void:
 	up._set_state(up.State.AVAILABLE)
 	main.show_page(4)
 	await _shot("13_profile")
+	main._pages[4].scroll.scroll_vertical = 900
+	await _shot("13b_profile_end")
+	main._pages[4].scroll.scroll_vertical = 0
 	main.push(AchievementsPage.new())
 	await _shot("14_achievements")
 	main.pop()
@@ -110,6 +113,7 @@ func _run() -> void:
 	g.daily_tasks()[0]["progress"] = 150
 	g.weekly_tasks()[1]["progress"] = float(g.weekly_tasks()[1]["goal"]) * 0.6
 	g.daily_tasks()[1]["done"] = true
+	g.streak = 3
 	main.push(GoalsPage.new())
 	await _shot("15_goals")
 	root.get_node("Kit").celebrate("Daily goal done", "Tap your tower 300 times", "+$12.4K")
@@ -155,8 +159,14 @@ func _run() -> void:
 	await _shot("22_combo")
 	main.show_page(4)
 	await create_timer(0.6).timeout
-	main._pages[4].scroll.scroll_vertical = 900
+	main.push(SettingsPage.new())
 	await _shot("23_settings")
+	main._stack[-1]._on_backup_menu()
+	await _shot("23b_backup")
+	root.get_node("Kit").close_top()
+	await create_timer(0.4).timeout
+	main.pop()
+	await create_timer(0.4).timeout
 	main.show_page(2)
 	g.ui["sort"] = "up"
 	main._pages[2]._seg.select(0, true)

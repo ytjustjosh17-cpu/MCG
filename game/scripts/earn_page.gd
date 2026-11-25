@@ -19,6 +19,8 @@ var _level_btn: IconButton
 var _boost_btn: IconButton
 var _goal: GoalCard
 var _hint: Label
+var _level_cap: Label
+var _boost_cap: Label
 
 
 func _ready() -> void:
@@ -65,7 +67,7 @@ func _ready() -> void:
 	_per_tap.position = Vector2(18, 16)
 	_card.add_child(_per_tap)
 	# First-time hint, gone after a few taps.
-	_hint = UI.label("Tap the tower to earn", 15, UI.TEXT, true)
+	_hint = UI.label("Tap the tower", 15, UI.TEXT, true)
 	_hint.position = Vector2(18, 42)
 	_card.add_child(_hint)
 	_level_btn = IconButton.new("level", 64.0)
@@ -78,6 +80,8 @@ func _ready() -> void:
 	_boost_btn.pressed.connect(_on_boost)
 	_boost_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	_card.add_child(_boost_btn)
+	_level_cap = _caption("Level up")
+	_boost_cap = _caption("Boost")
 
 	resized.connect(_layout)
 	Game.changed.connect(_refresh)
@@ -108,9 +112,20 @@ func _layout() -> void:
 	_card.size = Vector2(w - 32, maxf(260.0, h - NAV_SPACE - top))
 	_level_btn.size = _level_btn.custom_minimum_size
 	_boost_btn.size = _boost_btn.custom_minimum_size
-	_level_btn.position = Vector2(10, _card.size.y - 100)
-	_boost_btn.position = Vector2(96, _card.size.y - 100)
+	_level_btn.position = Vector2(10, _card.size.y - 118)
+	_boost_btn.position = Vector2(96, _card.size.y - 118)
+	_level_cap.position = Vector2(10, _card.size.y - 32)
+	_boost_cap.position = Vector2(96, _card.size.y - 32)
 	_refresh()
+
+
+func _caption(text: String) -> Label:
+	var l := UI.label(text, 13, UI.SUB)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.size = Vector2(80, 18)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.add_child(l)
+	return l
 
 
 func _refresh() -> void:
@@ -120,7 +135,7 @@ func _refresh() -> void:
 	var parts: Array = []
 	if Game.income_per_hour > 0.0:
 		parts.append("+%s /h" % Game.money_short(Game.income_per_hour))
-	parts.append("Cash %s" % Game.money_short(Game.cash))
+	parts.append("%s cash" % Game.money_short(Game.cash))
 	_rate.text = "  ·  ".join(parts)
 	_level_pill.text = "Lv %d" % Game.level
 	var prog := Game.level_progress()
@@ -162,19 +177,19 @@ func _on_level_up() -> void:
 		Kit.haptic("success")
 		Motion.pop(_pill, 1.12)
 		_card.celebrate()
-		Kit.toast("Level %d · %s /tap" % [Game.level, Game.money_short(Game.tap_value())], true)
+		Kit.toast("Lv %d · %s /tap" % [Game.level, Game.money_short(Game.tap_value())], true)
 		Game.flush_changes()
 	elif Game.level < Data.MAX_LEVEL:
 		Motion.shake(_level_btn)
 		var wait := Game.eta(Game.level_cost())
-		Kit.toast("Level up · need %s more%s" % [Game.money_short(Game.level_cost() - Game.cash), (" · " + wait) if wait != "" else ""])
+		Kit.toast("Lv up needs %s more%s" % [Game.money_short(Game.level_cost() - Game.cash), (" · " + wait) if wait != "" else ""])
 
 
 func _on_boost() -> void:
 	if Game.boost_ready() and Game.taps < 20:
 		# Don't waste the boost before the player knows to tap.
 		Motion.shake(_boost_btn)
-		Kit.toast("Tap the tower first, then use ×3")
+		Kit.toast("Tap the tower first")
 		return
 	if Game.start_boost():
 		Kit.haptic("medium")
