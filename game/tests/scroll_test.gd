@@ -124,11 +124,12 @@ func _run() -> void:
 	main.show_page(1)
 	await create_timer(0.6).timeout
 	var newb: Button = null
-	for n in main._pages[1].find_children("*", "Button", true, false):
-		if n.text == "New":
+	# No companies yet, so the tab shows one "Open a company" row.
+	for n in main._pages[1].find_children("*", "Row", true, false):
+		if n.title_l.text == "Open a company" and n.is_visible_in_tree():
 			newb = n
 	await _wobble_tap(newb.get_global_rect().get_center())
-	_ok(main._stack.size() == 1, "wobbly tap on New opens the page")
+	_ok(main._stack.size() == 1, "wobbly tap on Open a company opens the page")
 	var sb = main._stack[-1] if main._stack.size() > 0 else null
 	if sb:
 		var back: Button = sb.body.get_child(0)
