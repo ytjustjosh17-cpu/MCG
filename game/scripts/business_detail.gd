@@ -19,9 +19,8 @@ var _exp_btn: Button
 var _boost_note: Label
 var _hold: Timer
 var _held := 0
-var _mgr_title: Label
-var _mgr_body: Label
-var _mgr_btn: Button
+var _buy_row: HBoxContainer
+var _mgr: Row
 
 
 func _init(biz_id := "") -> void:
@@ -38,12 +37,13 @@ func build() -> void:
 	body.add_child(_scene)
 	var row := HBoxContainer.new()
 	body.add_child(row)
-	_income = CountLabel.new(Game.money)
+	row.add_theme_constant_override("separation", 6)
+	_income = CountLabel.new(Game.money_short)
 	_income.add_theme_font_size_override("font_size", 28)
 	_income.add_theme_font_override("font", UI.DISPLAY)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	row.add_child(_income)
-	var ph := UI.label(" /h", 15, UI.SUB)
+	var ph := UI.label("/h", 15, UI.SUB)
 	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(ph)
 	_boost_note = UI.label("", 13, UI.SUB)
@@ -74,7 +74,8 @@ func build() -> void:
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 8)
 	up.add_child(bh)
-	_buy = button("Buy", true, _on_buy)
+	_buy_row = bh
+	_buy = button("+1", true, _on_buy)
 	# Hold to keep buying, getting quicker the longer you hold.
 	_hold = Timer.new()
 	_hold.one_shot = true
@@ -108,14 +109,10 @@ func build() -> void:
 
 	# Manager: expands for you when full, for a cut of the income.
 	var mc := card()
-	var mp := padded(mc, 16, 6)
-	_mgr_title = UI.label("Manager", 17, UI.TEXT, true)
-	mp.add_child(_mgr_title)
-	_mgr_body = UI.label("", 15, UI.SUB)
-	_mgr_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mp.add_child(_mgr_body)
-	_mgr_btn = button("", false, _on_hire)
-	mp.add_child(_mgr_btn)
+	_mgr = Row.new("profile", "", false)
+	_mgr.custom_minimum_size = Vector2(0, 64)
+	_mgr.pressed.connect(_on_hire)
+	mc.add_child(_mgr)
 	var t := Timer.new()
 	t.wait_time = 0.5
 	t.autostart = true
@@ -133,18 +130,17 @@ func refresh() -> void:
 	var stage := int(s["stage"])
 	var units := int(s["units"])
 	var cap := Game.capacity(id)
-	_type.text = "%s · Stage %d of %d" % [b["name"], stage, Data.MAX_STAGE]
+	_type.text = "Stage %d / %d" % [stage, Data.MAX_STAGE]
 	_scene.lit = 1 + stage / 4
 	_scene.queue_redraw()
 	_income.set_value(Game.biz_income(id))
 	var notes: Array = []
 	if Game.merger_mult(id) > 1.0:
-		notes.append("Merger bonus ×%.1f" % Game.merger_mult(id))
+		notes.append("Merger ×%.1f" % Game.merger_mult(id))
 	if Game.ibost_active():
-		notes.append("Double income on")
+		notes.append("×2 on")
 	_boost_note.text = " · ".join(notes)
 	_boost_note.visible = not notes.is_empty()
-	_units_value.text = "%d / %d" % [units, cap]
 	for i in range(_slots.get_child_count()):
 		var sq: ColorRect = _slots.get_child(i)
 		sq.visible = i < cap
@@ -154,58 +150,77 @@ func refresh() -> void:
 		per_unit *= 1.0 - Data.MANAGER_CUT
 	var cut := int(Data.MANAGER_CUT * 100.0)
 	if Game.has_manager(id):
-		_mgr_title.text = "Manager hired"
-		_mgr_body.text = "Expands when full · keeps %d%%" % cut
-		_mgr_btn.visible = false
+		_mgr.set_texts("Manager hired", "Expands for you · takes %d%%" % cut, "")
+		if not _mgr.has_meta("hired"):
+			_mgr.set_meta("hired", true)
+			_mgr.set_lead(Icon.new("check", UI.TEXT, 22.0))
 	else:
-		_mgr_title.text = "Manager"
-		_mgr_body.text = "Starts the next expansion when full · keeps %d%%" % cut
-		_mgr_btn.visible = true
-		_mgr_btn.text = "Hire · " + Game.money_short(Game.manager_cost(id))
-		Page.set_enabled(_mgr_btn, Game.cash >= Game.manager_cost(id), true)
+		var mc := Game.manager_cost(id)
+		_mgr.set_texts("Manager", "Expands for you · takes %d%%" % cut, Game.money_short(mc))
+		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= mc else UI.SUB)
 	if units >= cap:
-		_unit_note.text = "Full"
-		_buy.text = "Full"
-		Page.set_enabled(_buy, false)
-		Page.set_enabled(_buy_max, false, false)
+		_units_value.text = "%d / %d · Full" % [units, cap]
+		_buy_row.visible = false
+		_unit_note.visible = false
 	else:
 		var p := Game.unit_price(id)
+		_units_value.text = "%d / %d" % [units, cap]
+		_buy_row.visible = true
+		_unit_note.visible = true
 		_unit_note.text = "+%s /h each" % Game.money_short(per_unit)
 		_buy.text = "+1 · " + Game.money_short(p)
 		Page.set_enabled(_buy, Game.cash >= p)
 		Page.set_enabled(_buy_max, Game.cash >= p, false)
 	if stage >= Data.MAX_STAGE:
 		_exp_title.text = "Fully expanded"
-		_exp_body.text = ""
+		_exp_body.visible = false
 		_exp_bar.visible = false
 		_exp_btn.visible = false
 	elif Game.expanding(id):
 		var total := Game.expansion_seconds(id)
 		var left := Game.expansion_left(id)
-		_exp_title.text = "Expanding to stage %d" % (stage + 1)
+		_exp_title.text = "Expanding to Stage %d" % (stage + 1)
+		_exp_body.visible = true
 		_exp_body.text = Game.clock(left)
 		_exp_bar.visible = true
 		_exp_bar.max_value = total
 		_exp_bar.value = total - left
 		_exp_btn.visible = false
 	else:
-		var mins := Game.expansion_seconds(id) / 60.0
-		_exp_title.text = "Expand to stage %d" % (stage + 1)
-		_exp_body.text = "+%d spaces · ×%.1f income · takes %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], Game.clock(mins * 60.0)]
+		_exp_title.text = "Expand to Stage %d" % (stage + 1)
+		_exp_body.visible = true
+		_exp_body.text = "+%d units · ×%.1f · %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], _span(Game.expansion_seconds(id))]
 		_exp_bar.visible = false
 		_exp_btn.visible = true
-		_exp_btn.text = "Expand · " + Game.money_short(Game.expansion_cost(id))
+		var cost := Game.expansion_cost(id)
+		_exp_btn.text = "Expand · " + Game.money_short(cost)
+		var wait := Game.eta(cost)
+		if wait != "" and not Game.can_expand(id):
+			_exp_btn.text += " · " + wait
 		Page.set_enabled(_exp_btn, Game.can_expand(id))
-		var wait := Game.eta(Game.expansion_cost(id))
-		if wait != "":
-			_exp_body.text += " · affordable in " + wait
+
+
+static func _span(sec: float) -> String:
+	## Short length of time: "4 h", "45 min", "2 h 30 min".
+	var m := int(round(sec / 60.0))
+	if m < 60:
+		return "%d min" % m
+	if m % 60 == 0:
+		return "%d h" % (m / 60)
+	return "%d h %d min" % [m / 60, m % 60]
 
 
 func _on_hire() -> void:
+	if Game.has_manager(id):
+		return
+	Kit.tick()
 	if Game.hire_manager(id):
 		Kit.haptic("success")
 		Kit.toast("Manager hired", true)
 		Game.flush_changes()
+	else:
+		Kit.toast("Need %s more" % Game.money_short(Game.manager_cost(id) - Game.cash))
+		Motion.shake(_mgr)
 
 
 func _on_hold() -> void:
@@ -235,7 +250,7 @@ func _on_buy_max() -> void:
 		n += 1
 	if n > 0:
 		Kit.tick(20)
-		Kit.toast("Bought %d %s" % [n, Data.business(id)["units"] if n > 1 else Data.business(id)["unit"]], true)
+		Kit.toast("Bought %d unit%s" % [n, "" if n == 1 else "s"], true)
 		Game.flush_changes()
 
 
