@@ -56,7 +56,7 @@ If you changed a screen, take screenshots and look at them (TESTING.md).
 | R7 | Every saved field is loaded back, and `SAVE_VERSION` has a migrate step | Saves survive updates |
 | R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`, extra keys) | Clean repo |
 | R9 | No `print()` in game code; use `GameLog.info()` | Logs go in the problem report |
-| R10 | Pushed pages have a back button (`super(title, true)`) | Never trap the player |
+| R10 | Pushed pages are marked `super(title, true)`; the back button sits in the bottom bar (`main.gd`) | Never trap the player |
 | R11 | The four test suites exist | CI runs them |
 
 Add a rule when a bug class shows up twice. Keep each rule cheap and certain.

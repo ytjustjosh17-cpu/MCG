@@ -19,6 +19,7 @@ func build() -> void:
 	_place = UI.label(p[1], 15, UI.SUB)
 	body.add_child(_place)
 	var sc := Art.Scene.new(p[3], 22.0)
+	sc.seed_id = String(p[0])
 	sc.custom_minimum_size = Vector2(0, 190)
 	body.add_child(sc)
 	_rent = UI.label("", 22, UI.TEXT, true)

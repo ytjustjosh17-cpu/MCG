@@ -33,6 +33,7 @@ func build() -> void:
 	_type = UI.label("", 15, UI.SUB)
 	body.add_child(_type)
 	_scene = Art.Scene.new(b["kind"], 22.0)
+	_scene.seed_id = id
 	_scene.custom_minimum_size = Vector2(0, 190)
 	body.add_child(_scene)
 	var row := HBoxContainer.new()
@@ -132,7 +133,6 @@ func refresh() -> void:
 	var cap := Game.capacity(id)
 	_type.text = "Stage %d / %d" % [stage, Data.MAX_STAGE]
 	_scene.lit = 1 + stage / 4
-	_scene.queue_redraw()
 	_income.set_value(Game.biz_income(id))
 	var notes: Array = []
 	if Game.merger_mult(id) > 1.0:

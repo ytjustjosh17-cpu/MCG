@@ -280,7 +280,6 @@ class BizCard extends Button:
 		_name.text = s["name"]
 		_income.text = Game.money_short(Game.biz_income(id)) + " /h"
 		_scene.lit = 1 + int(s["stage"]) / 4
-		_scene.queue_redraw()
 		var cap := Game.capacity(id)
 		var units := int(s["units"])
 		var frac := float(units) / float(maxi(1, cap))

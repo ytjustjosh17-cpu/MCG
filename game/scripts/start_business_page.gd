@@ -27,6 +27,7 @@ func build() -> void:
 		t.custom_minimum_size = Vector2(0, 132)
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var sc := Art.Scene.new(b["kind"], 12.0)
+		sc.seed_id = String(b["id"])
 		sc.position = Vector2(8, 8)
 		t.add_child(sc)
 		var n := UI.label(b["name"], 17)

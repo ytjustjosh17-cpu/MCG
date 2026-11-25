@@ -52,7 +52,7 @@ Rules:
 - Buttons and controls are at least 44 px tall (primary and secondary 48, segmented 44, chips 40 with padding).
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
 - Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
-- Every pressable thing is at least 44 x 44 px. The touch test measures them on every tab.
+- Every pressable thing is at least 44 x 44 px. The touch test measures what is on screen on each tab and the main detail pages.
 
 ## Components (use these, don't rebuild them)
 
