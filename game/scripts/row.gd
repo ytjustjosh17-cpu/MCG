@@ -9,6 +9,7 @@ var value_l: Label
 var note_l: Label
 var mark: ColorRect
 var lead: Control
+var _h: HBoxContainer
 
 
 func _init(icon := "", art := "", chevron := true) -> void:
@@ -29,6 +30,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	h.add_theme_constant_override("separation", 12)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(h)
+	_h = h
 	if icon != "":
 		lead = Icon.new(icon, UI.TEXT, 22.0)
 		lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -92,4 +94,15 @@ func set_change(pct: float) -> void:
 	var up := pct >= 0.0
 	note_l.text = ("▲ +" if up else "▼ −") + "%.2f%%" % absf(pct)
 	note_l.visible = true
-	note_l.add_theme_color_override("font_color", UI.TEXT if up else UI.SUB)
+	note_l.add_theme_color_override("font_color", UI.change_color(pct))
+
+
+func set_lead(c: Control) -> void:
+	## Puts a custom badge (e.g. an AssetTile) at the start of the row.
+	if lead:
+		lead.queue_free()
+	lead = c
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_h.add_child(c)
+	_h.move_child(c, 0)

@@ -71,5 +71,40 @@ func _run() -> void:
 	_ev_button(c, false)
 	await create_timer(0.2).timeout
 	_ok(taps[0] == 1, "a tap still presses the row")
+	# On a share page, an up/down drag on the chart scrolls; a sideways drag reads prices.
+	var pg = load("res://scripts/asset_detail.gd").new("share", "NRV")
+	main.push(pg)
+	await create_timer(0.8).timeout
+	var ch: Control = pg._chart
+	var cs: Vector2 = ch.get_global_rect().get_center()
+	_ev_button(cs, true)
+	await process_frame
+	var q := cs
+	for i in 12:
+		q += Vector2(0, -20)
+		_ev_move(q, Vector2(0, -20))
+		await process_frame
+	_ev_button(q, false)
+	await create_timer(0.3).timeout
+	_ok(pg.scroll.scroll_vertical > 60, "dragging up on the chart scrolls (%d px)" % pg.scroll.scroll_vertical)
+	pg.scroll.scroll_vertical = 0
+	await create_timer(0.5).timeout
+	cs = ch.get_global_rect().get_center()
+	var seen := [false]
+	ch.scrub.connect(func(price: float, _i: int, _n: int):
+		if price > 0.0:
+			seen[0] = true)
+	_ev_button(cs, true)
+	await process_frame
+	q = cs
+	for i in 8:
+		q += Vector2(-15, 0)
+		_ev_move(q, Vector2(-15, 0))
+		await process_frame
+	_ok(seen[0] and pg._scrubbing, "sideways drag reads old prices")
+	_ok(pg.scroll.scroll_vertical == 0, "sideways drag does not scroll")
+	_ev_button(q, false)
+	await create_timer(0.2).timeout
+	_ok(not pg._scrubbing, "price returns after letting go")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)

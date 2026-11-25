@@ -1,44 +1,116 @@
 class_name PriceChart
 extends Control
 ## Pale line of a price history with one lit point at the end.
+## `range_name` is "1H", "1D" or "1W". Press and drag to read a price.
+
+signal scrub(price: float, index: int, count: int)
 
 var sym := ""
+var range_name := "1H"
+var interactive := false
+var line_col := UI.TEXT
+var _touch := -1.0
+var _start := Vector2(-1, -1)
+var _pts := PackedVector2Array()
+var _vals: Array = []
 
 
-func _init(s := "") -> void:
+func _init(s := "", r := "1H", touch := false) -> void:
 	sym = s
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	range_name = r
+	interactive = touch
+	mouse_filter = Control.MOUSE_FILTER_PASS if touch else Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
 
 
-func _draw() -> void:
-	var h: Array = Game.price_hist.get(sym, [])
+func set_range(r: String) -> void:
+	range_name = r
+	_touch = -1.0
+	_start = Vector2(-1, -1)
+	queue_redraw()
+
+
+func values() -> Array:
+	var h: Array = Game.series(sym, range_name).duplicate()
+	if range_name == "1H" and h.size() > 61:
+		h = h.slice(h.size() - 61)
+	if Game.price(sym) > 0.0:
+		h.append(Game.price(sym))
+	return h
+
+
+func _gui_input(e: InputEvent) -> void:
+	## Press and drag sideways to read old prices. A mostly-up/down drag is
+	## left to the page so it still scrolls (10 px before deciding).
+	if not interactive:
+		return
+	if e is InputEventScreenTouch or e is InputEventMouseButton:
+		if e is InputEventMouseButton and e.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if e.pressed:
+			_start = e.position
+			_touch = -1.0
+		else:
+			_start = Vector2(-1, -1)
+			if _touch >= 0.0:
+				_touch = -1.0
+				scrub.emit(-1.0, -1, 0)
+				queue_redraw()
+	elif (e is InputEventScreenDrag or e is InputEventMouseMotion) and _start.x >= 0.0:
+		if _touch < 0.0:
+			var d: Vector2 = e.position - _start
+			if d.length() < 10.0:
+				return
+			if absf(d.x) < absf(d.y):
+				_start = Vector2(-1, -1)  # vertical: let the page scroll
+				return
+			Kit.haptic("selection")
+		_touch = clampf(e.position.x, 0.0, size.x)
+		accept_event()
+		_emit_scrub()
+		queue_redraw()
+
+
+func _emit_scrub() -> void:
+	var h := values()
 	if h.size() < 2 or size.x < 20.0:
+		return
+	var i := clampi(int(round(_touch / (size.x - 12.0) * float(h.size() - 1))), 0, h.size() - 1)
+	scrub.emit(float(h[i]), i, h.size())
+
+
+func _draw() -> void:
+	_vals = values()
+	var h := _vals
+	if h.size() < 2 or size.x < 20.0 or size.y < 20.0:
 		return
 	var lo: float = h.min()
 	var hi: float = h.max()
 	if hi - lo <= hi * 1e-6:
 		hi = lo * 1.001 + 1e-9
-	var pts := PackedVector2Array()
+	_pts = PackedVector2Array()
 	var w := size.x - 12.0
 	for i in range(h.size()):
 		var y := size.y - 8.0 - (float(h[i]) - lo) / (hi - lo) * (size.y - 16.0)
-		pts.append(Vector2(w * i / float(h.size() - 1), y))
+		_pts.append(Vector2(w * i / float(h.size() - 1), y))
+	var pts := _pts
 	draw_dashed_line(Vector2(0, pts[0].y), Vector2(size.x, pts[0].y), UI.TRACK, 1.0, 4.0)
 	var area := PackedVector2Array(pts)
 	area.append(Vector2(pts[pts.size() - 1].x, size.y))
 	area.append(Vector2(0, size.y))
 	var cols := PackedColorArray()
 	for p in area:
-		cols.append(Color(UI.TEXT, 0.12 * (1.0 - clampf(p.y / size.y, 0.0, 1.0))))
+		cols.append(Color(line_col, 0.18 * (1.0 - clampf(p.y / size.y, 0.0, 1.0))))
 	draw_polygon(area, cols)
-	draw_polyline(pts, UI.TEXT, 2.0, true)
-	draw_rect(Rect2(pts[pts.size() - 1] - Vector2(5, 5), Vector2(10, 10)), UI.RED, true)
+	draw_polyline(pts, line_col, 2.0, true)
+	if _touch >= 0.0:
+		var i := clampi(int(round(_touch / w * float(h.size() - 1))), 0, h.size() - 1)
+		var p := pts[i]
+		draw_line(Vector2(p.x, 0), Vector2(p.x, size.y), UI.SUB, 1.0)
+		draw_circle(p, 5.0, line_col)
+	else:
+		draw_rect(Rect2(pts[pts.size() - 1] - Vector2(5, 5), Vector2(10, 10)), UI.RED, true)
 
 
 static func change_pct(s: String, back := 60) -> float:
-	var h: Array = Game.price_hist.get(s, [])
-	if h.size() < 2:
-		return 0.0
-	var a: float = h[maxi(0, h.size() - 1 - back)]
-	return (float(h[h.size() - 1]) - a) / a * 100.0
+	return Game.change_pct(s, back)
