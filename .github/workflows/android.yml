@@ -110,8 +110,10 @@ jobs:
         shell: bash
         run: |
           command -v unzip >/dev/null || (apt-get update -qq && apt-get install -y -qq unzip)
+          unzip -l build/Sol.apk > /tmp/apk-files.txt
+          grep -iE "switzer|tanker" /tmp/apk-files.txt || true
           for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
-            unzip -l build/Sol.apk | grep -qE "$n\.(ttf|bin)" || { echo "::error::$n is not in the APK"; exit 1; }
+            grep -qE "$n\.(ttf|bin)" /tmp/apk-files.txt || { echo "::error::$n is not in the APK"; exit 1; }
           done
           echo "Fonts are in the APK"
 
