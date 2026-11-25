@@ -272,7 +272,7 @@ func _run() -> void:
 	_check(game._stake_scale() <= 1.0, "staking cap is shared across coins")
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
-	_check(int(old["version"]) == 7 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
+	_check(int(old["version"]) == game.SAVE_VERSION and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")
@@ -502,6 +502,44 @@ func _run() -> void:
 	_check(absf(game.price("DRF") - p1) < p1 * 0.001, "restoring a backup doesn't re-roll prices")
 	game.sim_time = -1.0
 	game.reset_game()
+	# Bulk buy: the cost shown is exactly what is spent; Max never overspends.
+	game.cash = 1.0e6
+	game.open_business("shop", "Bulk Test")
+	var bn: int = game.bulk_count("shop", 10)
+	var bc: float = game.bulk_cost("shop", bn)
+	var bcash: float = game.cash
+	var bgot: int = game.buy_units("shop", bn)
+	_check(bn == 4 and bgot == bn and absf((bcash - game.cash) - bc) < 0.01, "x10 buys up to the room left and costs what it shows (%d, %.2f vs %.2f)" % [bgot, bcash - game.cash, bc])
+	game.reset_game()
+	game.cash = 1.0e4
+	game.open_business("shop", "Max Test")
+	game.cash = 3000.0
+	var mx: int = game.bulk_count("shop", 0)
+	var mc: float = game.bulk_cost("shop", mx)
+	_check(mx >= 2 and mc <= 3000.0 and game.bulk_cost("shop", mx + 1) > 3000.0, "Max buys as many as the cash covers (%d for %.2f)" % [mx, mc])
+	_check(game.buy_units("shop", mx + 1) == 0 or mx + 1 > game.capacity("shop"), "a bulk buy you can't afford buys nothing")
+	game.reset_game()
+	# Milestones, synergies and the achievement bonus.
+	game.cash = 1.0e9
+	game.open_business("food", "Mile Test")
+	_check(is_equal_approx(game.milestone_mult("food"), 1.0), "no milestone with one unit")
+	game.biz["food"]["stage"] = 2
+	game.biz["food"]["units"] = 10
+	game.recalc()
+	_check(is_equal_approx(game.milestone_mult("food"), 1.1), "10 units gives the first milestone")
+	_check(not game.synergy_ready("delivery") and not game.buy_synergy("delivery"), "a synergy needs its other company first")
+	game.open_business("taxi", "Syn Test")
+	game.biz["taxi"]["stage"] = 3
+	var inc1: float = game.biz_income("food")
+	var cs: float = game.cash
+	_check(game.buy_synergy("delivery") and absf(cs - game.cash - 6.0e4) < 0.01, "a ready synergy can be bought for its price")
+	_check(absf(game.biz_income("food") / inc1 - 1.3) < 0.001, "the synergy lifts its target by 30%")
+	_check(not game.buy_synergy("delivery"), "a synergy can only be bought once")
+	var ab: float = game.ach_bonus()
+	for k in 200:
+		game.achieved["fake_%d" % k] = true
+	_check(is_equal_approx(game.ach_bonus(), Data.ACH_BONUS_CAP) and ab < Data.ACH_BONUS_CAP, "achievement bonus is capped")
+	game.reset_game()
 	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
 	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")
 	var fd: Dictionary = JSON.parse_string(fx)
@@ -512,7 +550,7 @@ func _run() -> void:
 	game.load_game()
 	_check(game.biz.size() == 4 and game.props_owned() == 2 and game.staked("KRV") > 0.0 and game.level == 2 and game.taps >= 300, "old v7 save loads with companies, property, staking and level")
 	_check(game.cash >= 1234567.0 and game.shares.size() == 1, "old v7 save keeps cash and shares (%.2f)" % game.cash)
-	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION, "old save is upgraded to the current version")
+	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION and game.synergies.is_empty(), "old save is upgraded to the current version")
 	for ti in 5:
 		main.show_page(ti)
 		await process_frame

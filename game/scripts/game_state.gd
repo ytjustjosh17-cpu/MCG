@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 7
+const SAVE_VERSION := 8
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -58,6 +58,7 @@ var home := 0         # index into Data.HOMES
 var props := {}        # "index" -> {imps: [bool...]}
 var items := {}        # "col:index" -> true
 var mergers := {}      # id -> true
+var synergies := {}    # id -> true (v8)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
 var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]}
@@ -238,8 +239,70 @@ func merger_mult(id: String) -> float:
 	return m
 
 
-func global_mult() -> float:
+func milestone_mult(id: String) -> float:
+	## Owning 10, 25 and 50 units of a company each lift its income.
+	if not biz.has(id):
+		return 1.0
 	var m := 1.0
+	for ms in Data.MILESTONES:
+		if int(biz[id]["units"]) >= int(ms[0]):
+			m *= float(ms[1])
+	return m
+
+
+func next_milestone(id: String) -> Array:
+	## [units needed, multiplier] for the next milestone, or [] at the top.
+	if not biz.has(id):
+		return []
+	for ms in Data.MILESTONES:
+		if int(biz[id]["units"]) < int(ms[0]):
+			return ms
+	return []
+
+
+func synergy_mult(id: String) -> float:
+	var m := 1.0
+	for sy in Data.SYNERGIES:
+		if synergies.has(sy[0]) and sy[4] == id:
+			m *= float(sy[5])
+	return m
+
+
+func synergy_ready(sid: String) -> bool:
+	## Both companies owned and the source has reached the stage needed.
+	var sy := Data.synergy(sid)
+	if sy.is_empty() or synergies.has(sid):
+		return false
+	return biz.has(sy[2]) and biz.has(sy[4]) and int(biz[sy[2]]["stage"]) >= int(sy[3])
+
+
+func buy_synergy(sid: String) -> bool:
+	var sy := Data.synergy(sid)
+	if not synergy_ready(sid) or cash < float(sy[6]):
+		return false
+	cash -= float(sy[6])
+	synergies[sid] = true
+	GameLog.info("biz", "Synergy bought: %s" % sid)
+	recalc()
+	return true
+
+
+func synergies_for(id: String) -> Array:
+	## Synergies that boost this company (to list on its page).
+	var out: Array = []
+	for sy in Data.SYNERGIES:
+		if sy[4] == id:
+			out.append(sy)
+	return out
+
+
+func ach_bonus() -> float:
+	## Small permanent income bonus from achievements, capped.
+	return minf(Data.ACH_BONUS_CAP, Data.ACH_BONUS * float(achieved.size()))
+
+
+func global_mult() -> float:
+	var m := 1.0 + ach_bonus()
 	for c in Data.COLLECTIONS:
 		if collection_done(c["id"]):
 			m += float(c["bonus"])
@@ -255,7 +318,7 @@ func biz_income(id: String) -> float:
 	var b := Data.business(id)
 	var s: Dictionary = biz[id]
 	var v := float(s["units"]) * float(b["unit_income"]) * pow(float(b["stage_mult"]), int(s["stage"]) - 1)
-	v *= merger_mult(id) * global_mult()
+	v *= Data.INCOME_SCALE * merger_mult(id) * global_mult() * milestone_mult(id) * synergy_mult(id)
 	if ibost_active():
 		v *= 2.0
 	if s.get("manager", false) and int(s["stage"]) < Data.MAX_STAGE:
@@ -449,6 +512,46 @@ func open_business(id: String, name: String) -> bool:
 
 func unit_price(id: String) -> float:
 	return Data.unit_price(Data.business(id), int(biz[id]["units"]) - 1) if biz.has(id) else 0.0
+
+
+func bulk_count(id: String, want: int) -> int:
+	## How many units a ×want buy gets: no more than the room left, and for
+	## want <= 0 ("Max") as many as the cash covers.
+	if not biz.has(id):
+		return 0
+	var room := capacity(id) - int(biz[id]["units"])
+	if want > 0:
+		return clampi(want, 0, room)
+	var n := 0
+	var total := 0.0
+	while n < room:
+		var p := Data.unit_price(Data.business(id), int(biz[id]["units"]) - 1 + n)
+		if total + p > cash:
+			break
+		total += p
+		n += 1
+	return n
+
+
+func bulk_cost(id: String, n: int) -> float:
+	## Exact price of the next n units (each costs 13% more than the last).
+	if not biz.has(id) or n <= 0:
+		return 0.0
+	var total := 0.0
+	for k in n:
+		total += Data.unit_price(Data.business(id), int(biz[id]["units"]) - 1 + k)
+	return total
+
+
+func buy_units(id: String, n: int) -> int:
+	## Buys exactly n units if all are affordable (same cost as bulk_cost); else none.
+	if n <= 0 or bulk_count(id, n) < n or cash < bulk_cost(id, n):
+		return 0
+	var got := 0
+	for k in n:
+		if buy_unit(id):
+			got += 1
+	return got
 
 
 func buy_unit(id: String) -> bool:
@@ -1368,6 +1471,10 @@ func _build_achievements() -> Array:
 		a.append({"id": "merge_%d" % n, "title": "%d merger%s" % [n, "" if n == 1 else "s"], "m": "mergers", "goal": float(n)})
 	for n in [5, 10, 20, 25]:
 		a.append({"id": "level_%d" % n, "title": "Level %d" % n, "m": "level", "goal": float(n)})
+	for n in [1, 5, 10]:
+		a.append({"id": "syn_%d" % n, "title": "%d synerg%s" % [n, "y" if n == 1 else "ies"], "m": "synergies", "goal": float(n)})
+	for n in [1, 10, 17]:
+		a.append({"id": "mile_%d" % n, "title": "%d full compan%s" % [n, "y" if n == 1 else "ies"], "m": "full50", "goal": float(n)})
 	for n in [10, 100]:
 		a.append({"id": "boosts_%d" % n, "title": "%d boosts" % n, "m": "boosts", "goal": float(n)})
 	return a
@@ -1408,19 +1515,30 @@ func metric(m: String) -> float:
 			return float(n)
 		"level": return float(level)
 		"boosts": return float(boosts_used)
+		"synergies": return float(synergies.size())
+		"full50":
+			var n := 0
+			for id in biz.keys():
+				if int(biz[id]["units"]) >= Data.MAX_STAGE * Data.UNITS_PER_STAGE:
+					n += 1
+			return float(n)
 	return 0.0
 
 
 func _check_achievements() -> void:
+	var got := false
 	for a in _achievements:
 		if achieved.has(a["id"]):
 			continue
 		if metric(a["m"]) >= float(a["goal"]):
 			achieved[a["id"]] = true
+			got = true
 			GameLog.info("game", "Achievement: %s" % a["title"])
 			var reward := maxf(500.0, income_per_hour * 1.0)
 			_earn(reward)
 			achievement.emit(a["title"], reward)
+	if got:
+		recalc()  # each achievement adds a little to all income
 
 
 # ==== daily tasks =========================================================
@@ -1778,7 +1896,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -1904,6 +2022,11 @@ func _migrate(d: Dictionary) -> Dictionary:
 	if v < 7:
 		# v7 adds the golden sun and lasting coin news (defaults are fine).
 		v = 7
+	if v < 8:
+		# v8 (1.1) adds synergy upgrades; milestones and achievement bonuses
+		# are worked out from what you already own, so old saves get them at once.
+		d["synergies"] = d.get("synergies", {})
+		v = 8
 	d["version"] = v
 	return d
 
@@ -1935,6 +2058,7 @@ func _reset_state() -> void:
 	props = {}
 	items = {}
 	mergers = {}
+	synergies = {}
 	achieved = {}
 	counters = {}
 	daily = {}
@@ -1993,6 +2117,7 @@ func load_game() -> void:
 	items = d.get("items", {})
 	home = clampi(int(d.get("home", 0)), 0, Data.HOMES.size() - 1)
 	mergers = d.get("mergers", {})
+	synergies = d.get("synergies", {})
 	achieved = d.get("achieved", {})
 	counters = d.get("counters", {})
 	daily = d.get("daily", {})

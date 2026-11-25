@@ -12,12 +12,12 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.5 |
-| 50% complete | 15 to 21 | 20.3 to 20.8 |
-| 75% complete | 28 to 38 | 33.3 to 35.3 |
-| 90% complete | 33 to 46 | 42.3 to 43.5 |
-| All 6 mergers | 35 to 50 | 42.3 to 43.5 |
-| All 17 companies | 35 to 45 | 38.8 to 39.3 |
+| 25% complete | 7 to 10 | 9.3 |
+| 50% complete | 15 to 21 | 20.8 |
+| 75% complete | 28 to 38 | 32.9 to 33.9 |
+| 90% complete | 33 to 46 | 41.5 to 41.9 |
+| All 6 mergers | 35 to 50 | 41.5 to 41.9 |
+| All 17 companies | 35 to 45 | 37.5 to 37.9 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
 
@@ -44,6 +44,10 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Daily streak | 0.15 h of income × days in a row (max 7) on the first open each day | `_check_streak()` |
 | Deals | small, every 12 to 25 minutes of play | `roll_deal()`, `DEAL_EVERY_MIN` |
 | Collections, homes, mergers | permanent multipliers | `bonus`, `HOME_BONUS`, `mult` |
+| Unit milestones | 10, 25, 50 units of one company: ×1.1, ×1.15, ×1.25 | `MILESTONES` |
+| Synergies | one-off buys: a company at stage N lifts another by 20 to 30% | `SYNERGIES` |
+| Achievements | +0.25% income each, capped at +15% | `ACH_BONUS`, `ACH_BONUS_CAP` |
+| Overall dial | all company income × 0.84, set so the 1.1 bonuses keep the pace | `INCOME_SCALE` |
 
 ## Guard rails (keep these true)
 

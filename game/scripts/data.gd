@@ -149,6 +149,27 @@ const HOMES := [ # name, place, price, scene
 const HOME_BONUS := 0.01  # extra income per step up (kept small on purpose)
 
 # ---- managers ------------------------------------------------------------
+# ---- milestones and synergies (v1.1) ----------------------------------------
+# Owning this many units of one company multiplies its income (they stack).
+const MILESTONES := [[10, 1.1], [25, 1.15], [50, 1.25]]
+# One-off upgrades: when one company reaches a stage, it can boost another.
+# id, name, source company, source stage, target company, income multiplier, cost
+const SYNERGIES := [
+	["delivery", "Taxi deliveries", "taxi", 3, "food", 1.3, 6.0e4],
+	["own_fleet", "Own lorry fleet", "shipping", 3, "shop", 1.3, 1.5e5],
+	["parts", "Factory parts", "factory", 4, "dealer", 1.25, 6.0e5],
+	["site_gym", "Gyms on site", "construction", 4, "gym", 1.25, 2.0e6],
+	["hotel_tv", "Hotel TV", "tv", 3, "hotel", 1.25, 4.0e7],
+	["tech_desk", "Bank tech desk", "it", 5, "bank", 1.2, 6.0e7],
+	["sponsor", "Club sponsor", "bank", 4, "sports", 1.2, 6.0e8],
+	["ore", "Ore to factory", "mining", 3, "factory", 1.3, 5.0e9],
+	["fuel", "Jet fuel deal", "oil", 3, "airline", 1.2, 3.0e11],
+	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 3.0e12],
+]
+# One dial for all company income, set so 1.1's new bonuses keep the same pace.
+const INCOME_SCALE := 0.84
+const ACH_BONUS := 0.0025     # each achievement adds 0.25% to all income
+const ACH_BONUS_CAP := 0.15   # but never more than +15% in total
 const MANAGER_CUT := 0.10        # share of that company's income they keep
 const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 
@@ -242,6 +263,13 @@ static func expansion_cost(b: Dictionary, stage: int) -> float:
 
 static func unit_price(b: Dictionary, owned_units: int) -> float:
 	return float(b["unit_cost"]) * pow(UNIT_PRICE_GROWTH, owned_units)
+
+
+static func synergy(id: String) -> Array:
+	for sy in SYNERGIES:
+		if sy[0] == id:
+			return sy
+	return []
 
 
 static func business(id: String) -> Dictionary:

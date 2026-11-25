@@ -6,13 +6,14 @@ const FILTERS := [["all", "All"], ["taps", "Taps"], ["worth", "Net worth"], ["bi
 const GROUP := {
 	"taps": "taps", "boosts": "taps", "level": "taps",
 	"worth": "worth", "home": "worth",
-	"biz": "biz", "expansions": "biz", "managers": "biz", "mergers": "biz", "deals": "biz", "rivals": "biz",
+	"biz": "biz", "expansions": "biz", "managers": "biz", "synergies": "biz", "full50": "biz", "mergers": "biz", "deals": "biz", "rivals": "biz",
 	"props": "invest", "shares": "invest", "crypto_profit": "invest", "dividends": "invest", "stake_earned": "invest",
 }
 const MONEY := ["worth", "shares", "crypto_profit", "dividends", "stake_earned"]
 
 static var _filter := "all"
 var _pill: Button
+var _bonus: Label
 var _list: VBoxContainer
 var _sig := ""
 var _rows: Array = []
@@ -33,6 +34,8 @@ func build() -> void:
 			refresh()))
 	Kit.press_fx(_pill)
 	body.add_child(_pill)
+	_bonus = UI.label("", 15, UI.SUB)
+	body.add_child(_bonus)
 	_list = card()
 
 
@@ -47,6 +50,7 @@ func refresh() -> void:
 	if _list == null:
 		return
 	_pill.text = _label(_filter) + "  ▾"
+	_bonus.text = "+%.1f%% income from achievements (max %d%%)" % [Game.ach_bonus() * 100.0, int(Data.ACH_BONUS_CAP * 100.0)]
 	var locked: Array = []
 	var got: Array = []
 	for a in Game.achievements():
