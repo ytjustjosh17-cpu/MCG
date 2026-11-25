@@ -34,6 +34,16 @@ func _ev_move(pos: Vector2, rel: Vector2) -> void:
 	root.push_input(e, true)
 
 
+func _wobble_tap(p: Vector2) -> void:
+	_ev_button(p, true)
+	await process_frame
+	for d in [Vector2(2, 1), Vector2(4, 3), Vector2(3, 5)]:
+		_ev_move(p + d, Vector2(1, 1))
+		await process_frame
+	_ev_button(p + Vector2(3, 5), false)
+	await create_timer(0.7).timeout
+
+
 func _run() -> void:
 	var g = root.get_node("Game")
 	g.reset_game()
@@ -106,5 +116,22 @@ func _run() -> void:
 	_ev_button(q, false)
 	await create_timer(0.2).timeout
 	_ok(not pg._scrubbing, "price returns after letting go")
+	# A real finger wobbles a few pixels on a tap. That must still count as a tap
+	# (this was broken on the phone: buttons on pages did nothing).
+	main.pop()
+	await create_timer(0.6).timeout
+	main.show_page(1)
+	await create_timer(0.6).timeout
+	var newb: Button = null
+	for n in main._pages[1].find_children("*", "Button", true, false):
+		if n.text == "New":
+			newb = n
+	await _wobble_tap(newb.get_global_rect().get_center())
+	_ok(main._stack.size() == 1, "wobbly tap on New opens the page")
+	var sb = main._stack[-1] if main._stack.size() > 0 else null
+	if sb:
+		var back: Button = sb.body.get_child(0)
+		await _wobble_tap(back.get_global_rect().get_center())
+		_ok(main._stack.size() == 0, "wobbly tap on the back button goes back")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
