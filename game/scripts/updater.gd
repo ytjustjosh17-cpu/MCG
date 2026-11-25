@@ -46,6 +46,7 @@ func check(force := false) -> void:
 func _on_done(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_busy = false
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		GameLog.warn("update", "Update check failed (result %d, HTTP %d)" % [result, code])
 		check_finished.emit(false)
 		return
 	var data = JSON.parse_string(body.get_string_from_utf8())
@@ -54,6 +55,7 @@ func _on_done(result: int, code: int, _headers: PackedStringArray, body: PackedB
 		return
 	var tag: String = data["tag_name"]
 	var found := build_of(tag) > build_of(current_version())
+	GameLog.info("update", "Latest %s, this is v%s, update %s" % [tag, current_version(), "available" if found else "not needed"])
 	if found:
 		latest_version = tag.trim_prefix("v")
 		update_available.emit(latest_version)
@@ -61,4 +63,5 @@ func _on_done(result: int, code: int, _headers: PackedStringArray, body: PackedB
 
 
 func open_download() -> void:
+	GameLog.info("update", "Opening download link")
 	OS.shell_open(DOWNLOAD)
