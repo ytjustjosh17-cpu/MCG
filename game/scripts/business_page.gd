@@ -129,6 +129,10 @@ class BizCard extends Button:
 		_scene.position = Vector2(size.x - 150, 0)
 		_scene.size = Vector2(150, size.y)
 		_name.position = Vector2(16, 14)
+		# Long names end in "..." instead of running under the art.
+		_name.clip_text = true
+		_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_name.size = Vector2(maxf(40.0, size.x - 150 - 24), 24)
 		_type.position = Vector2(16, 36)
 		_income.position = Vector2(16, size.y - 58)
 		_mark.position = Vector2(16, size.y - 24)

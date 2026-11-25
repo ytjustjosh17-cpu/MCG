@@ -159,5 +159,21 @@ func _run() -> void:
 	var earn = main._pages[0]
 	await _wobble_tap(earn._goal.get_global_rect().get_center())
 	_ok(main._current != 0, "tapping the goal card opens its tab")
+	# Hold +1 on a company to keep buying outlets.
+	g.cash = 1.0e9
+	g.open_business("shop", "Hold Test")
+	main.show_page(1)
+	await create_timer(0.8).timeout
+	main.push(load("res://scripts/business_detail.gd").new("shop"))
+	await create_timer(0.9).timeout
+	var bd = main._stack.back()
+	var u0: int = int(g.biz["shop"]["units"])
+	var bp: Vector2 = bd._buy.get_global_rect().get_center()
+	_ev_button(bp, true)
+	await create_timer(1.5).timeout
+	_ev_button(bp, false)
+	await create_timer(0.3).timeout
+	var bought: int = int(g.biz["shop"]["units"]) - u0
+	_ok(bought >= 3 and bought <= 4, "holding +1 keeps buying (%d bought)" % bought)
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)

@@ -79,6 +79,16 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 
 `Kit.haptic()` with one of `selection`, `light`, `medium`, `success`, `error`. Use them for real moments only: a purchase, a level up, a "no" shake. Respect the Vibration setting (Kit does this).
 
+## Small helpers players expect
+
+- Red dots on tabs when something is ready there (`Game.tab_badges()`).
+- Tapping the current tab scrolls back to the top.
+- Locked buttons say how long until you can afford them (`Game.eta()`: "~12 min").
+- Hold +1 to keep buying; it speeds up the longer you hold.
+- The game remembers screen choices (`Game.ui`): Invest tab, sector filter, chart range.
+- Welcome back lists what happened while away. A daily streak gives a small gift.
+- Long names end in "..." rather than running into art.
+
 ## Words
 
 - British English, short, plain. One line beats two. Numbers beat adjectives.

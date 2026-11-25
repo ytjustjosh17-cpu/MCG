@@ -17,6 +17,8 @@ var _exp_body: Label
 var _exp_bar: ProgressBar
 var _exp_btn: Button
 var _boost_note: Label
+var _hold: Timer
+var _held := 0
 var _mgr_title: Label
 var _mgr_body: Label
 var _mgr_btn: Button
@@ -73,6 +75,15 @@ func build() -> void:
 	bh.add_theme_constant_override("separation", 8)
 	up.add_child(bh)
 	_buy = button("Buy", true, _on_buy)
+	# Hold to keep buying, getting quicker the longer you hold.
+	_hold = Timer.new()
+	_hold.one_shot = true
+	_hold.timeout.connect(_on_hold)
+	add_child(_hold)
+	_buy.button_down.connect(func():
+		_held = 0
+		_hold.start(0.45))
+	_buy.button_up.connect(func(): _hold.stop())
 	_buy_max = button("Max", false, _on_buy_max)
 	_buy_max.size_flags_stretch_ratio = 0.6
 	bh.add_child(_buy)
@@ -180,11 +191,14 @@ func refresh() -> void:
 	else:
 		var mins := Game.expansion_seconds(id) / 60.0
 		_exp_title.text = "Expand to stage %d" % (stage + 1)
-		_exp_body.text = "+%d spaces · ×%.1f income · %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], Game.clock(mins * 60.0)]
+		_exp_body.text = "+%d spaces · ×%.1f income · takes %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], Game.clock(mins * 60.0)]
 		_exp_bar.visible = false
 		_exp_btn.visible = true
 		_exp_btn.text = "Expand · " + Game.money_short(Game.expansion_cost(id))
 		Page.set_enabled(_exp_btn, Game.can_expand(id))
+		var wait := Game.eta(Game.expansion_cost(id))
+		if wait != "":
+			_exp_body.text += " · affordable in " + wait
 
 
 func _on_hire() -> void:
@@ -194,7 +208,21 @@ func _on_hire() -> void:
 		Game.flush_changes()
 
 
+func _on_hold() -> void:
+	if not _buy.is_pressed() or Kit.dragged:
+		return
+	if Game.buy_unit(id):
+		_held += 1
+		Kit.haptic("selection")
+		Motion.pop(_units_value, 1.08)
+		Game.flush_changes()
+		_hold.start(maxf(0.06, 0.18 - 0.012 * _held))
+
+
 func _on_buy() -> void:
+	if _held > 0:
+		_held = 0  # the hold already bought; releasing shouldn't buy one more
+		return
 	if Game.buy_unit(id):
 		Kit.haptic("light")
 		Motion.pop(_units_value, 1.15)

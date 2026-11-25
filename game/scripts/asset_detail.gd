@@ -70,10 +70,12 @@ func build() -> void:
 	_chart.scrub.connect(_on_scrub)
 	body.add_child(_chart)
 	_seg = Segmented.new(RANGES)
-	_seg.select(1)  # 1D, the same window the lists show
-	_chart.set_range("1D")
+	var r := clampi(int(Game.ui.get("range", 1)), 0, 2)  # default 1D, the lists' window
+	_seg.select(r)
+	_chart.set_range(RANGES[r])
 	_seg.changed.connect(func(i: int):
 		Kit.haptic("selection")
+		Game.ui["range"] = i
 		_chart.set_range(RANGES[i])
 		refresh())
 	body.add_child(_seg)

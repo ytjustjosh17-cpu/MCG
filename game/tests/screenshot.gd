@@ -131,5 +131,19 @@ func _run() -> void:
 	await create_timer(0.6).timeout
 	main._stack[-1].scroll.scroll_vertical = 520
 	await _shot("19_manager")
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	g.away_seconds = 11 * 3600.0
+	g.away_earned = 2.4e6
+	g.away_notes = ["2 expansions finished", "Earnings stop after 8 h away"]
+	g.away_unseen = true
+	main._show_deal()
+	await _shot("20_welcome")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	g.streak_unseen = [3, 52000.0]
+	main._show_deal()
+	await create_timer(0.5).timeout
+	await _shot("21_streak")
 	g.reset_game()
 	quit()

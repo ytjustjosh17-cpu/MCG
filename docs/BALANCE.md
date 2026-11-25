@@ -12,11 +12,11 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 7.9 to 8.5 |
-| 50% complete | 15 to 21 | 18.9 |
-| 75% complete | 28 to 38 | 33.8 to 34.5 |
-| 90% complete | 33 to 46 | 43.5 to 44.8 |
-| All 6 mergers | 35 to 50 | 46.3 to 46.9 |
+| 25% complete | 7 to 10 | 8.3 to 8.5 |
+| 50% complete | 15 to 21 | 17.8 to 18.3 |
+| 75% complete | 28 to 38 | 32.8 to 33.8 |
+| 90% complete | 33 to 46 | 43.5 to 44.3 |
+| All 6 mergers | 35 to 50 | 44.3 to 45.9 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
 
@@ -38,6 +38,7 @@ Other players, measured by the agent play-testers:
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
 | Goals | daily: 1.5 h of income each; weekly: 3 h each | `daily_reward()`, `weekly_reward()` |
 | Achievements | 1 h of income each | `_check_achievements()` |
+| Daily streak | 0.15 h of income × days in a row (max 7) on the first open each day | `_check_streak()` |
 | Deals | small, every 12 to 25 minutes of play | `roll_deal()`, `DEAL_EVERY_MIN` |
 | Collections, homes, mergers | permanent multipliers | `bonus`, `HOME_BONUS`, `mult` |
 
