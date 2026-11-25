@@ -382,3 +382,87 @@ func _present_toast(pill: Control, l: Label, red_mark: bool) -> void:
 	tw.tween_property(pill, "position:y", y - 40.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(pill, "modulate:a", 0.0, 0.3)
 	tw.chain().tween_callback(pill.queue_free)
+
+
+# ---- celebration ------------------------------------------------------------
+
+var _cele_queue: Array = []
+var _cele_open := false
+
+
+func celebrate(title: String, line: String, amount: String) -> void:
+	## Centred card with confetti, for finished goals. Queues if one is showing.
+	_cele_queue.append([title, line, amount])
+	if not _cele_open:
+		_next_celebration()
+
+
+func _next_celebration() -> void:
+	if _cele_queue.is_empty():
+		_cele_open = false
+		return
+	_cele_open = true
+	var item: Array = _cele_queue.pop_front()
+	var scr := screen()
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(root)
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(DIM, 0.0)
+	root.add_child(dim)
+	var w := minf(300.0, scr.x - 56.0)
+	var card := GlassPanel.new(26.0, ALERT_TINT, 10.0)
+	card.size = Vector2(w, 210)
+	card.position = Vector2((scr.x - w) * 0.5, scr.y * 0.36 - 105.0)
+	card.pivot_offset = card.size * 0.5
+	root.add_child(card)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.position = Vector2(20, 20)
+	col.size = Vector2(w - 40, 170)
+	card.add_child(col)
+	var ic := Icon.new("check", UI.RED, 44.0)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ic.set_style(UI.RED, true)
+	col.add_child(ic)
+	var t := UI.label(item[0], 15, UI.SUB)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(t)
+	var l := UI.label(item[1], 17, UI.TEXT, true)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = w - 40
+	col.add_child(l)
+	var a := UI.display(item[2], 34, UI.TEXT)
+	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(a)
+	haptic("success")
+	if not Game.reduce_motion:
+		root.add_child(Confetti.new(Vector2(scr.x * 0.5, card.position.y + 40.0)))
+	# The glass can't be scaled cleanly, so it rises and fades in instead.
+	var rest := card.position
+	card.position.y += 24.0
+	card.modulate.a = 0.0
+	var tw := root.create_tween().set_parallel(true)
+	tw.tween_property(dim, "color:a", DIM.a * 0.7, 0.2)
+	tw.tween_property(card, "modulate:a", 1.0, 0.2)
+	tw.tween_property(card, "position", rest, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	var closing := [false]
+	var close := func():
+		if closing[0] or not is_instance_valid(root):
+			return
+		closing[0] = true
+		var tc := root.create_tween().set_parallel(true)
+		tc.tween_property(card, "modulate:a", 0.0, 0.18)
+		tc.tween_property(card, "position:y", card.position.y - 12.0, 0.18)
+		tc.tween_property(dim, "color:a", 0.0, 0.22)
+		tc.chain().tween_callback(func():
+			root.queue_free()
+			_next_celebration())
+	# Tap anywhere to close, or it goes by itself.
+	dim.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed:
+			close.call())
+	get_tree().create_timer(2.6).timeout.connect(close)

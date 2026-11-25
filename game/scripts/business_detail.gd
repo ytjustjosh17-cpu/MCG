@@ -17,6 +17,9 @@ var _exp_body: Label
 var _exp_bar: ProgressBar
 var _exp_btn: Button
 var _boost_note: Label
+var _mgr_title: Label
+var _mgr_body: Label
+var _mgr_btn: Button
 
 
 func _init(biz_id := "") -> void:
@@ -91,6 +94,17 @@ func build() -> void:
 	ep.add_child(_exp_bar)
 	_exp_btn = button("Expand", true, _on_expand)
 	ep.add_child(_exp_btn)
+
+	# Manager: expands for you when full, for a cut of the income.
+	var mc := card()
+	var mp := padded(mc, 16, 6)
+	_mgr_title = UI.label("Manager", 17, UI.TEXT, true)
+	mp.add_child(_mgr_title)
+	_mgr_body = UI.label("", 15, UI.SUB)
+	_mgr_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mp.add_child(_mgr_body)
+	_mgr_btn = button("", false, _on_hire)
+	mp.add_child(_mgr_btn)
 	var t := Timer.new()
 	t.wait_time = 0.5
 	t.autostart = true
@@ -125,6 +139,19 @@ func refresh() -> void:
 		sq.visible = i < cap
 		sq.color = UI.RED if i < units else UI.TRACK
 	var per_unit := float(b["unit_income"]) * pow(float(b["stage_mult"]), stage - 1) * Game.merger_mult(id) * Game.global_mult()
+	if Game.has_manager(id):
+		per_unit *= 1.0 - Data.MANAGER_CUT
+	var cut := int(Data.MANAGER_CUT * 100.0)
+	if Game.has_manager(id):
+		_mgr_title.text = "Manager hired"
+		_mgr_body.text = "Expands when full · takes %d%%" % cut
+		_mgr_btn.visible = false
+	else:
+		_mgr_title.text = "Manager"
+		_mgr_body.text = "Expands for you when full, even while you're away. Takes %d%% of income." % cut
+		_mgr_btn.visible = true
+		_mgr_btn.text = "Hire · " + Game.money_short(Game.manager_cost(id))
+		Page.set_enabled(_mgr_btn, Game.cash >= Game.manager_cost(id), false)
 	if units >= cap:
 		_unit_note.text = "Full"
 		_buy.text = "Full"
@@ -158,6 +185,13 @@ func refresh() -> void:
 		_exp_btn.visible = true
 		_exp_btn.text = "Expand · " + Game.money_short(Game.expansion_cost(id))
 		Page.set_enabled(_exp_btn, Game.can_expand(id))
+
+
+func _on_hire() -> void:
+	if Game.hire_manager(id):
+		Kit.haptic("success")
+		Kit.toast("Manager hired", true)
+		Game.flush_changes()
 
 
 func _on_buy() -> void:

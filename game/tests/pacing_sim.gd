@@ -72,6 +72,11 @@ func _session(active_s: float) -> void:
 	# Tap for a while (3 taps a second), using the tap boost when ready.
 	if g.boost_ready():
 		g.start_boost()
+	# Deals turn up while playing; the robot takes every one.
+	if trader != "nodeals":
+		g.tick_deals(active_s)
+		if not g.deal.is_empty():
+			g.accept_deal()
 	var taps := int(active_s * 3.0)
 	for i in taps:
 		g.tap()
@@ -118,6 +123,11 @@ func _spend() -> void:
 					best = id
 		if best != "":
 			g.buy_unit(best); bought = true; continue
+		# Hire managers when cheap compared to cash.
+		if trader != "nodeals":
+			for id in g.biz.keys():
+				if not g.has_manager(id) and g.manager_cost(id) <= g.cash * 0.15:
+					g.hire_manager(id); bought = true
 		# Move home when it is a small part of cash.
 		if trader != "nohome" and g.next_home_cost() > 0.0 and g.next_home_cost() <= g.cash * 0.4:
 			g.move_home(); bought = true

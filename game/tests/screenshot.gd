@@ -102,5 +102,33 @@ func _run() -> void:
 	await _shot("13_profile")
 	main.push(AchievementsPage.new())
 	await _shot("14_achievements")
+	main.pop()
+	await create_timer(0.4).timeout
+	g.daily_tasks()[0]["progress"] = 150
+	g.weekly_tasks()[1]["progress"] = float(g.weekly_tasks()[1]["goal"]) * 0.6
+	g.daily_tasks()[1]["done"] = true
+	main.push(GoalsPage.new())
+	await _shot("15_goals")
+	root.get_node("Kit").celebrate("Daily goal done", "Tap your tower 300 times", "+$12.4K")
+	await create_timer(0.3).timeout
+	await _shot("16_confetti")
+	await create_timer(2.6).timeout
+	main.pop()
+	await create_timer(0.4).timeout
+	main.push(RivalsPage.new())
+	await _shot("17_rivals")
+	main.pop()
+	await create_timer(0.4).timeout
+	main.show_page(1)
+	g.deal = {"kind": "supplier", "id": "taxi", "value": 1.0, "title": "Supplier discount", "text": "Halden Taxis · next expansion 25% off", "yes": "Take it"}
+	main._show_deal()
+	await _shot("18_deal")
+	root.get_node("Kit").close_top()
+	g.deal = {}
+	main._deal_open = false
+	main.push(BusinessDetail.new("taxi"))
+	await create_timer(0.6).timeout
+	main._stack[-1].scroll.scroll_vertical = 520
+	await _shot("19_manager")
 	g.reset_game()
 	quit()
