@@ -153,10 +153,49 @@ func _run() -> void:
 	if sheet_btn:
 		await _wobble_tap(sheet_btn.get_global_rect().get_center())
 	_ok(g.home == 1, "wobbly tap on the sheet button moves home")
+	# Collection: a quick double tap on an item buys it once and does not offer to sell.
+	g.cash = 1.0e6
+	await create_timer(0.6).timeout
+	var cp = load("res://scripts/items_page.gd").CollectionPage.new("watches")
+	main.push(cp)
+	await create_timer(0.8).timeout
+	var ip: Vector2 = cp._rows[0].get_global_rect().get_center()
+	for k in 2:
+		_ev_button(ip, true)
+		await process_frame
+		_ev_button(ip, false)
+		await create_timer(0.1).timeout
+	await create_timer(0.3).timeout
+	var sell_btn := false
+	for n in kit.find_children("*", "Button", true, false):
+		if n.is_visible_in_tree() and String(n.text) == "Sell":
+			sell_btn = true
+	_ok(g.item_owned("watches", 0), "tapping an item buys it")
+	_ok(not sell_btn, "a quick second tap does not offer to sell")
+	main.pop()
+	await create_timer(0.6).timeout
 	# Earn: the goal card opens a tab.
 	main.show_page(0)
 	await create_timer(0.8).timeout
 	var earn = main._pages[0]
+	# Tapping the round Level-up button must not also tap the tower.
+	g.cash = 0.0
+	var lv_pressed := [0]
+	earn._level_btn.pressed.connect(func(): lv_pressed[0] += 1)
+	var taps0: int = g.taps
+	var lp: Vector2 = earn._level_btn.get_global_rect().get_center()
+	_ev_button(lp, true)
+	await process_frame
+	_ev_button(lp, false)
+	await create_timer(0.3).timeout
+	_ok(lv_pressed[0] == 1, "tapping Level up presses it")
+	_ok(g.taps == taps0, "tapping Level up is not a tower tap")
+	var tp: Vector2 = earn._card.get_global_rect().position + Vector2(earn._card.size.x * 0.6, earn._card.size.y * 0.4)
+	_ev_button(tp, true)
+	await process_frame
+	_ev_button(tp, false)
+	await create_timer(0.3).timeout
+	_ok(g.taps == taps0 + 1, "tapping the tower still earns")
 	await _wobble_tap(earn._goal.get_global_rect().get_center())
 	_ok(main._current != 0, "tapping the goal card opens its tab")
 	# Hold +1 on a company to keep buying outlets.

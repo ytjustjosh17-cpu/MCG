@@ -4,7 +4,7 @@ extends Control
 ## `filled` switches to the solid version, used for the active tab.
 
 const MAP := {
-	"earn": "hand-tap", "business": "briefcase", "invest": "chart-line-up", "items": "diamond",
+	"earn": "hand-tap", "business": "briefcase", "invest": "chart-line-up", "items": "crown",
 	"profile": "user-circle", "bolt": "lightning", "level": "arrow-fat-up", "chevron": "caret-right",
 	"back": "caret-left", "check": "check-circle", "lock": "lock-simple", "list": "list-checks",
 	"trophy": "trophy", "dots": "dots-three", "plus": "plus", "gear": "gear", "bug": "bug",

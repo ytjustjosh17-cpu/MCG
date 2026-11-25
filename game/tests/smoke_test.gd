@@ -443,7 +443,12 @@ func _run() -> void:
 	await create_timer(0.4).timeout
 	var prof = main._pages[4]
 	_check(prof._upd_card.visible and prof._upd_btn.text == "Update", "update card shows on Profile")
-	_check(main._nav._badges[4].visible, "Profile tab shows a red dot")
+	_check(main._nav._want[4] and not main._nav._badges[4].visible, "no red dot on the tab you're on")
+	main.show_page(0)
+	await create_timer(0.2).timeout
+	_check(main._nav._badges[4].visible, "Profile tab shows a red dot from another tab")
+	main.show_page(4)
+	await create_timer(0.2).timeout
 	up.progress = 0.42
 	up._set_state(up.State.DOWNLOADING)
 	_check(prof._upd_btn.text == "Downloading 42%", "download progress shows")
