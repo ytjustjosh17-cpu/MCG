@@ -205,6 +205,20 @@ func _run() -> void:
 	_check(game.props_owned() == 1, "save/load keeps property")
 	_check(game.staked("LMN") > 0.0 and game.stake_left("LMN") > 0.0, "save/load keeps staking")
 	_check(game.news.size() == 30 and game.hist_h["NRV"].size() >= 160, "save/load keeps news and charts")
+	# Backup code: round trip, small, and bad codes are refused safely.
+	var code: String = game.backup_code()
+	_check(code.begins_with("SOL1:") and code.length() < 60000, "backup code is small (%d chars)" % code.length())
+	var keep_cash: float = game.cash
+	var keep_props: int = game.props_owned()
+	var keep_staked: float = game.staked("LMN")
+	game.cash = 1.0
+	_check(not game.restore_code("hello"), "junk code refused")
+	_check(not game.restore_code(code.substr(0, code.length() - 40)), "cut-off code refused")
+	_check(not game.restore_code("SOL1:999999999:AAAA"), "fake size refused")
+	_check(game.cash == 1.0, "failed restore changes nothing")
+	_check(game.restore_code(code), "backup restores")
+	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("LMN") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("LMN"), keep_staked])
+	_check(game.hist_h["NRV"].size() >= 160, "charts rebuilt after restore")
 
 	# Offline earnings are capped at 8 hours.
 	var inc: float = game.income_per_hour
