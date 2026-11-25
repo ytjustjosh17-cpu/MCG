@@ -15,6 +15,7 @@ var _pill: Panel
 var _tasks: IconButton
 var _card: TowerCard
 var _per_tap: Label
+var _buff: Label
 var _level_btn: IconButton
 var _boost_btn: IconButton
 var _goal: GoalCard
@@ -68,6 +69,11 @@ func _ready() -> void:
 	_per_tap = UI.label("", 15, UI.TEXT, true)
 	_per_tap.position = Vector2(18, 16)
 	_card.add_child(_per_tap)
+	# Golden sun buffs (Frenzy or Rush) with time left.
+	_buff = UI.label("", 13, UI.TEXT, true)
+	_buff.position = Vector2(18, 40)
+	_buff.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.add_child(_buff)
 	# First-time hint, gone after a few taps.
 	_hint = UI.label("Tap the tower", 15, UI.TEXT, true)
 	_hint.position = Vector2(18, 42)
@@ -148,7 +154,7 @@ func _refresh() -> void:
 	if had != _goal.visible:
 		_layout.call_deferred()
 	_hint.visible = Game.taps < 10
-	_per_tap.text = Game.money_short(Game.tap_value() * (Game.BOOST_MULT if Game.boost_active() else 1.0)) + " /tap"
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
 	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, can, "MAX" if maxed else Game.money_short(Game.level_cost()))
@@ -156,9 +162,24 @@ func _refresh() -> void:
 	_tick()
 
 
+func _tap_mult() -> float:
+	var m := Game.BOOST_MULT if Game.boost_active() else 1.0
+	if Game.frenzy_active():
+		m = maxf(m, Data.FRENZY_MULT)
+	return m
+
+
 func _tick() -> void:
 	if _boost_btn == null:
 		return
+	var buffs: Array = []
+	if Game.frenzy_active():
+		buffs.append("FRENZY ×%d · %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())])
+	if Game.rush_active():
+		buffs.append("RUSH ×2 income · %s" % Game.clock(Game.rush_until - Game.now()))
+	_buff.text = "   ".join(buffs)
+	_buff.visible = not buffs.is_empty()
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	if Game.boost_active():
 		_boost_btn.set_state(UI.RED, Game.boost_left() / Game.BOOST_LEN_S, false, Game.clock(Game.boost_left()))
 	elif Game.boost_ready():

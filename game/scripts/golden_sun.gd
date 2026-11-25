@@ -65,7 +65,13 @@ func _catch() -> void:
 	_caught = true
 	var v := Game.catch_sun()
 	Kit.haptic("success")
-	Kit.toast("Golden sun · +" + Game.money_short(v), true)
+	match Game.last_sun:
+		"frenzy":
+			Kit.toast("Frenzy · taps ×%d for %d s" % [int(Data.FRENZY_MULT), int(Data.FRENZY_S)], true)
+		"rush":
+			Kit.toast("Rush · ×2 income for %d min" % int(Data.RUSH_S / 60.0), true)
+		_:
+			Kit.toast("Golden sun · +" + Game.money_short(v), true)
 	var parent := get_parent()
 	if parent and not Motion.reduced():
 		parent.add_child(Confetti.new(position + size * 0.5, 50))

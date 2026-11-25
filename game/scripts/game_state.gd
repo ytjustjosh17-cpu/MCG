@@ -86,6 +86,12 @@ var streak_lost := 0  # length of a streak that just ended (for the message)
 var sun_wait := 900.0   # seconds of play until the next golden sun
 var sun_day := -1
 var sun_count := 0
+# Short buffs from golden suns. Not saved: they end if the app closes.
+var frenzy_until := 0.0
+var rush_until := 0.0
+var last_sun := ""        # "cash", "frenzy" or "rush"
+var last_tap_crit := false
+var _tap_rng := RandomNumberGenerator.new()   # own stream, so markets stay on their seed
 
 # ---- runtime -------------------------------------------------------------
 var sim_time := -1.0   # set by the pacing simulator
@@ -106,6 +112,7 @@ var _achievements: Array = []
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_tap_rng.randomize()
 	_achievements = _build_achievements()
 	load_game()
 
@@ -118,6 +125,18 @@ func now() -> float:
 
 func tap_value() -> float:
 	return Data.tap_base(level) + income_per_hour * 0.0012
+
+
+func crit_chance() -> float:
+	return Data.CRIT_BASE + Data.CRIT_PER_LEVEL * float(level - 1)
+
+
+func frenzy_active() -> bool:
+	return now() < frenzy_until
+
+
+func rush_active() -> bool:
+	return now() < rush_until
 
 
 func next_tap_value() -> float:
@@ -208,7 +227,16 @@ func tap() -> float:
 	if _tap_tokens < 1.0 and sim_time < 0.0 and tap_cap:
 		return 0.0
 	_tap_tokens -= 1.0
-	var v := tap_value() * (BOOST_MULT if boost_active() else 1.0)
+	var mult := 1.0
+	if boost_active():
+		mult = BOOST_MULT
+	if frenzy_active():
+		mult = maxf(mult, Data.FRENZY_MULT)   # the bigger one wins; they don't stack
+	last_tap_crit = _tap_rng.randf() < crit_chance()
+	if last_tap_crit:
+		mult *= Data.CRIT_MULT
+		_bump("crits")
+	var v := tap_value() * mult
 	taps += 1
 	last_tap_at = now()
 	_task_progress("taps", 1)
@@ -447,8 +475,22 @@ func tick_sun(dt: float) -> void:
 
 
 func catch_sun() -> float:
-	## The player tapped the sun: a small, random prize in minutes of income.
-	var r := randf()
+	## The player tapped the sun: a cash prize (minutes of income), or a short
+	## buff: Frenzy (taps ×5 for 20 s) or Rush (+1× income for 10 min).
+	## Returns the cash paid (0 for a buff); last_sun says which it was.
+	_bump("suns")
+	var pick := _tap_rng.randf()
+	if pick >= Data.SUN_CASH_CHANCE:
+		if pick < Data.SUN_CASH_CHANCE + Data.SUN_FRENZY_CHANCE:
+			last_sun = "frenzy"
+			frenzy_until = now() + Data.FRENZY_S
+		else:
+			last_sun = "rush"
+			rush_until = now() + Data.RUSH_S
+		_mark()
+		return 0.0
+	last_sun = "cash"
+	var r := _tap_rng.randf()
 	var mins := 10.0
 	for p in Data.SUN_PRIZES:
 		if r < float(p[0]):
@@ -457,7 +499,6 @@ func catch_sun() -> float:
 		r -= float(p[0])
 	var v := maxf(100.0, income_per_hour * mins / 60.0)
 	_pay(v)
-	_bump("suns")
 	return v
 
 
@@ -1764,6 +1805,8 @@ func _process(delta: float) -> void:
 		flush_changes()
 	var was_boosting := ibost_active()
 	advance(delta)
+	if rush_active():
+		_earn(income_per_hour * delta / 3600.0)   # Rush: one more lot of income, only while open
 	tick_deals(delta)
 	tick_sun(delta)
 	if was_boosting != ibost_active():
@@ -2033,6 +2076,8 @@ func _migrate(d: Dictionary) -> Dictionary:
 
 func _reset_state() -> void:
 	sci = false
+	frenzy_until = 0.0
+	rush_until = 0.0
 	home = 0
 	cash = 0.0
 	total_earned = 0.0

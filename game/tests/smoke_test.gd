@@ -540,6 +540,39 @@ func _run() -> void:
 		game.achieved["fake_%d" % k] = true
 	_check(is_equal_approx(game.ach_bonus(), Data.ACH_BONUS_CAP) and ab < Data.ACH_BONUS_CAP, "achievement bonus is capped")
 	game.reset_game()
+	# Crits and golden sun buffs.
+	game.cash = 1.0e6
+	game.open_business("shop", "Crit Test")
+	game.tap_cap = false
+	var cr0: int = int(game.counters.get("crits", 0))
+	for k in 4000:
+		game.tap()
+	var crits: int = int(game.counters.get("crits", 0)) - cr0
+	_check(crits > 100 and crits < 260, "about 4%% of taps are critical (%d of 4000)" % crits)
+	game.frenzy_until = game.now() + 20.0
+	game.boost_until = game.now() + 60.0
+	var tv: float = game.tap_value()
+	var ftop := 0.0
+	for k in 300:
+		var got: float = game.tap()
+		if not game.last_tap_crit:
+			ftop = maxf(ftop, got)
+	_check(absf(ftop / tv - Data.FRENZY_MULT) < 0.01, "Frenzy and the x3 boost don't stack (x%.2f)" % (ftop / tv))
+	game.frenzy_until = 0.0
+	game.boost_until = 0.0
+	var kinds := {}
+	for k in 400:
+		game.catch_sun()
+		kinds[game.last_sun] = int(kinds.get(game.last_sun, 0)) + 1
+	_check(kinds.has("cash") and kinds.has("frenzy") and kinds.has("rush"), "suns give cash, Frenzy or Rush (%s)" % str(kinds))
+	game.rush_until = game.now() + 600.0
+	game.recalc()
+	var plain_h: float = game.income_per_hour
+	game.sim_time = game.now()
+	game.apply_offline(3600.0)
+	_check(game.away_earned <= plain_h * 1.02 + 10.0, "Rush never pays while away (%.2f h)" % (game.away_earned / maxf(1.0, plain_h)))
+	game.sim_time = -1.0
+	game.reset_game()
 	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
 	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")
 	var fd: Dictionary = JSON.parse_string(fx)

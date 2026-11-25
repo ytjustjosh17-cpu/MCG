@@ -83,6 +83,14 @@ func _session(active_s: float) -> void:
 		g.tick_sun(active_s)
 		if g.sun_count > before_c:
 			g.catch_sun()
+			# The robot's taps are instant, so turn buffs into what they'd pay
+			# over their real length (20 s of taps at 3 a second, 10 min of Rush).
+			if g.last_sun == "frenzy":
+				g.frenzy_until = 0.0
+				g._earn(g.tap_value() * (Data.FRENZY_MULT - 1.0) * Data.FRENZY_S * 3.0)
+			elif g.last_sun == "rush":
+				g.rush_until = 0.0
+				g._earn(g.income_per_hour * Data.RUSH_S / 3600.0)
 	var taps := int(active_s * 3.0)
 	for i in taps:
 		g.tap()
@@ -189,6 +197,7 @@ func _run() -> void:
 	if args.size() > 1:
 		trader = args[1]
 	seed(int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234)
+	g._tap_rng.seed = int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234
 	g.reset_game()
 	g.sim_time = 1.7e9
 	g.started_at = g.sim_time

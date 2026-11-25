@@ -232,7 +232,9 @@ func _do_tap(pos: Vector2) -> void:
 	queue_redraw()
 	if Game.vibrate:
 		Input.vibrate_handheld(18)
-	if _float_count < 12:
+	if Game.last_tap_crit and v > 0.0:
+		_spawn_crit(pos, v)
+	elif _float_count < 12:
 		_spawn_float(pos, v)
 
 
@@ -277,6 +279,30 @@ func _combo_fade() -> void:
 		var t := create_tween()
 		t.tween_property(_combo_l, "modulate:a", 0.0, Motion.d(0.4))
 		t.tween_callback(func(): _combo_l.visible = false)
+
+
+func _spawn_crit(pos: Vector2, v: float) -> void:
+	## Critical tap: a bigger red number, a burst and a crisp sound.
+	Kit.sound("crit")
+	if Game.vibrate:
+		Input.vibrate_handheld(28)
+	if Motion.reduced():
+		return
+	var l := UI.label("CRIT +" + Game.money_short(v), 26, UI.FLASH, true)
+	l.add_theme_font_override("font", UI.DISPLAY)
+	add_child(l)
+	l.position = pos + Vector2(-50, -52)
+	l.pivot_offset = Vector2(50, 16)
+	l.scale = Vector2(0.6, 0.6)
+	_float_count += 1
+	add_child(Confetti.new(pos, 18))
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(l, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # reduced-checked
+	tw.tween_property(l, "position:y", l.position.y - 90.0, 1.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)  # reduced-checked
+	tw.tween_property(l, "modulate:a", 0.0, 1.0).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(func():
+		_float_count -= 1
+		l.queue_free())
 
 
 func _spawn_float(pos: Vector2, v: float) -> void:
