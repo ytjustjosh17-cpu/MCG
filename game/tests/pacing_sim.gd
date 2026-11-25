@@ -67,7 +67,7 @@ func _hold_trade() -> void:
 
 
 func _session(active_s: float) -> void:
-	if trader != "":
+	if trader in ["news", "dip", "hold"]:
 		_trade()
 	# Tap for a while (3 taps a second), using the tap boost when ready.
 	if g.boost_ready():
@@ -118,6 +118,9 @@ func _spend() -> void:
 					best = id
 		if best != "":
 			g.buy_unit(best); bought = true; continue
+		# Move home when it is a small part of cash.
+		if trader != "nohome" and g.next_home_cost() > 0.0 and g.next_home_cost() <= g.cash * 0.4:
+			g.move_home(); bought = true
 		# Property: cheapest one not owned, if it is a small part of cash.
 		for i in range(Data.PROPERTIES.size()):
 			if not g.prop_owned(i) and g.prop_price(i) <= g.cash * 0.6:
@@ -164,7 +167,7 @@ func _run() -> void:
 		days = int(args[0])
 	if args.size() > 1:
 		trader = args[1]
-	seed(1234)
+	seed(int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234)
 	g.reset_game()
 	g.sim_time = 1.7e9
 	g.started_at = g.sim_time
@@ -189,7 +192,7 @@ func _run() -> void:
 		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%" % [
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
 			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0])
-	if trader != "":
+	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()
 

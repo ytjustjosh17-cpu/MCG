@@ -88,7 +88,7 @@ func build() -> void:
 
 	section("Money")
 	var bc := card()
-	var parts := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items"], ["cash", "Cash"]]
+	var parts := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items & home"], ["cash", "Cash"]]
 	for i in range(parts.size()):
 		if i > 0:
 			separator(bc)
@@ -186,7 +186,7 @@ func refresh() -> void:
 	_bar.value = c * 1000.0
 	var vals := {
 		"biz": Game.business_value(), "props": Game.props_value(), "shares": Game.book_value(Game.shares),
-		"coins": Game.book_value(Game.coins), "items": Game.items_value(), "cash": Game.cash,
+		"coins": Game.book_value(Game.coins), "items": Game.items_value() + Game.home_value(), "cash": Game.cash,
 	}
 	for k in vals.keys():
 		var r: Row = _rows[k]

@@ -127,9 +127,19 @@ func _run() -> void:
 	game.sell_asset("share", "QSF", 0.5)
 	_check(absf(game.avg_price(game.shares, "QSF") - avg0) < avg0 * 1e-6, "average price stays after part sale")
 	game.stake("LMN", 0.5)
+	# Homes and the next goal.
+	var h0: int = game.home
+	var m0: float = game.global_mult()
+	game.cash += game.next_home_cost()
+	_check(game.move_home() and game.home == h0 + 1, "move up a home")
+	_check(game.global_mult() > m0, "a new home raises income")
+	game.cash = 0.0
+	_check(not game.move_home(), "can't move without the money")
+	var goal: Dictionary = game.next_goal()
+	_check(not goal.is_empty() and float(goal["cost"]) > 0.0, "next goal: %s" % goal.get("text", "none"))
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
-	_check(int(old["version"]) == 3 and old["price_hist"].is_empty(), "v2 save upgrades")
+	_check(int(old["version"]) == 4 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")
