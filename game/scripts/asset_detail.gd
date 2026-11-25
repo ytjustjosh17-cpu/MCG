@@ -52,6 +52,7 @@ func build() -> void:
 	head.add_theme_constant_override("separation", 14)
 	body.add_child(head)
 	var tile := AssetTile.new(sym, 64.0)
+	tile.cut = UI.BG
 	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(tile)
 	var hv := VBoxContainer.new()
@@ -192,10 +193,10 @@ func refresh() -> void:
 	var paid: float = float(book[sym]["cost"]) if book.has(sym) else 0.0
 	_own.text = qty_text(total) + (" shares" if kind == "share" else " " + sym)
 	_worth.text = Game.money(worth)
-	_avg.text = price_text(Game.avg_price(book, sym)) if total > 0.0 else "—"
+	_avg.text = price_text(Game.avg_price(book, sym)) if total > 0.0 else "None"
 	var gain := worth - paid
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
-	_profit.text = "—" if total <= 0.0 else "%s%s (%.1f%%)" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct)]
+	_profit.text = "None" if total <= 0.0 else "%s%s (%.1f%%)" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct)]
 	_profit.add_theme_color_override("font_color", UI.TEXT if total <= 0.0 else UI.change_color(gain))
 	if kind == "share":
 		var a := _asset()
@@ -208,7 +209,7 @@ func refresh() -> void:
 		_extra.text = Game.money_short(locked * Game.stake_rate(sym) * Game.price(sym)) + " /h"
 		_staked.text = qty_text(locked) + " " + sym
 		var left := Game.stake_left(sym)
-		_stake_info.text = "—" if locked <= 0.0 else ("Ready" if left <= 0.0 else Game.clock(left))
+		_stake_info.text = "None" if locked <= 0.0 else ("Ready" if left <= 0.0 else Game.clock(left))
 		Page.set_enabled(_stake_btn, free > 0.0, false)
 		Page.set_enabled(_unstake_btn, locked > 0.0 and left <= 0.0, false)
 	Page.set_enabled(_sell, free > 0.0, false)
