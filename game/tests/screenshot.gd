@@ -113,7 +113,7 @@ func _run() -> void:
 	g.daily_tasks()[0]["progress"] = 150
 	g.weekly_tasks()[1]["progress"] = float(g.weekly_tasks()[1]["goal"]) * 0.6
 	g.daily_tasks()[1]["done"] = true
-	g.streak = 3
+	g.streak = 12
 	main.push(GoalsPage.new())
 	await _shot("15_goals")
 	root.get_node("Kit").celebrate("Daily goal done", "Tap your tower 300 times", "+$12.4K")

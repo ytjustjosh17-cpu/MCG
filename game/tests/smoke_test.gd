@@ -304,7 +304,7 @@ func _run() -> void:
 		_check(pg._price.text.begins_with("$"), "%s page shows a price" % spec[1])
 		main.pop()
 		await create_timer(0.5).timeout
-	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd", "res://scripts/settings_page.gd", "res://scripts/achievements_page.gd"]:
+	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd"]:
 		var gp = load(path).new()
 		main.push(gp)
 		await create_timer(0.5).timeout

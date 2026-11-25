@@ -16,12 +16,26 @@ func _init() -> void:
 
 
 func build() -> void:
-	_day_note = section("Today")
-	_day_title = _day_note.get_parent().get_child(0)
+	var d := _header()
+	_day_title = d[0]
+	_day_note = d[1]
 	_day_box = card()
-	_week_note = section("This week")
-	_week_title = _week_note.get_parent().get_child(0)
+	var w := _header()
+	_week_title = w[0]
+	_week_note = w[1]
 	_week_box = card()
+
+
+func _header() -> Array:
+	## Section title with a small line under it (reward once, then when it resets).
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	body.add_child(v)
+	var t := UI.label("", 17, UI.TEXT, true)
+	v.add_child(t)
+	var n := UI.label("", 13, UI.SUB)
+	v.add_child(n)
+	return [t, n]
 
 
 func refresh() -> void:
@@ -113,9 +127,10 @@ class GoalRow extends Button:
 			add_child(chev)
 		resized.connect(func():
 			var right := size.x - (38.0 if chev else 16.0)
-			cnt.size = Vector2(96, 20)
-			cnt.position = Vector2(right - 96, 14)
-			l.size = Vector2(maxf(0.0, right - 96 - 8 - 52), 22)
+			var cw := cnt.get_minimum_size().x + 2.0
+			cnt.size = Vector2(cw, 20)
+			cnt.position = Vector2(right - cw, 14)
+			l.size = Vector2(maxf(0.0, right - cw - 12 - 52), 22)
 			if chev:
 				chev.position = Vector2(size.x - 14 - 16, (size.y - 16.0) * 0.5)
 			queue_redraw())

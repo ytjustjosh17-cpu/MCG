@@ -11,6 +11,7 @@ var _awake_row: Row
 var _upd_row: Row
 var _report_row: Row
 var _checking := false
+var _storage := ""
 
 
 func _init() -> void:
@@ -54,6 +55,7 @@ func build() -> void:
 	var bk := _row(hc, "copy", true)
 	bk.set_texts("Backup")
 	bk.pressed.connect(_on_backup_menu)
+	_storage = GameLog.bytes(GameLog.storage_used())
 	Updater.state_changed.connect(_on_update_state)
 	Updater.check_finished.connect(_on_check_finished)
 
@@ -82,7 +84,7 @@ func refresh() -> void:
 	_pop_row.set_texts("Pop-ups", "", _popup_label(_popup_mode()))
 	_awake_row.set_texts("Keep screen on", "", "On" if bool(Game.ui.get("keep_awake", false)) else "Off")
 	_upd_row.set_texts("Updates", "", "Update ready" if Updater.has_update() else "Up to date")
-	_report_row.set_texts("Report a problem", "", GameLog.bytes(GameLog.storage_used()))
+	_report_row.set_texts("Report a problem", "", _storage)
 
 
 static func _popup_mode() -> String:
@@ -139,7 +141,8 @@ func _check_updates() -> void:
 func _on_report() -> void:
 	Kit.tick()
 	GameLog.copy_report()
-	Kit.sheet("Report copied", "Copied. Open Claude, paste it, say what went wrong.", [
+	_storage = GameLog.bytes(GameLog.storage_used())
+	Kit.sheet("Report a problem", "Copied. Open Claude, paste it, say what went wrong.", [
 		{"text": "Done", "style": "primary"},
 	])
 	refresh()
@@ -158,7 +161,7 @@ func _on_backup() -> void:
 	Game.save_game()
 	DisplayServer.clipboard_set(Game.backup_code())
 	Kit.haptic("success")
-	Kit.sheet("Code copied", "Copied. Paste it into Notes to keep it safe.", [
+	Kit.sheet("Backup", "Copied. Paste it into Notes to keep it safe.", [
 		{"text": "Done", "style": "primary"},
 	])
 
