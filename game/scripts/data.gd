@@ -134,10 +134,16 @@ const HOME_BONUS := 0.01  # extra income per step up (kept small on purpose)
 const MANAGER_CUT := 0.10        # share of that company's income they keep
 const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 
+# ---- golden sun (a small surprise while playing) -------------------------
+const SUN_EVERY_MIN := [15.0, 30.0]  # minutes of play between suns
+const SUN_PER_DAY := 4                # never more than this a day
+const SUN_STAY_S := 9.0               # how long it drifts before it's gone
+const SUN_PRIZES := [[0.5, 10.0], [0.3, 20.0], [0.15, 30.0], [0.05, 60.0]]  # chance, minutes of income
+
 # ---- deals ---------------------------------------------------------------
 const DEAL_EVERY_MIN := [12.0, 25.0]  # minutes of play (app open) between deals
 const SELL_SPREAD := 0.005  # shares and coins sell for 0.5% under the price
-const STAKE_CAP := 0.05     # staking pays at most 5% of your hourly income per coin
+const STAKE_CAP := 0.05     # all staking together pays at most 5% of hourly income
 
 # ---- rivals --------------------------------------------------------------
 # Made-up tycoons to overtake. Their fortunes are fixed targets.
@@ -152,6 +158,9 @@ const RIVALS := [ # name, what they run, net worth
 	["Lorcan Vey", "Oil", 5.0e11],
 	["Hester Marchbank", "Airlines", 5.0e12],
 	["The Ashgrove Family", "Everything", 5.0e13],
+	["Corvin Hale", "Space", 5.0e14],
+	["Odile Varga", "Shipping lanes", 5.0e15],
+	["The Lantern Trust", "Old money", 5.0e16],
 ]
 
 # ---- collections -------------------------------------------------------

@@ -77,6 +77,12 @@ func _session(active_s: float) -> void:
 		g.tick_deals(active_s)
 		if not g.deal.is_empty():
 			g.accept_deal()
+	# Golden suns turn up while playing; the robot catches every one.
+	if trader != "nodeals":
+		var before_c: int = g.sun_count
+		g.tick_sun(active_s)
+		if g.sun_count > before_c:
+			g.catch_sun()
 	var taps := int(active_s * 3.0)
 	for i in taps:
 		g.tap()

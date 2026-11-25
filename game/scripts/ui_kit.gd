@@ -207,8 +207,11 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 			if keep_open:
 				if cb.is_valid():
 					cb.call()
-			else:
-				close.call(cb))
+			elif not closing[0]:
+				# Do the action now (so leaving the page can't lose it), then slide away.
+				close.call()
+				if cb.is_valid():
+					cb.call())
 		col.add_child(b)
 	panel.size = Vector2(w, scr.y)
 	panel.position = Vector2(0, scr.y + 8.0)
@@ -223,9 +226,11 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 	var geo := {"rest": scr.y}
 	_present_sheet(root, panel, col, dim, geo)
 
+	var opened_ms := Time.get_ticks_msec()
 	if dismissable:
 		dim.gui_input.connect(func(e: InputEvent):
-			if e is InputEventMouseButton and e.pressed:
+			# A double tap on whatever opened the sheet mustn't close it at once.
+			if e is InputEventMouseButton and e.pressed and Time.get_ticks_msec() - opened_ms > 400:
 				close.call())
 		var drag := {"on": false, "y0": 0.0}
 		panel.gui_input.connect(func(e: InputEvent):

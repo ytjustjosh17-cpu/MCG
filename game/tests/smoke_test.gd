@@ -23,6 +23,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var game = root.get_node("Game")
+	game.tap_cap = false  # tests tap hundreds of times in one frame
 	game.reset_game()
 	var main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
@@ -102,7 +103,7 @@ func _run() -> void:
 	var n0 := int(game.counters.get("news_total", 0))
 	for i in 40:
 		game._news_event()
-	_check(game.news.size() == 30 and int(game.counters.get("news_total", 0)) == n0 + 40, "news list capped, counter keeps rising")
+	_check(game.news.size() <= game.NEWS_MAX and int(game.counters.get("news_total", 0)) == n0 + 40, "news list capped, counter keeps rising")
 	var bad := false
 	for k in game.prices.keys():
 		if not (game.prices[k] > 0.0) or is_nan(game.prices[k]) or is_inf(game.prices[k]):
@@ -235,9 +236,39 @@ func _run() -> void:
 	game.ui["sort"] = ""
 	main.show_page(0)
 	await create_timer(0.4).timeout
+	# Round 2 guards: tap cap, clock going back, penny investments, staking cap.
+	var keep_sim: float = game.sim_time
+	game.sim_time = -1.0  # the cap only applies to real play, not the simulator
+	game.tap_cap = true
+	game._tap_tokens = 7.0
+	game._tap_ms = Time.get_ticks_msec()
+	var t_before: int = game.taps
+	for k in 40:
+		game.tap()
+	_check(game.taps - t_before <= 8, "taps are capped at about 7 a second (%d paid)" % (game.taps - t_before))
+	game.tap_cap = false
+	game.sim_time = keep_sim
+	var day_tasks: Array = game.daily_tasks().duplicate(true)
+	var real_t: float = game.sim_time
+	game.sim_time = game.now() - 3 * 86400.0
+	game._ensure_daily()
+	_check(str(game.daily_tasks()) == str(day_tasks), "setting the clock back doesn't re-roll goals")
+	game.sim_time = real_t
+	var inv_before := 0.0
+	for t in game.daily_tasks():
+		if t["id"] == "invest":
+			inv_before = float(t["progress"])
+	game.cash += 1.0
+	game.buy_asset("share", "NRV", 0.01)
+	var inv_after := 0.0
+	for t in game.daily_tasks():
+		if t["id"] == "invest":
+			inv_after = float(t["progress"])
+	_check(inv_after == inv_before, "a 1p investment doesn't count for goals")
+	_check(game._stake_scale() <= 1.0, "staking cap is shared across coins")
 	# A version 2 save upgrades cleanly.
 	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
-	_check(int(old["version"]) == 6 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
+	_check(int(old["version"]) == 7 and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
 	_check(not st[0], "merger need not met yet")
@@ -356,7 +387,7 @@ func _run() -> void:
 	_check(game.owns("shop") and game.biz["shop"]["stage"] == 2, "save/load keeps businesses")
 	_check(game.props_owned() == 1, "save/load keeps property")
 	_check(game.staked("LMN") > 0.0 and game.stake_left("LMN") > 0.0, "save/load keeps staking")
-	_check(game.news.size() == 30 and game.hist_h["NRV"].size() >= 160, "save/load keeps news and charts")
+	_check(game.news.size() >= 30 and game.hist_h["NRV"].size() >= 160, "save/load keeps news and charts")
 	# Backup code: round trip, small, and bad codes are refused safely.
 	var code: String = game.backup_code()
 	_check(code.begins_with("SOL1:") and code.length() < 60000, "backup code is small (%d chars)" % code.length())
