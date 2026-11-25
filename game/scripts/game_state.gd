@@ -1720,11 +1720,15 @@ static func money_short(v: float) -> String:
 	var sign := "-" if v < 0.0 else ""
 	if a < 1000.0:
 		return sign + ("$%d" % int(round(a)) if a >= 100.0 else "$%.2f" % a)
+	# Three significant figures, no trailing zeros: $32K, $1.2M, $12.27M, $383K.
 	var units := BIG_UNITS
 	for u in units:
-		if a >= u[0]:
-			var x: float = a / u[0]
-			return sign + ("$%.1f%s" % [x, u[1]] if x >= 100.0 else "$%.2f%s" % [x, u[1]])
+		if a >= float(u[0]) * 0.9995:
+			var x: float = a / float(u[0])
+			var t := "%.0f" % x if x >= 100.0 else ("%.1f" % x if x >= 10.0 else "%.2f" % x)
+			if t.contains("."):
+				t = t.rstrip("0").rstrip(".")
+			return sign + "$" + t + String(u[1])
 	return sign + "$%.2f" % a
 
 

@@ -70,6 +70,8 @@ func build() -> void:
 	_chart.scrub.connect(_on_scrub)
 	body.add_child(_chart)
 	_seg = Segmented.new(RANGES)
+	_seg.select(1)  # 1D, the same window the lists show
+	_chart.set_range("1D")
 	_seg.changed.connect(func(i: int):
 		Kit.haptic("selection")
 		_chart.set_range(RANGES[i])
@@ -86,7 +88,7 @@ func build() -> void:
 	separator(c)
 	_profit = _line(c, "Profit")
 	separator(c)
-	_extra = _line(c, "Dividends" if kind == "share" else "Staking")
+	_extra = _line(c, "Pays you" if kind == "share" else "Staking earns")
 	_extra_name = _extra.get_parent().get_child(0)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 8)
@@ -97,6 +99,8 @@ func build() -> void:
 
 	if kind == "coin":
 		section("Staking", "%.2f%% a day" % (Game.stake_rate(sym) * 2400.0))
+		var hint := UI.label("Lock coins for 24 h and they earn more coins.", 13, UI.SUB)
+		body.add_child(hint)
 		var sc := card()
 		_stake_card = sc.get_parent()
 		_staked = _line(sc, "Locked")
@@ -112,7 +116,7 @@ func build() -> void:
 	else:
 		section("Stats")
 		var st := card()
-		_line(st, "Dividend").text = "%.1f%%" % (float(a[3]) * 1000.0)
+		_line(st, "Yearly payout").text = "%.1f%%" % (float(a[3]) * 1000.0)
 		separator(st)
 		_line(st, "Sector").text = a[4]
 		separator(st)
@@ -198,6 +202,9 @@ func refresh() -> void:
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
 	_profit.text = "None" if total <= 0.0 else "%s%s (%.1f%%)" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct)]
 	_profit.add_theme_color_override("font_color", UI.TEXT if total <= 0.0 else UI.change_color(gain))
+	if total > 0.0 and absf(pct) < 0.05:
+		_profit.text = "No change yet"
+		_profit.add_theme_color_override("font_color", UI.SUB)
 	if kind == "share":
 		var a := _asset()
 		_extra.text = Game.money_short(free * Game.price(sym) * float(a[3]) * Data.STOCK_DIV_SCALE * Game.global_mult()) + " /h"

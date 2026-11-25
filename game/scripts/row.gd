@@ -54,7 +54,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	title_l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	th.add_child(title_l)
 	mark = ColorRect.new()
-	mark.color = UI.RED
+	mark.color = UI.TEXT  # "owned"; red stays for the sun and lit windows
 	mark.custom_minimum_size = Vector2(8, 8)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE

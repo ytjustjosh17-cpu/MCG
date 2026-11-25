@@ -50,11 +50,11 @@ func build() -> void:
 
 func _effect(m: Dictionary) -> String:
 	if m["boost"].is_empty():
-		return "×2 all income"
+		return "Income ×2 on everything"
 	var names: Array = []
 	for bid in m["boost"]:
 		names.append(String(Data.business(bid)["name"]).to_lower())
-	return "×%.1f %s" % [m["mult"], ", ".join(names)]
+	return "Income ×%s on %s" % [str(snappedf(float(m["mult"]), 0.1)), ", ".join(names)]
 
 
 func refresh() -> void:

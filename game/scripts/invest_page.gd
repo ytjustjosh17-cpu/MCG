@@ -64,7 +64,7 @@ func build() -> void:
 	shares_box.add_child(flow)
 	for sec in [""] + Data.SECTORS:
 		var b := UI.pill("All" if sec == "" else sec, UI.PANEL, UI.SUB, 13, 16)
-		b.custom_minimum_size = Vector2(0, 34)
+		b.custom_minimum_size = Vector2(0, 40)
 		var ss: String = sec
 		b.pressed.connect(func():
 			Kit.haptic("selection")

@@ -181,7 +181,14 @@ func build() -> void:
 	b2.pressed.connect(_on_restore)
 	bk.add_child(b2)
 
-	body.add_child(button("Start again", false, _on_reset))
+	var reset := UI.flat_button()
+	reset.text = "Start again"
+	reset.custom_minimum_size = Vector2(0, 48)
+	for k in ["font_color", "font_hover_color", "font_pressed_color"]:
+		reset.add_theme_color_override(k, UI.DOWN)
+	reset.add_theme_font_size_override("font_size", 15)
+	reset.pressed.connect(_on_reset)
+	body.add_child(reset)
 
 
 func refresh() -> void:

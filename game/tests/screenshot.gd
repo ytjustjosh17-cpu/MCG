@@ -47,6 +47,7 @@ func _run() -> void:
 	g.buy_item("watches", 0)
 	g.buy_item("watches", 1)
 	g.home = 3
+	g.counters["rivals"] = float(Data.RIVALS.size())  # no pop-ups during the shots
 	g.cash = 2.4e5
 	g.recalc()
 	for i in 8:
