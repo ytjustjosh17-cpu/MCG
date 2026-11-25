@@ -1203,6 +1203,61 @@ func save_game() -> void:
 	_dirty = false
 
 
+# ==== backup code ===========================================================
+# The whole save as one short text code, so progress survives a reinstall.
+# Price charts and news are left out; they rebuild on restore.
+
+const BACKUP_PREFIX := "SOL1:"
+
+
+func backup_code() -> String:
+	var d := to_dict()
+	for k in ["price_hist", "hist_q", "hist_h", "news"]:
+		d.erase(k)
+	var raw := JSON.stringify(d).to_utf8_buffer()
+	var packed := raw.compress(FileAccess.COMPRESSION_GZIP)
+	return BACKUP_PREFIX + str(raw.size()) + ":" + Marshalls.raw_to_base64(packed)
+
+
+func restore_code(text: String) -> bool:
+	## Checks the code fully before touching the current save.
+	text = text.strip_edges().replace("\n", "").replace(" ", "")
+	if not text.begins_with(BACKUP_PREFIX):
+		return false
+	var parts := text.substr(BACKUP_PREFIX.length()).split(":", false, 1)
+	if parts.size() != 2 or not parts[0].is_valid_int():
+		return false
+	var n := int(parts[0])
+	if n <= 0 or n > 5000000:
+		return false
+	var packed := Marshalls.base64_to_raw(parts[1])
+	if packed.is_empty():
+		return false
+	var raw := packed.decompress(n, FileAccess.COMPRESSION_GZIP)
+	if raw.size() != n:
+		return false
+	var d = JSON.parse_string(raw.get_string_from_utf8())
+	if typeof(d) != TYPE_DICTIONARY or not d.has("version") or not d.has("cash"):
+		return false
+	if int(d["version"]) > SAVE_VERSION:
+		return false  # made by a newer version of the game
+	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(JSON.stringify(d))
+	f.close()
+	if FileAccess.file_exists(SAVE_PATH):
+		if FileAccess.file_exists(SAVE_BAK):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_BAK))
+		DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE_PATH), ProjectSettings.globalize_path(SAVE_BAK))
+	DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE_TMP), ProjectSettings.globalize_path(SAVE_PATH))
+	load_game()
+	recalc()
+	GameLog.info("save", "Restored from backup code (%s)" % GameLog.bytes(n))
+	changed.emit()
+	return true
+
+
 func _read_save(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return {}

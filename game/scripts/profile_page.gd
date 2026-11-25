@@ -161,6 +161,18 @@ func build() -> void:
 		Kit.toast("Saves and logs have fixed size limits"))
 	hc.add_child(_storage_row)
 
+	# Backup: the save as a code on the clipboard, to keep in Notes.
+	var bk := card()
+	var b1 := Row.new("copy")
+	b1.set_texts("Back up progress", "Copies a code to paste in Notes")
+	b1.pressed.connect(_on_backup)
+	bk.add_child(b1)
+	separator(bk, 50)
+	var b2 := Row.new("download")
+	b2.set_texts("Restore progress", "From a copied code")
+	b2.pressed.connect(_on_restore)
+	bk.add_child(b2)
+
 	body.add_child(button("Start again", false, _on_reset))
 
 
@@ -258,4 +270,36 @@ func _on_reset() -> void:
 		{"text": "Wipe and start again", "style": "secondary", "call": func():
 			Game.reset_game()
 			Kit.toast("Fresh start")},
+	])
+
+
+func _on_backup() -> void:
+	Kit.tick()
+	Game.save_game()
+	var code := Game.backup_code()
+	DisplayServer.clipboard_set(code)
+	Kit.haptic("success")
+	Kit.sheet("Backup copied", "Your progress is now a code on the clipboard (%s).\n\nPaste it into Notes or Keep so it's safe." % GameLog.bytes(code.length()), [
+		{"text": "Done", "style": "primary"},
+	])
+
+
+func _on_restore() -> void:
+	Kit.tick()
+	var code := DisplayServer.clipboard_get().strip_edges()
+	if not code.begins_with(Game.BACKUP_PREFIX):
+		Kit.haptic("error")
+		Kit.sheet("No backup code found", "Copy your backup code first (it starts with SOL1), then tap Restore again.", [
+			{"text": "OK", "style": "primary"},
+		])
+		return
+	Kit.alert("Restore this backup?", "Your current progress will be replaced by the backup.", [
+		{"text": "Cancel", "style": "secondary"},
+		{"text": "Restore", "style": "primary", "call": func():
+			if Game.restore_code(code):
+				Kit.haptic("success")
+				Kit.toast("Progress restored", true)
+			else:
+				Kit.haptic("error")
+				Kit.toast("That code didn't work")},
 	])
