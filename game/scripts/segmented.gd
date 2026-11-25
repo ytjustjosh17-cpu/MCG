@@ -10,7 +10,7 @@ var index := 0
 
 func _init(labels: Array) -> void:
 	add_theme_stylebox_override("panel", UI.box(UI.PANEL, 10, 2, 2))
-	custom_minimum_size = Vector2(0, 44)
+	custom_minimum_size = Vector2(0, 48)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 2)
 	add_child(h)
@@ -19,7 +19,8 @@ func _init(labels: Array) -> void:
 		b.text = labels[i]
 		b.focus_mode = Control.FOCUS_NONE
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 13)
+		b.add_theme_font_size_override("font_size", 14)
+		b.custom_minimum_size = Vector2(0, 44)
 		b.pressed.connect(func(): select(i, true))
 		h.add_child(b)
 		_buttons.append(b)

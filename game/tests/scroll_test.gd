@@ -2,6 +2,7 @@ extends SceneTree
 ## Checks that dragging on a list row scrolls and does not tap it, and that a tap still works.
 
 var fails := 0
+var checked_n := 0
 
 
 func _ok(c: bool, what: String) -> void:
@@ -11,7 +12,9 @@ func _ok(c: bool, what: String) -> void:
 
 
 func _initialize() -> void:
-	create_timer(30.0).timeout.connect(func(): quit(1))
+	create_timer(60.0).timeout.connect(func():
+		print("FAIL  test timed out")
+		quit(1))
 	_run.call_deferred()
 
 
@@ -132,9 +135,10 @@ func _run() -> void:
 	_ok(main._stack.size() == 1, "wobbly tap on Open a company opens the page")
 	var sb = main._stack[-1] if main._stack.size() > 0 else null
 	if sb:
-		var back: Button = sb.body.get_child(0)
+		var back: Button = main.back_btn
+		_ok(back.visible and back.get_global_rect().position.x > 300.0, "back button sits bottom right")
 		await _wobble_tap(back.get_global_rect().get_center())
-		_ok(main._stack.size() == 0, "wobbly tap on the back button goes back")
+		_ok(main._stack.size() == 0 and not back.visible, "wobbly tap on the back button goes back")
 	# Items tab: wobbly tap on Move, then on the sheet's Move button.
 	g.counters["rivals"] = float(Data.RIVALS.size())  # no "rival beaten" pop-ups mid-test
 	g.cash = 1.0e6
@@ -231,5 +235,48 @@ func _run() -> void:
 	if found:
 		await _wobble_tap(sun.get_global_rect().get_center())
 	_ok(found and g.cash > cash_s and g.taps == taps_s, "tapping a golden sun pays and isn't a tower tap")
+	# Tap targets: every visible button on every tab and main detail page is
+	# at least 44 px each way (mobile rule). Lists the offenders.
+	var small: Array = []
+	checked_n = 0
+	var screens: Array = []
+	for ti in 5:
+		main.show_page(ti)
+		await create_timer(0.6).timeout
+		_check_targets(main._pages[ti], small)
+	for path in ["res://scripts/business_detail.gd", "res://scripts/start_business_page.gd", "res://scripts/settings_page.gd", "res://scripts/goals_page.gd"]:
+		main.show_page(1)
+		await create_timer(0.3).timeout
+		var pg2 = load(path).new("shop") if path.ends_with("business_detail.gd") else load(path).new()
+		main.push(pg2)
+		await create_timer(0.8).timeout
+		_check_targets(main._stack.back() if not main._stack.is_empty() else null, small)
+		main.pop()
+		await create_timer(0.5).timeout
+	_check_targets(main.back_btn, small)
+	_ok(small.is_empty(), "every button is at least 44 px (%d checked) %s" % [checked_n, ", ".join(small.slice(0, 8))])
+	_ok(checked_n > 40, "the size check saw the buttons")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
+
+
+func _check_targets(root_c: Control, out: Array) -> void:
+	if root_c == null:
+		return
+	var list: Array = root_c.find_children("*", "BaseButton", true, false)
+	if root_c is BaseButton:
+		list.append(root_c)
+	var view := Rect2(Vector2.ZERO, Vector2(390, 844))
+	for b in list:
+		var bb := b as BaseButton
+		if not bb.is_visible_in_tree() or bb.disabled or bb.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+			continue
+		var r := bb.get_global_rect()
+		if not view.intersects(r):
+			continue
+		checked_n += 1
+		if r.size.x < 43.5 or r.size.y < 43.5:
+			var lbl := ""
+			for l in bb.find_children("*", "Label", true, false):
+				lbl += (l as Label).text + " "
+			out.append("%s/%s %dx%d [%s%s]" % [root_c.name, bb.name, int(r.size.x), int(r.size.y), bb.text, lbl.strip_edges()])

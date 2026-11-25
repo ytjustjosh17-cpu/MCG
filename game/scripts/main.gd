@@ -8,6 +8,7 @@ var _nav: NavBar
 var _current := 0
 var _back_armed := false
 var _stack: Array = []
+var back_btn: Button   # bottom right, under the thumb; shown while a page is open
 var _last_push_ms := -10000
 
 
@@ -95,6 +96,27 @@ func _ready() -> void:
 	add_child(fade)
 	add_child(_nav)
 	_nav.tab_selected.connect(show_page)
+	# Back sits next to the tab bar on the right, where the thumb rests.
+	back_btn = UI.flat_button()
+	back_btn.name = "BackButton"
+	var bglass := GlassPanel.new(32.0, Color(0.035, 0.133, 0.145, 0.85), 12.0)
+	bglass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bglass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back_btn.add_child(bglass)
+	var chev := Icon.new("back", UI.TEXT, 24.0)
+	chev.position = Vector2(20, 20)
+	chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back_btn.add_child(chev)
+	back_btn.anchor_left = 1.0
+	back_btn.anchor_right = 1.0
+	back_btn.anchor_top = 1.0
+	back_btn.anchor_bottom = 1.0
+	back_btn.visible = false
+	back_btn.pressed.connect(func():
+		if not _stack.is_empty():
+			_pop_from(_stack.back()))
+	Kit.press_fx(back_btn)
+	add_child(back_btn)
 
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
@@ -123,6 +145,7 @@ func push(p: Control) -> void:
 	var w := _content.size.x
 	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
 	_stack.append(p)
+	_sync_back()
 	p.position.x = w
 	if p.has_method("entered"):
 		p.entered.call_deferred()
@@ -148,6 +171,7 @@ func pop() -> void:
 		return
 	var p: Control = _stack.pop_back()
 	_stop_push(p)
+	_sync_back()
 	var under: Control = _stack.back() if not _stack.is_empty() else _pages[_current]
 	var w := _content.size.x
 	under.visible = true
@@ -181,6 +205,7 @@ func _clear_stack() -> void:
 		_stop_push(p)
 		p.queue_free()
 	_stack.clear()
+	_sync_back()
 	var base: Control = _pages[_current]
 	base.position.x = 0.0
 	base.modulate.a = 1.0
@@ -287,9 +312,22 @@ func _apply_safe_area() -> void:
 	_content.offset_top = top
 	_content.offset_bottom = -bottom
 	_nav.offset_left = 16
-	_nav.offset_right = -16
 	_nav.offset_bottom = -(12 + bottom)
 	_nav.offset_top = _nav.offset_bottom - 64
+	back_btn.offset_right = -16
+	back_btn.offset_left = -16 - 64
+	back_btn.offset_bottom = _nav.offset_bottom
+	back_btn.offset_top = _nav.offset_top
+	_sync_back()
+
+
+func _sync_back() -> void:
+	## With a page open, the tab bar makes room for the back button on its right.
+	var open := not _stack.is_empty()
+	if back_btn == null:
+		return
+	back_btn.visible = open
+	_nav.offset_right = -(16 + 64 + 8) if open else -16
 
 
 var _deal_open := false
