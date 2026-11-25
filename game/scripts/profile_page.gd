@@ -109,6 +109,13 @@ func build() -> void:
 		push_page.emit(RivalsPage.new()))
 	ac.add_child(_rival_row)
 	separator(ac, 50)
+	var stats_row := Row.new("stats")
+	stats_row.set_texts("Stats")
+	stats_row.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(StatsPage.new()))
+	ac.add_child(stats_row)
+	separator(ac, 50)
 	var set_row := Row.new("gear")
 	set_row.set_texts("Settings")
 	set_row.pressed.connect(func():

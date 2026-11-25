@@ -3,11 +3,15 @@ extends Page
 ## Settings, pushed from Profile: feel, pop-ups, updates, help, backup and reset.
 
 const POPUPS := [["all", "All"], ["deals", "Deals only"], ["none", "None"]]
+const VOLUMES := [[0.0, "Off"], [0.25, "Low"], [0.5, "Medium"], [1.0, "High"]]
+const FORMATS := [["short", "Short (£1.2M)"], ["sci", "Scientific (£1.2e6)"]]
 
 var _vib_row: Row
 var _motion_row: Row
 var _pop_row: Row
 var _awake_row: Row
+var _sound_row: Row
+var _num_row: Row
 var _upd_row: Row
 var _report_row: Row
 var _checking := false
@@ -20,6 +24,9 @@ func _init() -> void:
 
 func build() -> void:
 	var st := card()
+	_sound_row = _row(st, "sound", true)
+	_sound_row.pressed.connect(_on_sound)
+	separator(st, 50)
 	_vib_row = _row(st, "vibrate", false)
 	_vib_row.pressed.connect(func():
 		Game.vibrate = not Game.vibrate
@@ -44,6 +51,9 @@ func build() -> void:
 		DisplayServer.screen_set_keep_on(bool(Game.ui["keep_awake"]))
 		Game.save_game()
 		refresh())
+	separator(st, 50)
+	_num_row = _row(st, "hash", true)
+	_num_row.pressed.connect(_on_numbers)
 
 	var hc := card()
 	_upd_row = _row(hc, "update", false)
@@ -79,6 +89,8 @@ func _row(parent: Control, icon: String, chevron: bool) -> Row:
 func refresh() -> void:
 	if _vib_row == null:
 		return
+	_sound_row.set_texts("Sound", "", _vol_label())
+	_num_row.set_texts("Numbers", "", "Scientific" if Game.sci else "Short")
 	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
 	_motion_row.set_texts("Less motion", "", "On" if Game.reduce_motion else "Off")
 	_pop_row.set_texts("Pop-ups", "", _popup_label(_popup_mode()))
@@ -112,6 +124,38 @@ func _on_popups() -> void:
 		Game.ui["deals_quiet"] = v == "none"
 		Game.ui["news_quiet"] = v != "all"
 		Game.save_game()
+		refresh())
+
+
+static func _vol_label() -> String:
+	var v := float(Game.ui.get("vol", 0.5))
+	var best: Array = VOLUMES[0]
+	for o in VOLUMES:
+		if absf(float(o[0]) - v) < absf(float(best[0]) - v):
+			best = o
+	return best[1]
+
+
+func _on_sound() -> void:
+	Kit.tick()
+	var cur := 0.0
+	for o in VOLUMES:
+		if o[1] == _vol_label():
+			cur = o[0]
+	Kit.pick("Sound", VOLUMES, cur, func(v):
+		Game.ui["vol"] = float(v)
+		Kit.sound("buy")
+		Game.save_game()
+		refresh())
+
+
+func _on_numbers() -> void:
+	Kit.tick()
+	Kit.pick("Numbers", FORMATS, "sci" if Game.sci else "short", func(v):
+		Game.sci = v == "sci"
+		Game.ui["sci"] = Game.sci
+		Game.save_game()
+		Game.flush_changes()
 		refresh())
 
 

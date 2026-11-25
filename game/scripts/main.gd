@@ -342,6 +342,7 @@ func _show_sun() -> void:
 	var card = _pages[0].find_child("TowerCard", true, false)
 	if card and card.has_method("spawn_sun"):
 		card.spawn_sun()
+		Kit.sound("sun")
 var _deal_forced := false
 
 

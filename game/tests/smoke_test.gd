@@ -35,12 +35,16 @@ func _run() -> void:
 	await process_frame
 
 	# Formatting.
-	_check(game.money(2.5) == "$2.50", "money small")
-	_check(game.money(19284.4) == "$19,284", "money grouped")
-	_check(game.money(62480190) == "$62,480,190", "money millions")
-	_check(game.money(1.25e9) == "$1.25B", "money billions")
-	_check(game.money(3.4e12) == "$3.4T" and game.money_short(32000.0) == "$32K" and game.money_short(1.2e6) == "$1.2M" and game.money_short(382800.0) == "$383K", "money short drops trailing zeros")
-	_check(game.money_short(4658503.47) == "$4.66M", "money short")
+	_check(game.money(2.5) == "£2.50", "money small")
+	_check(game.money(19284.4) == "£19,284", "money grouped")
+	_check(game.money(62480190) == "£62,480,190", "money millions")
+	_check(game.money(1.25e9) == "£1.25B", "money billions")
+	_check(game.money(3.4e12) == "£3.4T" and game.money_short(32000.0) == "£32K" and game.money_short(1.2e6) == "£1.2M" and game.money_short(382800.0) == "£383K", "money short drops trailing zeros")
+	_check(game.money_short(4658503.47) == "£4.66M", "money short")
+	_check(game.cash_text(1385.62) == "£1,385.62" and game.cash_text(177930027.72) == "£177.9M", "cash to the penny, short when big (%s)" % game.cash_text(177930027.72))
+	game.sci = true
+	_check(game.money_short(1.234e9) == "£1.23e9" and game.money_short(5000.0) == "£5K", "scientific format (%s)" % game.money_short(1.234e9))
+	game.sci = false
 	_check(game.clock(119) == "1:59", "clock")
 
 	# Tapping through the tower card.
@@ -301,7 +305,7 @@ func _run() -> void:
 			root.get_node("Kit").close_top()
 		pg._on_scrub(1.0, 3, 10)
 		pg._on_scrub(-1.0, -1, 0)
-		_check(pg._price.text.begins_with("$"), "%s page shows a price" % spec[1])
+		_check(pg._price.text.begins_with("£"), "%s page shows a price" % spec[1])
 		main.pop()
 		await create_timer(0.5).timeout
 	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd", "res://scripts/settings_page.gd", "res://scripts/achievements_page.gd"]:
@@ -497,6 +501,22 @@ func _run() -> void:
 	game.restore_code(code2)
 	_check(absf(game.price("DRF") - p1) < p1 * 0.001, "restoring a backup doesn't re-roll prices")
 	game.sim_time = -1.0
+	game.reset_game()
+	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
+	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")
+	var fd: Dictionary = JSON.parse_string(fx)
+	fd["saved_at"] = game.now()   # no time away, so values can be compared
+	var ff := FileAccess.open(game.SAVE_PATH, FileAccess.WRITE)
+	ff.store_string(JSON.stringify(fd))
+	ff.close()
+	game.load_game()
+	_check(game.biz.size() == 4 and game.props_owned() == 2 and game.staked("KRV") > 0.0 and game.level == 2 and game.taps >= 300, "old v7 save loads with companies, property, staking and level")
+	_check(game.cash >= 1234567.0 and game.shares.size() == 1, "old v7 save keeps cash and shares (%.2f)" % game.cash)
+	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION, "old save is upgraded to the current version")
+	for ti in 5:
+		main.show_page(ti)
+		await process_frame
+	_check(true, "every tab opens with the old save")
 	game.reset_game()
 	print("Failures: ", _fails)
 	quit(1 if _fails > 0 else 0)

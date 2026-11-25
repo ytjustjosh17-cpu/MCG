@@ -116,7 +116,7 @@ func _run() -> void:
 	g.streak = 12
 	main.push(GoalsPage.new())
 	await _shot("15_goals")
-	root.get_node("Kit").celebrate("Daily goal done", "Tap your tower 300 times", "+$12.4K")
+	root.get_node("Kit").celebrate("Daily goal done", "Tap your tower 300 times", "+£12.4K")
 	await create_timer(0.3).timeout
 	await _shot("16_confetti")
 	await create_timer(2.6).timeout
@@ -164,6 +164,11 @@ func _run() -> void:
 	main._stack[-1]._on_backup_menu()
 	await _shot("23b_backup")
 	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	main.pop()
+	await create_timer(0.6).timeout
+	main.push(load("res://scripts/stats_page.gd").new())
+	await _shot("23c_stats")
 	await create_timer(0.4).timeout
 	main.pop()
 	await create_timer(0.4).timeout

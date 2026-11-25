@@ -19,9 +19,14 @@ var _down_btn: BaseButton
 var _cancelled: Array = []
 
 
+var sfx: Sfx
+
+
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	sfx = Sfx.new()
+	add_child(sfx)
 	get_tree().node_added.connect(_on_node_added)
 
 
@@ -87,10 +92,21 @@ func close_top() -> bool:
 func tick(ms := 8) -> void:
 	## Light tap feedback; stronger values map to stronger haptics.
 	haptic("selection" if ms <= 8 else ("light" if ms <= 15 else "medium"))
+	sound("tap")
+
+
+func sound(name: String) -> void:
+	## Short sound effect (see sfx.gd); does nothing when sound is off.
+	if sfx != null:
+		sfx.play(name)
 
 
 func haptic(kind: String) -> void:
 	## Small haptic vocabulary, in the spirit of Apple's feedback generators.
+	if kind == "success":
+		sound("buy")
+	elif kind == "error":
+		sound("error")
 	if not Game.vibrate:
 		return
 	match kind:
@@ -398,6 +414,7 @@ var _cele_open := false
 func celebrate(title: String, line: String, amount: String) -> void:
 	## Centred card with confetti, for finished goals. Queues if one is showing.
 	_cele_queue.append([title, line, amount])
+	sound("fanfare")
 	if not _cele_open:
 		_next_celebration()
 
