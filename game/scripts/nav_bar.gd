@@ -10,6 +10,7 @@ var _buttons: Array = []
 var _icons: Array = []
 var _labels: Array = []
 var _active := 0
+var _badges: Array = []
 
 
 func _ready() -> void:
@@ -45,9 +46,22 @@ func _ready() -> void:
 		col.add_child(l)
 		b.tooltip_text = TABS[i][1]
 		_buttons.append(b)
+		var dot := ColorRect.new()
+		dot.color = UI.RED
+		dot.size = Vector2(8, 8)
+		dot.visible = false
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(dot)
+		b.resized.connect(func(): dot.position = Vector2(b.size.x / 2.0 + 10.0, 10.0))
+		_badges.append(dot)
 		_icons.append(ic)
 		_labels.append(l)
 	set_active(0)
+
+
+func set_badge(i: int, on: bool) -> void:
+	if i < _badges.size():
+		_badges[i].visible = on
 
 
 func set_active(i: int) -> void:
