@@ -52,7 +52,11 @@ func _ready() -> void:
 	dt.autostart = true
 	dt.timeout.connect(_show_deal)
 	dt.timeout.connect(_update_badges)
+	dt.timeout.connect(_show_sun)
 	add_child(dt)
+	Game.golden_sun.connect(func():
+		_sun_pending = true
+		_show_sun())
 	Game.market_news.connect(func(item: Dictionary):
 		# Only tell the player about news that touches what they own.
 		var sym := String(item.get("sym", ""))
@@ -289,6 +293,17 @@ func _apply_safe_area() -> void:
 
 
 var _deal_open := false
+var _sun_pending := false
+
+
+func _show_sun() -> void:
+	## The sun only appears on the Earn tab; it waits there if you're elsewhere.
+	if not _sun_pending or _current != 0 or not _stack.is_empty():
+		return
+	_sun_pending = false
+	var card = _pages[0].find_child("TowerCard", true, false)
+	if card and card.has_method("spawn_sun"):
+		card.spawn_sun()
 var _deal_forced := false
 
 

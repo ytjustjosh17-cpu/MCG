@@ -152,6 +152,13 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+func spawn_sun() -> void:
+	## Float a golden sun across the card (see golden_sun.gd).
+	var s := GoldenSun.new()
+	add_child(s)
+	s.start(size)
+
+
 func _on_button(pos: Vector2) -> bool:
 	## True when the press lands on one of the card's own buttons.
 	var gp := get_global_transform() * pos
