@@ -36,6 +36,12 @@ It's only a game. There's no real money, no real shares and no real crypto. Ever
 - [Inter](https://github.com/rsms/inter) font as a backup (SIL Open Font License 1.1), see `game/assets/fonts/LICENSE.txt`
 - [Phosphor](https://github.com/phosphor-icons/core) icons (MIT), see `game/assets/icons/LICENSE-phosphor.txt`
 
+## For developers
+
+Start with [CLAUDE.md](CLAUDE.md). Then:
+[design](docs/DESIGN.md), [balance](docs/BALANCE.md), [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md).
+`python3 tools/check_rules.py` checks the project rules; CI runs it on every push.
+
 ## Licence
 
 Copyright (c) 2026 the repository owner. All rights reserved.

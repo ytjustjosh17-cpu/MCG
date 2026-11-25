@@ -225,6 +225,28 @@ func _run() -> void:
 	main.show_page(2)
 	await create_timer(1.0).timeout
 	_check(main._pages[2].modulate.a > 0.95 and absf(main._pages[2].position.x) < 1.0, "tapping the same tab mid-slide leaves it clean")
+	# Spam: fast tab switching, repeated pushes, back hammering.
+	for k in 30:
+		main.show_page(k % 3)
+		await process_frame
+	main.show_page(1)
+	await create_timer(0.2).timeout
+	main.show_page(0)
+	await create_timer(0.8).timeout
+	_check(main._pages[0].visible and main._pages[0].modulate.a > 0.95, "fast tab switching never leaves a blank screen")
+	for k in 10:
+		main.push(load("res://scripts/goals_page.gd").new())
+		await process_frame
+	await create_timer(0.6).timeout
+	_check(main._stack.size() == 1, "hammering a button opens one page, not %d" % main._stack.size())
+	await create_timer(0.5).timeout
+	main.push(load("res://scripts/rivals_page.gd").new())
+	await create_timer(0.6).timeout
+	var top = main._stack.back()
+	for k in 3:
+		top.pop_page.emit()
+	await create_timer(0.8).timeout
+	_check(main._stack.size() == 1, "three quick back taps close only the top page")
 	main.show_page(0)
 	await create_timer(0.4).timeout
 	var np = load("res://scripts/news_page.gd").new()

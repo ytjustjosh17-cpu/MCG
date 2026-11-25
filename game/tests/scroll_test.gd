@@ -82,6 +82,7 @@ func _run() -> void:
 	await create_timer(0.2).timeout
 	_ok(taps[0] == 1, "a tap still presses the row")
 	# On a share page, an up/down drag on the chart scrolls; a sideways drag reads prices.
+	await create_timer(0.6).timeout  # pushes within 450 ms are ignored on purpose (spam guard)
 	var pg = load("res://scripts/asset_detail.gd").new("share", "NRV")
 	main.push(pg)
 	await create_timer(0.8).timeout

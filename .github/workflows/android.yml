@@ -11,7 +11,16 @@ permissions:
   contents: write
 
 jobs:
+  rules:
+    # Quick checks from CLAUDE.md; the build only runs if these pass.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Project rules (see CLAUDE.md)
+        run: python3 tools/check_rules.py
+
   android:
+    needs: rules
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.4.1

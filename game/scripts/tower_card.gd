@@ -169,7 +169,7 @@ func _spawn_float(pos: Vector2, v: float) -> void:
 	l.position = pos + Vector2(-30, -40)
 	_float_count += 1
 	var tw := create_tween().set_parallel(true)
-	tw.tween_property(l, "position:y", l.position.y - 70.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(l, "position:y", l.position.y - 70.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)  # reduced-checked
 	tw.tween_property(l, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(func():
 		_float_count -= 1
