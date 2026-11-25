@@ -92,6 +92,14 @@ func build() -> void:
 	_own = _line(c, "Owned")
 	separator(c)
 	_profit = _line(c, "Profit")
+	# Long gains shrink and trim rather than push the card off screen.
+	_profit.add_theme_font_size_override("font_size", 15)
+	_profit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_profit.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_profit.clip_text = true
+	_profit.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var pl: Label = _profit.get_parent().get_child(0)
+	pl.size_flags_horizontal = Control.SIZE_FILL
 	separator(c)
 	_extra = _line(c, "Pays" if kind == "share" else "Staking")
 
@@ -212,11 +220,11 @@ func refresh() -> void:
 			_hi.text = price_text(maxf(wk.max(), Game.price(sym)))
 			_lo.text = price_text(minf(wk.min(), Game.price(sym)))
 	else:
-		_extra.text = "+" + Game.money_short(Game.stake_earn_per_hour(sym)) + " /h"
+		_extra.text = ("+" + Game.money_short(Game.stake_earn_per_hour(sym)) + " /h") if locked > 0.0 else "None locked"
 		_staked.text = qty_text(locked) + " " + sym
 		var left := Game.stake_left(sym)
 		_stake_info.text = "None" if locked <= 0.0 else ("Ready" if left <= 0.0 else Game.clock(left))
-		Page.set_enabled(_stake_btn, free > 0.0, false)
+		# Lock stays tappable so an empty tap explains "Nothing to lock".
 		Page.set_enabled(_unstake_btn, locked > 0.0 and left <= 0.0, false)
 		_stake_btn.modulate.a = 1.0 if free > 0.0 else 0.4
 		_unstake_btn.modulate.a = 1.0 if locked > 0.0 and left <= 0.0 else 0.4
