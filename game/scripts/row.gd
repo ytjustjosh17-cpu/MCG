@@ -1,0 +1,95 @@
+class_name Row
+extends Button
+## Tappable list row: optional icon or art, title and subtitle on the left,
+## value and note on the right, then a chevron.
+
+var title_l: Label
+var sub_l: Label
+var value_l: Label
+var note_l: Label
+var mark: ColorRect
+var lead: Control
+
+
+func _init(icon := "", art := "", chevron := true) -> void:
+	focus_mode = Control.FOCUS_NONE
+	flat = true
+	add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	add_theme_stylebox_override("pressed", UI.box(Color(1, 1, 1, 0.05), 0))
+	add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	custom_minimum_size = Vector2(0, 60)
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 16)
+	m.add_theme_constant_override("margin_right", 14)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(m)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(h)
+	if icon != "":
+		lead = Icon.new(icon, UI.TEXT, 22.0)
+		lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(lead)
+	elif art != "":
+		lead = Art.Scene.new(art, 8.0)
+		lead.custom_minimum_size = Vector2(52, 40)
+		lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(lead)
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.alignment = BoxContainer.ALIGNMENT_CENTER
+	left.add_theme_constant_override("separation", 2)
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(left)
+	var th := HBoxContainer.new()
+	th.add_theme_constant_override("separation", 6)
+	th.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.add_child(th)
+	title_l = UI.label("", 17)
+	title_l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	th.add_child(title_l)
+	mark = ColorRect.new()
+	mark.color = UI.RED
+	mark.custom_minimum_size = Vector2(8, 8)
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.visible = false
+	th.add_child(mark)
+	sub_l = UI.label("", 13, UI.SUB)
+	sub_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	left.add_child(sub_l)
+	var right := VBoxContainer.new()
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_theme_constant_override("separation", 2)
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(right)
+	value_l = UI.label("", 17)
+	value_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(value_l)
+	note_l = UI.label("", 13, UI.SUB)
+	note_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(note_l)
+	if chevron:
+		var c := Icon.new("chevron", UI.DIM, 16.0)
+		c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(c)
+
+
+func set_texts(t: String, s := "", v := "", n := "") -> void:
+	title_l.text = t
+	sub_l.text = s
+	sub_l.visible = s != ""
+	value_l.text = v
+	note_l.text = n
+	note_l.visible = n != ""
+
+
+func set_change(pct: float) -> void:
+	## Shows a price change with an arrow and sign; down moves use the dim colour.
+	var up := pct >= 0.0
+	note_l.text = ("▲ +" if up else "▼ −") + "%.2f%%" % absf(pct)
+	note_l.visible = true
+	note_l.add_theme_color_override("font_color", UI.TEXT if up else UI.SUB)

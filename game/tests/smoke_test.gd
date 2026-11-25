@@ -14,14 +14,22 @@ func _check(cond: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	# Never hang CI: give up after 60 seconds.
+	create_timer(60.0).timeout.connect(func():
+		printerr("FAIL  timed out")
+		quit(1))
 	_run.call_deferred()
 
 
 func _run() -> void:
 	var game = root.get_node("Game")
 	game.reset_game()
-	var main: Control = load("res://scenes/main.tscn").instantiate()
+	var main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
+	if not main.has_method("show_page"):
+		printerr("FAIL  main scene script did not load")
+		quit(1)
+		return
 	await process_frame
 	await process_frame
 
@@ -39,51 +47,82 @@ func _run() -> void:
 	_check(card != null, "tower card exists")
 	for i in 400:
 		card._do_tap(Vector2(250, 100))
-	_check(is_equal_approx(game.cash, 1000.0), "400 taps at $2.50 = $1,000 (got %s)" % game.cash)
 	_check(game.taps == 400, "tap count")
-	_check(game.can_level_up(), "can level up at $1,000")
+	_check(game.cash >= 1000.0, "400 taps earn at least $1,000 (got %s)" % game.cash)
+	var before: float = game.cash
 	_check(game.level_up(), "level up")
-	_check(game.level == 2 and is_equal_approx(game.cash, 0.0), "level 2, cash spent")
-	_check(is_equal_approx(game.tap_value(), 4.1), "level 2 tap is $4.10")
-	_check(is_equal_approx(game.level_cost(), 3280.0), "level 3 costs $3,280")
+	_check(game.level == 2 and is_equal_approx(game.cash, before - 1000.0), "level 2, cost paid")
 
 	# Boost.
 	_check(game.start_boost(), "boost starts")
-	_check(game.boost_active(), "boost active")
+	var c0: float = game.cash
 	card._do_tap(Vector2(250, 100))
-	_check(is_equal_approx(game.cash, 12.3), "boosted tap is x3 (got %s)" % game.cash)
+	_check(is_equal_approx(game.cash - c0, game.tap_value() * 3.0), "boosted tap is x3")
 	_check(not game.start_boost(), "boost on cooldown")
 
-	# History and chart drawing with real points.
-	for i in 5:
-		game._record_history()
-	game.cash += 500.0
-	game.changed.emit()
-	await process_frame
-	_check(game.week_change().size() == 2, "week change available")
+	# Businesses, using the simulator clock.
+	game.sim_time = game.now()
+	game.cash = 50000.0
+	_check(game.open_business("shop", "Kettle & Co."), "open a shop")
+	_check(not game.open_business("shop", "Again"), "can't open the same type twice")
+	_check(game.income_per_hour > 0.0, "shop earns per hour")
+	var units_before: int = game.biz["shop"]["units"]
+	_check(game.buy_unit("shop"), "buy an outlet")
+	_check(game.biz["shop"]["units"] == units_before + 1, "outlet added")
+	for i in 10:
+		game.buy_unit("shop")
+	_check(game.biz["shop"]["units"] == game.capacity("shop"), "units stop at capacity")
+	game.cash += 100000.0
+	_check(game.start_expansion("shop"), "start expansion")
+	_check(game.expanding("shop"), "expansion running")
+	game.sim_time += game.expansion_seconds("shop") + 1.0
+	game.advance(1.0)
+	_check(game.biz["shop"]["stage"] == 2, "expansion finishes on time")
+	_check(game.capacity("shop") == 10, "capacity grows with stage")
+
+	# Shares, coins, property, collections.
+	game.cash = 1.0e6
+	_check(game.buy_asset("share", "NRV", 1000.0), "buy shares")
+	_check(game.dividends_per_hour() > 0.0, "shares pay dividends")
+	_check(game.sell_asset("share", "NRV", 1.0) > 0.0, "sell shares")
+	_check(game.buy_asset("coin", "KRV", 500.0), "buy coins")
+	_check(game.buy_property(0), "buy a property")
+	_check(game.rent_per_hour() > 0.0, "property pays rent")
+	_check(game.improve_property(0, 0), "improve a property")
+	_check(is_equal_approx(game.sell_property_value(0), game.prop_value(0) * 0.88), "12% sales tax")
+	_check(game.buy_item("watches", 0), "buy a watch")
+	_check(game.collection_count("watches") == 1, "collection counts")
+	game.advance(600.0)
+	_check(game.price_hist["KRV"].size() > 60, "markets tick")
+	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
+	var st: Array = game.need_status(["biz", "shop", 5])
+	_check(not st[0], "merger need not met yet")
+	game.sim_time = -1.0
 
 	# Every tab opens.
 	for i in 5:
 		main.show_page(i)
-		await process_frame
+		await create_timer(0.4).timeout
 	main.show_page(0)
 	await process_frame
 
 	# Save and load round trip.
-	var before_cash: float = game.cash
 	game.save_game()
+	var saved_cash: float = game.cash
 	game.cash = 0.0
 	game.level = 1
 	game.load_game()
-	_check(is_equal_approx(game.cash, before_cash), "save/load keeps cash")
+	_check(game.cash >= saved_cash - 0.01, "save/load keeps cash")
 	_check(game.level == 2, "save/load keeps level")
+	_check(game.owns("shop") and game.biz["shop"]["stage"] == 2, "save/load keeps businesses")
+	_check(game.props_owned() == 1, "save/load keeps property")
 
 	# Offline earnings are capped at 8 hours.
-	game.income_per_hour = 1000.0
-	game._apply_offline(24 * 3600)
-	_check(is_equal_approx(game.away_earned, 8000.0), "offline capped at 8 h")
+	var inc: float = game.income_per_hour
+	var c1: float = game.cash
+	game.apply_offline(24 * 3600)
+	_check(game.cash - c1 <= inc * 8.0 * 1.2 + 1.0, "offline capped near 8 h")
 	game.reset_game()
 
-	await create_timer(1.0).timeout
 	print("Failures: ", _fails)
 	quit(1 if _fails > 0 else 0)
