@@ -136,26 +136,130 @@ static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2) -
 			_rect(ci, o, s, 30, 20, 60, 50, ink)
 
 
-static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2) -> void:
-	## Sky panel, cropped flat sun, power line and the silhouette, clipped to a rounded rect.
-	var clip := UI.rounded_rect_poly(rect, radius)
-	ci.draw_colored_polygon(clip, UI.SKY)
-	var r := sun_r if sun_r > 0.0 else rect.size.y * 0.62
-	var sun := UI.circle_poly(rect.position + Vector2(rect.size.x - r * 0.5, r * 0.28), r)
-	for piece in Geometry2D.intersect_polygons(sun, clip):
+static func _fill(ci: CanvasItem, poly: PackedVector2Array, clip: PackedVector2Array, c: Color) -> void:
+	for piece in Geometry2D.intersect_polygons(poly, clip):
 		if piece.size() >= 3:
-			ci.draw_colored_polygon(piece, UI.RED)
-	var a := rect.position + Vector2(rect.size.x * 0.35, -4)
-	var b := rect.position + Vector2(rect.size.x + 4, rect.size.y * 0.72)
-	for piece in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([a, b]), clip):
-		ci.draw_polyline(piece, UI.INK, 1.0, true)
+			ci.draw_colored_polygon(piece, c)
+
+
+static func _wire(ci: CanvasItem, a: Vector2, b: Vector2, sag: float, clip: PackedVector2Array, c: Color, w: float) -> void:
+	## A cable hanging between two points (a shallow curve, lowest in the middle).
+	var pts := PackedVector2Array()
+	for i in 25:
+		var t := i / 24.0
+		pts.append(a.lerp(b, t) + Vector2(0, sag * 4.0 * t * (1.0 - t)))
+	for piece in Geometry2D.intersect_polyline_with_polygon(pts, clip):
+		ci.draw_polyline(piece, c, w, true)
+
+
+static func pylon(ci: CanvasItem, base: Vector2, h: float, clip: PackedVector2Array) -> Array:
+	## A lattice electricity pylon standing on `base`. Returns the three cable points.
+	var c := UI.INK
+	var bw := h * 0.32
+	var tw := h * 0.07
+	var top := base - Vector2(0, h)
+	var l0 := base - Vector2(bw / 2.0, 0)
+	var r0 := base + Vector2(bw / 2.0, 0)
+	var l1 := top - Vector2(tw / 2.0, 0)
+	var r1 := top + Vector2(tw / 2.0, 0)
+	var lw := maxf(1.0, h * 0.012)
+	var segs: Array = [[l0, l1], [r0, r1]]
+	# Cross bracing up the body.
+	var n := 6
+	for i in n:
+		var t0 := float(i) / n
+		var t1 := float(i + 1) / n
+		var a0 := l0.lerp(l1, t0)
+		var b0 := r0.lerp(r1, t0)
+		var a1 := l0.lerp(l1, t1)
+		var b1 := r0.lerp(r1, t1)
+		segs.append([a0, b1])
+		segs.append([b0, a1])
+		segs.append([a1, b1])
+	# Two cross arms, joined to the frame by braces, with hanging insulators.
+	var tips: Array = []
+	for k in 2:
+		var t := 0.1 + k * 0.17
+		var y := top.y + h * t
+		var lb := l1.lerp(l0, t)
+		var rb := r1.lerp(r0, t)
+		var half := h * (0.17 - k * 0.03)
+		var la := Vector2(top.x - half, y)
+		var ra := Vector2(top.x + half, y)
+		segs.append([la, ra])
+		segs.append([la, Vector2(lb.x, y - h * 0.05)])
+		segs.append([ra, Vector2(rb.x, y - h * 0.05)])
+		for e in [la, ra]:
+			segs.append([e, e + Vector2(0, h * 0.04)])
+			tips.append(e + Vector2(0, h * 0.04))
+	segs.append([top, top - Vector2(0, h * 0.06)])
+	for sgm in segs:
+		for piece in Geometry2D.intersect_polyline_with_polygon(PackedVector2Array([sgm[0], sgm[1]]), clip):
+			ci.draw_polyline(piece, c, lw, true)
+	return tips
+
+
+static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_c: Vector2, sun_r: float, sun_col: Color, seed_v := 7) -> void:
+	## Dusk sky: faint stars, the sun with sunset bands, a far skyline with a few
+	## lit windows, and a power pylon with sagging cables.
+	ci.draw_colored_polygon(clip, UI.SKY)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var w := rect.size.x
+	var h := rect.size.y
+	var o := rect.position
+	for i in int(w * h / 9000.0) + 6:
+		var p := o + Vector2(rng.randf() * w, rng.randf() * h * 0.45)
+		if p.distance_to(sun_c) > sun_r + 6.0:
+			ci.draw_rect(Rect2(p, Vector2(1.5, 1.5)), Color(UI.TEXT, rng.randf_range(0.12, 0.35)), true)
+	_fill(ci, UI.circle_poly(sun_c, sun_r, 96), clip, sun_col)
+	# Sunset bands: gaps in the lower half of the sun that widen towards the ground.
+	var band_y := sun_c.y + sun_r * 0.12
+	var gap := maxf(1.5, sun_r * 0.025)
+	while band_y < sun_c.y + sun_r:
+		_fill(ci, UI.rect_poly(Rect2(sun_c.x - sun_r - 2.0, band_y, sun_r * 2.0 + 4.0, gap)), clip, UI.SKY)
+		band_y += sun_r * 0.14
+		gap *= 1.45
+	# Far skyline, two layers.
+	for layer in 2:
+		var col := UI.HAZE if layer == 0 else UI.FAR
+		var x := -rng.randf() * 20.0
+		while x < w:
+			var bw := rng.randf_range(0.06, 0.14) * w
+			var bh := rng.randf_range(0.10, 0.26 if layer == 0 else 0.18) * h + layer * 0.0
+			var r := Rect2(o + Vector2(x, h - bh), Vector2(bw, bh))
+			_fill(ci, UI.rect_poly(r), clip, col)
+			if rng.randf() < 0.3:
+				_fill(ci, UI.rect_poly(Rect2(r.position + Vector2(bw * 0.45, -bh * 0.18), Vector2(1.5, bh * 0.18))), clip, col)
+			if layer == 1:
+				for k in rng.randi_range(0, 3):
+					var wp := r.position + Vector2(rng.randf_range(3.0, maxf(4.0, bw - 6.0)), rng.randf_range(6.0, maxf(7.0, bh - 6.0)))
+					var lit := rng.randf() < 0.25
+					_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(UI.RED, 0.55) if lit else UI.HAZE)
+			x += bw + rng.randf_range(0.0, 0.03) * w
+	# Power pylon on the left with cables running off to the right (big pictures only).
+	if w < 220.0:
+		return
+	var ph := h * 0.5
+	var base := o + Vector2(w * 0.13, h - h * 0.02)
+	var tips := pylon(ci, base, ph, clip)
+	for t in tips:
+		# Cables run off both edges, dipping between towers.
+		_wire(ci, t, t + Vector2(w * 1.1, -h * 0.02), h * 0.08, clip, UI.INK, maxf(1.0, h * 0.006))
+		_wire(ci, t + Vector2(-w * 0.5, -h * 0.01), t, h * 0.05, clip, UI.INK, maxf(1.0, h * 0.006))
+
+
+static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2) -> void:
+	## Dusk backdrop and the silhouette, clipped to a rounded rect.
+	var clip := UI.rounded_rect_poly(rect, radius)
+	var r := sun_r if sun_r > 0.0 else rect.size.y * 0.62
+	var sc := rect.position + Vector2(rect.size.x - r * 0.5, r * 0.28)
+	backdrop(ci, rect, clip, sc, r, UI.RED, int(rect.size.x) + kind.length())
 	var s := minf(rect.size.x / 150.0, (rect.size.y - 10.0) / 78.0)
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
 	draw(ci, kind, o, s, lit)
 	var ground := Rect2(rect.position + Vector2(0, rect.size.y - 4.0 * s), Vector2(rect.size.x, 4.0 * s + 1.0))
-	for piece in Geometry2D.intersect_polygons(UI.rect_poly(ground), clip):
-		if piece.size() >= 3:
-			ci.draw_colored_polygon(piece, UI.INK)
+	_fill(ci, UI.rect_poly(ground), clip, UI.INK)
 
 
 class Scene extends Control:

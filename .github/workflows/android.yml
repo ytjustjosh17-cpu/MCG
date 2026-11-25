@@ -53,17 +53,29 @@ jobs:
 
       - name: Get fonts from Fontshare (not stored in this public repo)
         working-directory: game
+        shell: bash
         run: |
           # Switzer and Tanker use the ITF Free Font License, which allows
           # embedding in an app but not sharing the files in a public repo.
-          # If the download fails, the game falls back to Inter.
+          # Build 25 shipped without them by accident, so this step now stops
+          # the build if they are missing instead of quietly using Inter.
           mkdir -p assets/fonts/ext /tmp/fonts
+          if ! command -v curl >/dev/null || ! command -v unzip >/dev/null; then
+            apt-get update -qq && apt-get install -y -qq curl unzip
+          fi
           for f in switzer tanker; do
-            curl -fsSL --retry 3 -o /tmp/fonts/$f.zip "https://api.fontshare.com/v2/fonts/download/$f" || echo "Could not get $f"
+            for i in 1 2 3 4; do
+              curl -fSL --retry 2 -A "Mozilla/5.0" -o /tmp/fonts/$f.zip \
+                "https://api.fontshare.com/v2/fonts/download/$f" && unzip -tq /tmp/fonts/$f.zip && break
+              echo "Try $i for $f failed"; sleep $((i * 5))
+            done
           done
-          unzip -j -o -q /tmp/fonts/switzer.zip '*/WEB/fonts/Switzer-Regular.ttf' '*/WEB/fonts/Switzer-Semibold.ttf' -d assets/fonts/ext || true
-          unzip -j -o -q /tmp/fonts/tanker.zip '*/WEB/fonts/Tanker-Regular.ttf' -d assets/fonts/ext || true
+          unzip -j -o -q /tmp/fonts/switzer.zip '*/WEB/fonts/Switzer-Regular.ttf' '*/WEB/fonts/Switzer-Semibold.ttf' -d assets/fonts/ext
+          unzip -j -o -q /tmp/fonts/tanker.zip '*/WEB/fonts/Tanker-Regular.ttf' -d assets/fonts/ext
           ls -la assets/fonts/ext
+          for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
+            test -s assets/fonts/ext/$n.ttf || { echo "::error::Font $n is missing"; exit 1; }
+          done
 
       - name: Import project
         working-directory: game
@@ -91,6 +103,16 @@ jobs:
           godot --headless --verbose --export-release "Android" build/Sol.apk
           test -s build/Sol.apk
           ls -la build
+
+      - name: Check the APK has the fonts
+        working-directory: game
+        shell: bash
+        run: |
+          command -v unzip >/dev/null || (apt-get update -qq && apt-get install -y -qq unzip)
+          for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
+            unzip -l build/Sol.apk | grep -q "$n.ttf" || { echo "::error::$n is not in the APK"; exit 1; }
+          done
+          echo "Fonts are in the APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

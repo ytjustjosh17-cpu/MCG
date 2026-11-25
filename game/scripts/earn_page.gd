@@ -44,11 +44,13 @@ func _ready() -> void:
 		_pill.add_child(sq)
 		_meter.append(sq)
 
-	_worth = CountLabel.new(Game.money_short)
+	# Big number is cash to the penny; net worth sits on the line below.
+	_worth = CountLabel.new(Game.cash_text)
+	_worth.fit_width = 358.0
 	_worth.add_theme_font_size_override("font_size", 44)
 	_worth.add_theme_font_override("font", UI.DISPLAY)
 	_worth.add_theme_color_override("font_color", UI.TEXT)
-	_worth.set_value(Game.net_worth(), true)
+	_worth.set_value(Game.cash, true)
 	add_child(_worth)
 	_rate = UI.label("", 15, UI.SUB)
 	add_child(_rate)
@@ -131,11 +133,11 @@ func _caption(text: String) -> Label:
 func _refresh() -> void:
 	if _worth == null:
 		return
-	_worth.set_value(Game.net_worth())
+	_worth.set_value(Game.cash)
 	var parts: Array = []
 	if Game.income_per_hour > 0.0:
 		parts.append("+%s /h" % Game.money_short(Game.income_per_hour))
-	parts.append("%s cash" % Game.money_short(Game.cash))
+	parts.append("%s worth" % Game.money_short(Game.net_worth()))
 	_rate.text = "  ·  ".join(parts)
 	_level_pill.text = "Lv %d" % Game.level
 	var prog := Game.level_progress()
