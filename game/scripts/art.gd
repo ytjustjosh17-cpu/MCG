@@ -352,7 +352,7 @@ const SCENES := {
 	"gym": {"sun": [0.25, 0.2, 0.42], "sky": "dense", "ground": "street", "pylon": false},
 	"screen": {"sun": [0.55, 0.12, 0.3], "sky": "dense", "ground": "street", "pylon": false},
 	"hotel": {"sun": [0.62, 0.42, 0.8], "sky": "none", "ground": "water", "pylon": false},
-	"mast": {"sun": [0.45, 0.62, 0.7], "sky": "hills", "ground": "field", "pylon": true},
+	"mast": {"sun": [0.45, 0.62, 0.7], "sky": "hills", "ground": "field", "pylon": false},
 	"bank": {"sun": [0.5, 0.3, 0.6], "sky": "dense", "ground": "street", "pylon": false},
 	"stadium": {"sun": [0.12, 0.5, 0.55], "sky": "city", "ground": "field", "pylon": false},
 	"mine": {"sun": [0.8, 0.4, 0.75], "sky": "hills", "ground": "field", "pylon": true},
@@ -474,12 +474,19 @@ static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0
 	var clip := UI.rounded_rect_poly(rect, radius)
 	var opt: Dictionary = SCENES.get(kind, SCENES["shop"])
 	var sun: Array = opt["sun"]
-	var r := sun_r if sun_r > 0.0 else rect.size.y * float(sun[2])
-	var sc := rect.position + Vector2(rect.size.x * float(sun[0]), rect.size.y * float(sun[1]))
-	# Pylon goes on whichever side the sun isn't.
+	var sd := hash(seed_key if seed_key != "" else kind)
+	var nudge := RandomNumberGenerator.new()
+	nudge.seed = sd
+	# The seed moves the sun a little, so two flats or two towers still differ.
+	var sx := clampf(float(sun[0]) + (nudge.randf() - 0.5) * 0.16, 0.08, 0.92) if seed_key != "" else float(sun[0])
+	var sy := clampf(float(sun[1]) + (nudge.randf() - 0.5) * 0.12, 0.08, 0.7) if seed_key != "" else float(sun[1])
+	var sz := float(sun[2]) * (nudge.randf_range(0.88, 1.12) if seed_key != "" else 1.0)
+	var r := sun_r if sun_r > 0.0 else rect.size.y * sz
+	var sc := rect.position + Vector2(rect.size.x * sx, rect.size.y * sy)
+	# Pylon on the left, clear of the building.
 	var o2 := opt.duplicate()
-	o2["pylon_x"] = 0.13 if float(sun[0]) > 0.5 else 0.08
-	backdrop(ci, rect, clip, sc, r, UI.RED, hash(seed_key if seed_key != "" else kind), o2)
+	o2["pylon_x"] = 0.13   # left: the building always stands on the right
+	backdrop(ci, rect, clip, sc, r, UI.RED, sd, o2)
 	var s := minf(rect.size.x / 150.0, (rect.size.y - 10.0) / 78.0)
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
 	if String(opt.get("ground", "")) == "water":
@@ -494,8 +501,17 @@ class Scene extends Control:
 	## A Control that draws Art.draw_scene; use for headers and cards.
 	var kind := "shop"
 	var radius := 16.0
-	var lit := 2
-	var seed_id := ""   # e.g. the company id, so same-size cards still differ
+	# Redraw only when something really changes (pages refresh often).
+	var lit := 2:
+		set(v):
+			if v != lit:
+				lit = v
+				queue_redraw()
+	var seed_id := "":   # e.g. the company or property name, so look-alikes differ
+		set(v):
+			if v != seed_id:
+				seed_id = v
+				queue_redraw()
 
 	func _init(k := "shop", r := 16.0) -> void:
 		kind = k

@@ -81,6 +81,7 @@ func refresh() -> void:
 		for ch in _home_art.get_children():
 			ch.queue_free()
 		var sc := Art.Scene.new(h[3], 16.0)
+		sc.seed_id = String(h[0])
 		sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		_home_art.add_child(sc)
 	_home_name.text = h[0]

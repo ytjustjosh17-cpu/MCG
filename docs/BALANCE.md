@@ -12,12 +12,12 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 9.3 to 9.5 |
-| 50% complete | 15 to 21 | 19.9 to 20.8 |
-| 75% complete | 28 to 38 | 33.3 to 34.3 |
-| 90% complete | 33 to 46 | 43.3 to 44.3 |
-| All 6 mergers | 35 to 50 | 43.3 to 44.3 |
-| All 17 companies | 35 to 45 | 38.9 to 40.3 |
+| 25% complete | 7 to 10 | 8.5 |
+| 50% complete | 15 to 21 | 20.3 to 20.8 |
+| 75% complete | 28 to 38 | 33.3 to 35.3 |
+| 90% complete | 33 to 46 | 42.3 to 43.5 |
+| All 6 mergers | 35 to 50 | 42.3 to 43.5 |
+| All 17 companies | 35 to 45 | 38.8 to 39.3 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
 

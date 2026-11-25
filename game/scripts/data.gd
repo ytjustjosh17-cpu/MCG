@@ -21,7 +21,7 @@ const BUSINESSES := [
 		"unit_cost": 900.0, "unit_income": 55.0, "stage_mult": 1.45, "exp_cost": 8000.0, "exp_growth": 3.3, "exp_min": 2.0,
 		"names": ["Kettle & Co.", "Corner Larder", "Ellis Goods", "Northgate Store"]},
 	{"id": "food", "name": "Food trucks", "kind": "van", "cost": 4999.0, "unit": "truck", "units": "trucks",
-		"unit_cost": 1900.0, "unit_income": 90.0, "stage_mult": 1.45, "exp_cost": 15000.0, "exp_growth": 3.3, "exp_min": 2.5,
+		"unit_cost": 1900.0, "unit_income": 110.0, "stage_mult": 1.45, "exp_cost": 15000.0, "exp_growth": 3.3, "exp_min": 2.5,
 		"names": ["Hatch & Ladle", "Kerbside Kitchen", "Low Tide Eats"]},
 	{"id": "taxi", "name": "Taxi company", "kind": "taxi", "cost": 9999.0, "unit": "car", "units": "cars",
 		"unit_cost": 3200.0, "unit_income": 180.0, "stage_mult": 1.45, "exp_cost": 25000.0, "exp_growth": 3.3, "exp_min": 3.0,
@@ -39,7 +39,7 @@ const BUSINESSES := [
 		"unit_cost": 15000.0, "unit_income": 680.0, "stage_mult": 1.45, "exp_cost": 140000.0, "exp_growth": 3.3, "exp_min": 10.0,
 		"names": ["Marlow Motors", "Brisk Autos", "Velle Showrooms"]},
 	{"id": "gym", "name": "Gym chain", "kind": "gym", "cost": 90000.0, "unit": "gym", "units": "gyms",
-		"unit_cost": 32000.0, "unit_income": 1000.0, "stage_mult": 1.45, "exp_cost": 300000.0, "exp_growth": 3.3, "exp_min": 12.0,
+		"unit_cost": 32000.0, "unit_income": 1250.0, "stage_mult": 1.45, "exp_cost": 300000.0, "exp_growth": 3.3, "exp_min": 12.0,
 		"names": ["Ironhall Fitness", "Pulse Yard", "Concrete Club"]},
 	{"id": "it", "name": "IT company", "kind": "screen", "cost": 350000.0, "unit": "team", "units": "teams",
 		"unit_cost": 120000.0, "unit_income": 4800.0, "stage_mult": 1.45, "exp_cost": 1.2e6, "exp_growth": 3.3, "exp_min": 15.0,
@@ -207,7 +207,7 @@ const COLLECTIONS := [
 # needs: list of [type, a, b]: ["biz", id, min_stage] | ["props", count] |
 # ["shares", value] | ["crypto", value] | ["collection", id] | ["mergers", count]
 const MERGERS := [
-	{"id": "retail", "name": "Retail Group", "cost": 6.0e+06, "boost": ["shop", "dealer", "factory", "food"], "mult": 1.5,
+	{"id": "retail", "name": "Retail Group", "cost": 6.0e+06, "boost": ["shop", "dealer", "factory", "food", "gym"], "mult": 1.5,
 		"needs": [["biz", "shop", 5], ["biz", "dealer", 3], ["biz", "factory", 3]]},
 	{"id": "transit", "name": "Transit Group", "cost": 7.5e+07, "boost": ["taxi", "shipping"], "mult": 1.5,
 		"needs": [["biz", "taxi", 5], ["biz", "shipping", 5], ["props", 5]]},
@@ -215,7 +215,7 @@ const MERGERS := [
 		"needs": [["biz", "construction", 6], ["biz", "factory", 6], ["props", 8]]},
 	{"id": "tech", "name": "Coin Exchange", "cost": 4.5e+09, "boost": ["it", "bank", "tv"], "mult": 1.5,
 		"needs": [["biz", "it", 5], ["crypto", 5.0e7], ["shares", 1.0e8]]},
-	{"id": "skysea", "name": "Sky & Sea", "cost": 1.5e+11, "boost": ["airline", "shipping", "oil", "space"], "mult": 1.5,
+	{"id": "skysea", "name": "Sky & Sea", "cost": 1.5e+11, "boost": ["airline", "shipping", "oil", "space", "hotel"], "mult": 1.5,
 		"needs": [["biz", "airline", 3], ["biz", "shipping", 8], ["collection", "yachts"]]},
 	{"id": "holding", "name": "Sol Holdings", "cost": 7.5e+11, "boost": [], "mult": 2.0,
 		"needs": [["biz", "bank", 8], ["biz", "oil", 5], ["shares", 1.0e10], ["mergers", 5]]},
