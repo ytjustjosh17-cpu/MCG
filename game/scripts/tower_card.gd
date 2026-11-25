@@ -11,6 +11,10 @@ var _rows := 0
 var _flash_index := -1
 var _flash_time := 0.0
 var _float_count := 0
+var _flicker_index := -1
+var _flicker_time := 0.0
+var _flicker_wait := 3.0
+var _wave := -1.0
 
 
 func _ready() -> void:
@@ -97,6 +101,12 @@ func _draw() -> void:
 			c = UI.RED
 		if i == _flash_index and _flash_time > 0.0:
 			c = UI.FLASH
+		elif i == _flicker_index and _flicker_time > 0.0:
+			c = UI.WINDOW if lit.has(i) else Color(UI.RED, 0.6)
+		if _wave >= 0.0:
+			var row_pos := float(i / COLS) / float(maxi(1, _rows))
+			if absf((1.0 - row_pos) - _wave) < 0.12:
+				c = UI.FLASH
 		draw_rect(r, c, true)
 	var nb := Rect2(w * 0.86, h * 0.68, w * 0.2, h * 0.4)
 	_fill_clipped(UI.rect_poly(nb), clip, UI.WINDOW)
@@ -108,6 +118,29 @@ func _process(delta: float) -> void:
 		_flash_time -= delta
 		if _flash_time <= 0.0:
 			queue_redraw()
+	# Ambient life: now and then one window flickers. Off with Reduce Motion.
+	if not Game.reduce_motion and is_visible_in_tree():
+		_flicker_wait -= delta
+		if _flicker_wait <= 0.0 and _rows > 0:
+			_flicker_wait = randf_range(2.5, 6.0)
+			_flicker_index = randi() % (COLS * _rows)
+			_flicker_time = 0.35
+			queue_redraw()
+		if _flicker_time > 0.0:
+			_flicker_time -= delta
+			if _flicker_time <= 0.0:
+				queue_redraw()
+	if _wave >= 0.0:
+		_wave += delta * 1.6
+		if _wave > 1.2:
+			_wave = -1.0
+		queue_redraw()
+
+
+func celebrate() -> void:
+	## A wave of light runs up the tower (level up).
+	if not Game.reduce_motion:
+		_wave = 0.0
 
 
 func _gui_input(event: InputEvent) -> void:

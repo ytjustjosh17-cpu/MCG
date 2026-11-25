@@ -10,6 +10,7 @@ var _stats: Array = []
 var _ach_row: Row
 var _vib_row: Row
 var _upd_row: Row
+var _motion_row: Row
 var _report_row: Row
 var _storage_row: Row
 var _checking := false
@@ -92,7 +93,16 @@ func build() -> void:
 		Game.save_game()
 		refresh())
 	st.add_child(_vib_row)
-	separator(st)
+	separator(st, 50)
+	_motion_row = Row.new("sparkle", "", false)
+	_motion_row.custom_minimum_size = Vector2(0, 52)
+	_motion_row.pressed.connect(func():
+		Game.reduce_motion = not Game.reduce_motion
+		Kit.tick()
+		Game.save_game()
+		refresh())
+	st.add_child(_motion_row)
+	separator(st, 50)
 	_upd_row = Row.new("update", "", false)
 	_upd_row.custom_minimum_size = Vector2(0, 52)
 	_upd_row.pressed.connect(_check_updates)
@@ -139,6 +149,7 @@ func refresh() -> void:
 	_stats[2].text = "%d day%s" % [days, "" if days == 1 else "s"]
 	_ach_row.set_texts("Achievements", "", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
 	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
+	_motion_row.set_texts("Reduce motion", "", "On" if Game.reduce_motion else "Off")
 	_upd_row.set_texts("Updates", "", "v" + Updater.current_version())
 	_report_row.set_texts("Copy problem report", "", "")
 	if not _storage_timer_started:

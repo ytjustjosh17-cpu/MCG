@@ -140,15 +140,19 @@ func _show_tasks() -> void:
 
 func _on_level_up() -> void:
 	if Game.level_up():
-		Kit.tick(30)
+		Kit.haptic("success")
+		Motion.pop(_pill, 1.12)
+		_card.celebrate()
 		Kit.toast("Level %d · %s /tap" % [Game.level, Game.money_short(Game.tap_value())], true)
 		Game.flush_changes()
 	elif Game.level < Data.MAX_LEVEL:
-		Kit.toast(Game.money_short(Game.level_cost() - Game.cash) + " more")
+		Motion.shake(_level_btn)
 
 
 func _on_boost() -> void:
 	if Game.start_boost():
-		Kit.tick(20)
-		Kit.toast("×3 for 60 seconds", true)
+		Kit.haptic("medium")
+		Motion.pop(_boost_btn, 1.1)
+	else:
+		Motion.shake(_boost_btn)
 	_tick()

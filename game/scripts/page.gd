@@ -135,6 +135,9 @@ func button(text: String, primary := true, call: Callable = Callable()) -> Butto
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if call.is_valid():
 		b.pressed.connect(func():
+			if b.get_meta("blocked", false):
+				Motion.shake(b)
+				return
 			Kit.tick()
 			call.call())
 	Kit.press_fx(b)
@@ -142,8 +145,15 @@ func button(text: String, primary := true, call: Callable = Callable()) -> Butto
 
 
 static func set_enabled(b: Button, on: bool, primary := true) -> void:
-	b.disabled = not on
+	## Greyed out but still tappable, so a tap can say "not yet" with a shake.
+	b.disabled = false
+	b.set_meta("blocked", not on)
 	if on:
 		UI.paint(b, UI.TEXT if primary else UI.RAISED, UI.INK if primary else UI.TEXT, 24)
 	else:
 		UI.paint(b, UI.RAISED, UI.SUB, 24)
+
+
+func entered() -> void:
+	## Called when this page slides in; content arrives in order.
+	Motion.enter_stagger(body.get_children())

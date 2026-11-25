@@ -85,8 +85,27 @@ func close_top() -> bool:
 
 
 func tick(ms := 8) -> void:
-	if Game.vibrate:
-		Input.vibrate_handheld(ms)
+	## Light tap feedback; stronger values map to stronger haptics.
+	haptic("selection" if ms <= 8 else ("light" if ms <= 15 else "medium"))
+
+
+func haptic(kind: String) -> void:
+	## Small haptic vocabulary, in the spirit of Apple's feedback generators.
+	if not Game.vibrate:
+		return
+	match kind:
+		"selection":
+			Input.vibrate_handheld(6, 0.35)
+		"light":
+			Input.vibrate_handheld(10, 0.5)
+		"medium":
+			Input.vibrate_handheld(18, 0.75)
+		"success":
+			Input.vibrate_handheld(12, 0.6)
+			get_tree().create_timer(0.09).timeout.connect(func(): Input.vibrate_handheld(22, 0.9))
+		"error":
+			Input.vibrate_handheld(24, 0.8)
+			get_tree().create_timer(0.08).timeout.connect(func(): Input.vibrate_handheld(24, 0.8))
 
 
 # ---- press feedback ---------------------------------------------------------
@@ -100,11 +119,13 @@ func press_fx(c: Control) -> void:
 	b.resized.connect(fit)
 	fit.call()
 	b.button_down.connect(func():
-		var t := b.create_tween()
+		if Game.reduce_motion:
+			return
+		var t := Motion.tween(b, "press")
 		t.tween_property(b, "scale", Vector2(0.97, 0.97), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT))
 	b.button_up.connect(func():
-		var t := b.create_tween()
-		t.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
+		var t := Motion.tween(b, "press")
+		t.tween_property(b, "scale", Vector2.ONE, Motion.d(0.2)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT))
 
 
 # ---- buttons used inside overlays ------------------------------------------
@@ -236,8 +257,8 @@ func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect,
 	panel.size = Vector2(scr.x, h + 40.0)
 	geo["rest"] = scr.y - h
 	var tw := root.create_tween().set_parallel(true)
-	tw.tween_property(panel, "position:y", geo["rest"], 0.42).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	tw.tween_property(dim, "color:a", DIM.a, 0.25)
+	tw.tween_property(panel, "position:y", geo["rest"], Motion.d(Motion.SLOW)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(dim, "color:a", DIM.a, Motion.d(0.25))
 
 
 # ---- centred alert ----------------------------------------------------------
