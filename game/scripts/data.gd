@@ -176,6 +176,15 @@ const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 # ---- golden sun (a small surprise while playing) -------------------------
 const SUN_EVERY_MIN := [15.0, 30.0]  # minutes of play between suns
 const SUN_PER_DAY := 4                # never more than this a day
+# What a caught sun gives: chance of a cash prize, else a short buff (1.1).
+const SUN_CASH_CHANCE := 0.5
+const SUN_FRENZY_CHANCE := 0.3       # the rest is a Rush
+const FRENZY_MULT := 5.0             # taps ×5 (instead of the ×3 boost, not on top)
+const FRENZY_S := 20.0
+const RUSH_S := 600.0                # +1× income for 10 minutes, only while playing
+const CRIT_BASE := 0.04              # chance of a critical tap, +0.2% per level
+const CRIT_PER_LEVEL := 0.002
+const CRIT_MULT := 5.0
 const SUN_STAY_S := 9.0               # how long it drifts before it's gone
 const SUN_PRIZES := [[0.5, 10.0], [0.3, 20.0], [0.15, 30.0], [0.05, 60.0]]  # chance, minutes of income
 
