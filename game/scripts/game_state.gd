@@ -962,6 +962,69 @@ func sell_item(col: String, i: int) -> float:
 	return got
 
 
+# ==== bulk actions ===========================================================
+
+func fill_all() -> int:
+	## Buys outlets across all companies, cheapest first, until the money or
+	## the space runs out. Returns how many were bought.
+	var n := 0
+	while n < 1000:
+		var best := ""
+		var best_p := INF
+		for id in biz.keys():
+			if int(biz[id]["units"]) < capacity(id) and unit_price(id) < best_p:
+				best = id
+				best_p = unit_price(id)
+		if best == "" or not buy_unit(best):
+			break
+		n += 1
+	return n
+
+
+func fill_all_cost() -> float:
+	## What the single cheapest next outlet costs (0 if every company is full).
+	var best := INF
+	for id in biz.keys():
+		if int(biz[id]["units"]) < capacity(id):
+			best = minf(best, unit_price(id))
+	return 0.0 if best == INF else best
+
+
+func expandable() -> Array:
+	## Full companies whose next expansion you can start right now.
+	var out: Array = []
+	for id in biz.keys():
+		if int(biz[id]["units"]) >= capacity(id) and can_expand(id):
+			out.append(id)
+	return out
+
+
+func expand_all() -> int:
+	var n := 0
+	var ids := expandable()
+	ids.sort_custom(func(a, b): return expansion_cost(a) < expansion_cost(b))
+	for id in ids:
+		if start_expansion(id):
+			n += 1
+	return n
+
+
+func next_achievement() -> Dictionary:
+	## The locked achievement you're closest to, with how far along you are.
+	var best := {}
+	var best_p := -1.0
+	for a in _achievements:
+		if achieved.has(a["id"]):
+			continue
+		var p := clampf(metric(a["m"]) / float(a["goal"]), 0.0, 0.999)
+		if p > best_p:
+			best_p = p
+			best = a
+	if best.is_empty():
+		return {}
+	return {"title": best["title"], "progress": best_p}
+
+
 # ==== waiting time ===========================================================
 
 func eta(cost: float) -> String:

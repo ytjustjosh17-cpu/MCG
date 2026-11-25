@@ -32,6 +32,18 @@ func refresh() -> void:
 		return
 	_sig = sig
 	_fill(_day_box, Game.daily_tasks(), Game.daily_reward())
+	var all_done := true
+	for t in Game.daily_tasks():
+		if not t["done"]:
+			all_done = false
+	if all_done:
+		var m := MarginContainer.new()
+		m.add_theme_constant_override("margin_left", 16)
+		m.custom_minimum_size = Vector2(0, 48)
+		var l := UI.label("All done for today. Nice work.", 15, UI.UP)
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		m.add_child(l)
+		_day_box.add_child(m)
 	_fill(_week_box, Game.weekly_tasks(), Game.weekly_reward())
 
 
@@ -44,7 +56,9 @@ func _fill(box: VBoxContainer, tasks: Array, reward: float) -> void:
 		box.add_child(GoalRow.new(tasks[i], reward))
 
 
-class GoalRow extends Control:
+class GoalRow extends Button:
+	## Tap a goal to go where you can work on it.
+	const TAB := {"taps": 0, "earn": 0, "units": 1, "expand": 1, "deal": 1, "invest": 2}
 	var t: Dictionary
 	var reward := 0.0
 
@@ -52,11 +66,23 @@ class GoalRow extends Control:
 		t = task
 		reward = r
 		custom_minimum_size = Vector2(0, 72)
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		focus_mode = Control.FOCUS_NONE
+		flat = true
+		for st in ["normal", "hover", "focus", "disabled"]:
+			add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		add_theme_stylebox_override("pressed", UI.box(Color(UI.TEXT, 0.05), 0))
+		pressed.connect(func():
+			if t["done"]:
+				return
+			var main := get_tree().root.get_node_or_null("Main")
+			if main and main.has_method("show_page"):
+				Kit.tick()
+				main.show_page(int(TAB.get(String(t["id"]), 0))))
 		var done: bool = t["done"]
 		var ic := Icon.new("check" if done else "goal", UI.RED if done else UI.SUB, 22.0)
 		ic.set_style(UI.RED if done else UI.SUB, done)
 		ic.position = Vector2(16, 16)
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(ic)
 		var l := UI.label(String(t["text"]), 15, UI.TEXT if not done else UI.SUB)
 		l.position = Vector2(52, 12)

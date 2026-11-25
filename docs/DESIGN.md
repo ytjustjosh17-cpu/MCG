@@ -88,6 +88,11 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - The game remembers screen choices (`Game.ui`): Invest tab, sector filter, chart range.
 - Welcome back lists what happened while away. A daily streak gives a small gift.
 - Long names end in "..." rather than running into art.
+- Business tab: "Fill all" (outlets everywhere, cheapest first) and "Expand N ready".
+- Tap a goal to go where you can do it.
+- Settings: deal pop-ups (off = the deal waits on the Business tab), news messages, keep screen on.
+- Tap combo counter on the tower (×50, ×100, ×250 ...) is just for fun and pays nothing extra.
+- Share and coin lists sort by owned first, rising or falling. Profile shows the next achievement.
 
 ## Words
 

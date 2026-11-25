@@ -15,6 +15,10 @@ var _coin_rows := {}
 var _sector := ""
 var _chips := {}
 var _share_seps := {}   # sym -> divider line above that row
+var _coin_seps := {}
+var _sort_pills: Array = []
+var _order_key := {}   # list -> last order, so rows only move when it changes
+const SORTS := [["", "Sort"], ["owned", "Owned first"], ["up", "Rising"], ["down", "Falling"]]
 var _news_rows: Array = []   # one news Row per tab that has one
 var _mood_bar: Control
 var _mood_label: Label
@@ -64,6 +68,7 @@ func build() -> void:
 	flow.add_theme_constant_override("h_separation", 6)
 	flow.add_theme_constant_override("v_separation", 6)
 	shares_box.add_child(flow)
+	flow.add_child(_sort_pill())
 	for sec in [""] + Data.SECTORS:
 		var b := UI.pill("All" if sec == "" else sec, UI.PANEL, UI.SUB, 13, 16)
 		b.custom_minimum_size = Vector2(0, 40)
@@ -84,9 +89,8 @@ func build() -> void:
 	var shares_v := card(shares_box)
 	for i in range(Data.STOCKS.size()):
 		var st: Array = Data.STOCKS[i]
-		if i > 0:
-			separator(shares_v)
-			_share_seps[st[0]] = shares_v.get_child(shares_v.get_child_count() - 1)
+		separator(shares_v)
+		_share_seps[st[0]] = shares_v.get_child(shares_v.get_child_count() - 1)
 		var r := Row.new()
 		var sym: String = st[0]
 		r.set_lead(AssetTile.new(sym))
@@ -129,11 +133,14 @@ func build() -> void:
 	_mood_bar.draw.connect(_draw_mood)
 	mp.add_child(_mood_bar)
 	coins_box.add_child(_news_card())
+	var sort_row := HBoxContainer.new()
+	sort_row.add_child(_sort_pill())
+	coins_box.add_child(sort_row)
 	var coins_v := card(coins_box)
 	for i in range(Data.COINS.size()):
-		if i > 0:
-			separator(coins_v)
 		var c: Array = Data.COINS[i]
+		separator(coins_v)
+		_coin_seps[c[0]] = coins_v.get_child(coins_v.get_child_count() - 1)
 		var r := Row.new()
 		var sym: String = c[0]
 		r.set_lead(AssetTile.new(sym))
@@ -240,7 +247,8 @@ func refresh() -> void:
 			_sum_line2.visible = v > 0.0 or float(Game.counters.get("dividends_earned", 0.0)) > 0.0
 			_set_news(_news_rows[0], _latest_news("share"))
 			var first := true
-			for st in Data.STOCKS:
+			var stocks := _ordered(Data.STOCKS, Game.shares, "shares", _share_rows, _share_seps)
+			for st in stocks:
 				var r: Row = _share_rows[st[0]]
 				r.visible = _sector == "" or st[4] == _sector
 				if _share_seps.has(st[0]):
@@ -286,12 +294,69 @@ func refresh() -> void:
 			_mood_label.add_theme_color_override("font_color", UI.DOWN if _mood_value < 40.0 else (UI.UP if _mood_value > 60.0 else UI.TEXT))
 			_mood_bar.queue_redraw()
 			_set_news(_news_rows[1], _latest_news("coin"))
-			for c in Data.COINS:
+			var first_c := true
+			for c in _ordered(Data.COINS, Game.coins, "coins", _coin_rows, _coin_seps):
 				var r: Row = _coin_rows[c[0]]
+				_coin_seps[c[0]].visible = not first_c
+				first_c = false
 				var held := Game.holding(Game.coins, c[0]) + Game.staked(c[0])
 				r.set_texts(c[1], c[0] + (" · " + Game.money_short(held * Game.price(c[0])) if held > 0 else ""), AssetDetail.price_text(Game.price(c[0])))
 				r.set_change(Game.change_pct(c[0], 1440))
 				r.mark.visible = held > 0
+
+
+func _sort_pill() -> Button:
+	var b := UI.pill("", UI.PANEL, UI.SUB, 13, 16)
+	b.custom_minimum_size = Vector2(0, 40)
+	b.pressed.connect(func():
+		Kit.haptic("selection")
+		var i := 0
+		for k in range(SORTS.size()):
+			if SORTS[k][0] == String(Game.ui.get("sort", "")):
+				i = k
+		Game.ui["sort"] = SORTS[(i + 1) % SORTS.size()][0]
+		_paint_sort()
+		refresh())
+	Kit.press_fx(b)
+	_sort_pills.append(b)
+	_paint_sort.call_deferred()
+	return b
+
+
+func _paint_sort() -> void:
+	var mode := String(Game.ui.get("sort", ""))
+	for b in _sort_pills:
+		var label := "Sort"
+		for s in SORTS:
+			if s[0] == mode:
+				label = s[1]
+		b.text = "↕ " + label
+		UI.paint(b, UI.TEXT if mode != "" else UI.PANEL, UI.INK if mode != "" else UI.SUB, 16)
+
+
+func _ordered(list: Array, book: Dictionary, key: String, rows: Dictionary, seps: Dictionary) -> Array:
+	## The list in the chosen order; rows are moved only when the order changes.
+	var mode := String(Game.ui.get("sort", ""))
+	var out := list.duplicate()
+	match mode:
+		"owned":
+			out.sort_custom(func(a, b): return int(book.has(a[0])) > int(book.has(b[0])))
+		"up":
+			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) > Game.change_pct(b[0], 1440))
+		"down":
+			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) < Game.change_pct(b[0], 1440))
+	var sig := ""
+	for it in out:
+		sig += String(it[0]) + ","
+	if _order_key.get(key, "") != sig:
+		_order_key[key] = sig
+		var parent: Node = (rows[out[0][0]] as Control).get_parent()
+		var idx := 0
+		for it in out:
+			parent.move_child(seps[it[0]], idx)
+			parent.move_child(rows[it[0]], idx + 1)
+			idx += 2
+	return out
 
 
 func _property(i: int) -> void:

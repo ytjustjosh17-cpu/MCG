@@ -9,6 +9,13 @@ var _list: VBoxContainer
 var _cards := {}
 var _empty: Control
 var _income_note: Label
+var _bulk: HBoxContainer
+var _fill_btn: Button
+var _expand_btn: Button
+var _deal_row: Row
+var _deal_card: Control
+
+signal deal_open
 var _boost_card: Control
 
 
@@ -35,6 +42,22 @@ func build() -> void:
 	body.add_child(h)
 	h.add_child(button("New", true, func(): push_page.emit(StartBusinessPage.new())))
 	h.add_child(button("Mergers", false, func(): push_page.emit(MergersPage.new())))
+	# Quick actions for when you own a few companies.
+	_bulk = HBoxContainer.new()
+	_bulk.add_theme_constant_override("separation", 8)
+	body.add_child(_bulk)
+	_fill_btn = button("", false, _on_fill)
+	_bulk.add_child(_fill_btn)
+	_expand_btn = button("", false, _on_expand_all)
+	_bulk.add_child(_expand_btn)
+	# A deal waiting quietly (when deal pop-ups are turned off).
+	var dc := card()
+	_deal_row = Row.new("sparkle")
+	_deal_row.pressed.connect(func():
+		Kit.tick()
+		deal_open.emit())
+	dc.add_child(_deal_row)
+	_deal_card = dc.get_parent()
 	_count = section("My companies")
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 12)
@@ -69,6 +92,18 @@ func refresh() -> void:
 	else:
 		_boost.set_texts("×2 income", "Ready again in", Game.clock(Game.ibost_cooldown_left()))
 	_count.text = "%d of %d owned" % [Game.companies(), Data.BUSINESSES.size()]
+	var cheapest := Game.fill_all_cost()
+	var ready := Game.expandable().size()
+	_bulk.visible = Game.companies() >= 2 and (cheapest > 0.0 or ready > 0)
+	_fill_btn.visible = cheapest > 0.0
+	_fill_btn.text = "Fill all"
+	Page.set_enabled(_fill_btn, cheapest > 0.0 and Game.cash >= cheapest, false)
+	_expand_btn.visible = ready > 0
+	_expand_btn.text = "Expand %d ready" % ready
+	Page.set_enabled(_expand_btn, ready > 0, true)
+	_deal_card.visible = not Game.deal.is_empty() and bool(Game.ui.get("deals_quiet", false))
+	if _deal_card.visible:
+		_deal_row.set_texts(String(Game.deal.get("title", "Deal")), String(Game.deal.get("text", "")))
 	_empty.visible = Game.companies() == 0
 	for b in Data.BUSINESSES:
 		var id: String = b["id"]
@@ -82,6 +117,22 @@ func refresh() -> void:
 			_cards[id] = bc
 		if _cards.has(id):
 			(_cards[id] as BizCard).refresh()
+
+
+func _on_fill() -> void:
+	var n := Game.fill_all()
+	if n > 0:
+		Kit.haptic("success")
+		Kit.toast("Bought %d outlet%s" % [n, "" if n == 1 else "s"], true)
+		Game.flush_changes()
+
+
+func _on_expand_all() -> void:
+	var n := Game.expand_all()
+	if n > 0:
+		Kit.haptic("success")
+		Kit.toast("%d expansion%s started" % [n, "" if n == 1 else "s"], true)
+		Game.flush_changes()
 
 
 func _on_boost() -> void:

@@ -141,7 +141,8 @@ func celebrate() -> void:
 	## A wave of light runs up the tower (level up).
 	if not Game.reduce_motion:
 		_wave = 0.0
-
+	if not Motion.reduced():
+		add_child(Confetti.new(Vector2(size.x * 0.5, size.y * 0.3), 60))
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -151,6 +152,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _do_tap(pos: Vector2) -> void:
 	var v := Game.tap()
+	_combo_tick(pos)
 	if _rows > 0:
 		_flash_index = randi() % (COLS * _rows)
 	_flash_time = 0.12
@@ -159,6 +161,51 @@ func _do_tap(pos: Vector2) -> void:
 		Input.vibrate_handheld(18)
 	if _float_count < 12:
 		_spawn_float(pos, v)
+
+
+# ---- tap combo (just for fun, no extra money) ----------------------------------
+
+const COMBO_GAP_MS := 900
+const COMBO_MARKS := [50, 100, 250, 500, 1000]
+var _combo := 0
+var _combo_ms := 0
+var _combo_l: Label
+
+
+func _combo_tick(pos: Vector2) -> void:
+	var t := Time.get_ticks_msec()
+	_combo = _combo + 1 if t - _combo_ms < COMBO_GAP_MS else 1
+	_combo_ms = t
+	if _combo_l == null:
+		_combo_l = UI.display("", 26, UI.TEXT)
+		_combo_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		add_child(_combo_l)
+		var timer := Timer.new()
+		timer.wait_time = 0.25
+		timer.autostart = true
+		timer.timeout.connect(_combo_fade)
+		add_child(timer)
+	_combo_l.size = Vector2(160, 34)
+	_combo_l.position = Vector2(size.x - 176, 12)
+	_combo_l.visible = _combo >= 10
+	_combo_l.modulate.a = 1.0
+	_combo_l.text = "×%d" % _combo
+	if _combo in COMBO_MARKS:
+		_combo_l.add_theme_color_override("font_color", UI.RED)
+		Kit.haptic("medium")
+		Motion.pop(_combo_l, 1.25)
+		if not Motion.reduced():
+			add_child(Confetti.new(pos, 40))
+	elif _combo % 50 == 1:
+		_combo_l.add_theme_color_override("font_color", UI.TEXT)
+
+
+func _combo_fade() -> void:
+	if _combo_l and _combo_l.visible and Time.get_ticks_msec() - _combo_ms > COMBO_GAP_MS:
+		_combo = 0
+		var t := create_tween()
+		t.tween_property(_combo_l, "modulate:a", 0.0, Motion.d(0.4))
+		t.tween_callback(func(): _combo_l.visible = false)
 
 
 func _spawn_float(pos: Vector2, v: float) -> void:

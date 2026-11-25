@@ -13,6 +13,7 @@ var _upd_row: Row
 var _motion_row: Row
 var _report_row: Row
 var _rival_row: Row
+var _toggles: Array = []
 var _storage_row: Row
 var _checking := false
 var _upd_card: PanelContainer
@@ -149,6 +150,22 @@ func build() -> void:
 		refresh())
 	st.add_child(_motion_row)
 	separator(st, 50)
+	_toggles = []
+	for spec in [["deals_quiet", "sparkle", "Deal pop-ups", true], ["news_quiet", "news", "News messages", true], ["keep_awake", "clock", "Keep screen on", false]]:
+		var key: String = spec[0]
+		var inverted: bool = spec[3]  # "quiet" keys are shown as the opposite (pop-ups on/off)
+		var tr := Row.new(spec[1], "", false)
+		tr.custom_minimum_size = Vector2(0, 52)
+		tr.pressed.connect(func():
+			Game.ui[key] = not bool(Game.ui.get(key, false))
+			Kit.tick()
+			if key == "keep_awake":
+				DisplayServer.screen_set_keep_on(bool(Game.ui[key]))
+			Game.save_game()
+			refresh())
+		st.add_child(tr)
+		separator(st, 50)
+		_toggles.append([tr, key, spec[2], inverted])
 	_upd_row = Row.new("update", "", false)
 	_upd_row.custom_minimum_size = Vector2(0, 52)
 	_upd_row.pressed.connect(_check_updates)
@@ -212,7 +229,13 @@ func refresh() -> void:
 	_stats[1].text = Game.group(Game.taps)
 	var days := int((Game.now() - Game.started_at) / 86400.0) + 1
 	_stats[2].text = "%d day%s" % [days, "" if days == 1 else "s"]
-	_ach_row.set_texts("Achievements", "", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
+	var na := Game.next_achievement()
+	_ach_row.set_texts("Achievements", ("Next: %s · %d%%" % [na["title"], int(float(na["progress"]) * 100.0)]) if not na.is_empty() else "All done", "%d / %d" % [Game.achieved.size(), Game.achievements().size()])
+	for t in _toggles:
+		var on: bool = bool(Game.ui.get(t[1], false))
+		if t[3]:
+			on = not on
+		(t[0] as Row).set_texts(t[2], "", "On" if on else "Off")
 	_rival_row.set_texts("Rivals", "", "%d / %d beaten" % [Game.rivals_beaten(), Data.RIVALS.size()])
 	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
 	_motion_row.set_texts("Reduce motion", "", "On" if Game.reduce_motion else "Off")
