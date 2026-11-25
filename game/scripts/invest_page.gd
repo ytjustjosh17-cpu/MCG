@@ -14,6 +14,7 @@ var _prop_rows := {}
 var _coin_rows := {}
 var _sector := ""
 var _chips := {}
+var _sector_pill: Button
 var _share_seps := {}   # sym -> divider line above that row
 var _coin_seps := {}
 var _sort_pills: Array = []
@@ -64,26 +65,29 @@ func build() -> void:
 	shares_box.add_theme_constant_override("separation", 12)
 	body.add_child(shares_box)
 	shares_box.add_child(_news_card())
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", 6)
-	flow.add_theme_constant_override("v_separation", 6)
-	shares_box.add_child(flow)
-	flow.add_child(_sort_pill())
-	for sec in [""] + Data.SECTORS:
-		var b := UI.pill("All" if sec == "" else sec, UI.PANEL, UI.SUB, 13, 16)
-		b.custom_minimum_size = Vector2(0, 40)
-		var ss: String = sec
-		b.pressed.connect(func():
+	# Two simple drop-downs instead of a wall of chips.
+	var drops := HBoxContainer.new()
+	drops.add_theme_constant_override("separation", 8)
+	shares_box.add_child(drops)
+	_sector_pill = Kit.drop_pill("")
+	_sector_pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sector_pill.pressed.connect(func():
+		var opts: Array = [["", "All sectors"]]
+		for sec in Data.SECTORS:
+			opts.append([sec, sec])
+		Kit.pick("Sector", opts, _sector, func(v):
 			Kit.haptic("selection")
-			_sector = ss
-			Game.ui["sector"] = ss
+			_sector = String(v)
+			Game.ui["sector"] = _sector
 			_paint_chips()
-			refresh())
-		Kit.press_fx(b)
-		flow.add_child(b)
-		_chips[sec] = b
+			refresh()))
+	Kit.press_fx(_sector_pill)
+	drops.add_child(_sector_pill)
+	var sort_p := _sort_pill()
+	sort_p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drops.add_child(sort_p)
 	_sector = String(Game.ui.get("sector", ""))
-	if not _chips.has(_sector):
+	if _sector != "" and not Data.SECTORS.has(_sector):
 		_sector = ""
 	_paint_chips()
 	var shares_v := card(shares_box)
@@ -134,7 +138,9 @@ func build() -> void:
 	mp.add_child(_mood_bar)
 	coins_box.add_child(_news_card())
 	var sort_row := HBoxContainer.new()
-	sort_row.add_child(_sort_pill())
+	var csp := _sort_pill()
+	csp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sort_row.add_child(csp)
 	coins_box.add_child(sort_row)
 	var coins_v := card(coins_box)
 	for i in range(Data.COINS.size()):
@@ -169,11 +175,8 @@ func _news_card() -> Control:
 
 
 func _paint_chips() -> void:
-	for k in _chips.keys():
-		var on: bool = k == _sector
-		var accent: Color = UI.SECTOR_COL.get(k, UI.TEXT)
-		UI.paint(_chips[k], accent if on else UI.PANEL, UI.INK if on else UI.SUB, 16)
-
+	if _sector_pill:
+		_sector_pill.text = ("All sectors" if _sector == "" else _sector) + "  ▾"
 
 func _draw_mood() -> void:
 	var w := _mood_bar.size.x
@@ -306,17 +309,16 @@ func refresh() -> void:
 
 
 func _sort_pill() -> Button:
-	var b := UI.pill("", UI.PANEL, UI.SUB, 13, 16)
-	b.custom_minimum_size = Vector2(0, 40)
+	var b := Kit.drop_pill("")
 	b.pressed.connect(func():
-		Kit.haptic("selection")
-		var i := 0
-		for k in range(SORTS.size()):
-			if SORTS[k][0] == String(Game.ui.get("sort", "")):
-				i = k
-		Game.ui["sort"] = SORTS[(i + 1) % SORTS.size()][0]
-		_paint_sort()
-		refresh())
+		var opts: Array = []
+		for o in SORTS:
+			opts.append([o[0], "Default order" if o[0] == "" else o[1]])
+		Kit.pick("Sort", opts, String(Game.ui.get("sort", "")), func(v):
+			Kit.haptic("selection")
+			Game.ui["sort"] = String(v)
+			_paint_sort()
+			refresh()))
 	Kit.press_fx(b)
 	_sort_pills.append(b)
 	_paint_sort.call_deferred()
@@ -328,10 +330,9 @@ func _paint_sort() -> void:
 	for b in _sort_pills:
 		var label := "Sort"
 		for s in SORTS:
-			if s[0] == mode:
+			if s[0] == mode and mode != "":
 				label = s[1]
-		b.text = "↕ " + label
-		UI.paint(b, UI.TEXT if mode != "" else UI.PANEL, UI.INK if mode != "" else UI.SUB, 16)
+		b.text = label + "  ▾"
 
 
 func _ordered(list: Array, book: Dictionary, key: String, rows: Dictionary, seps: Dictionary) -> Array:
