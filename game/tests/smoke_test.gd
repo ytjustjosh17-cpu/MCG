@@ -759,6 +759,20 @@ func _run() -> void:
 	var cs_mig: Dictionary = game._migrate(cs_old)
 	_check(cs_mig.has("casino") and not bool(cs_mig["casino"]["open"]), "v13 saves load with the casino locked")
 	game.reset_game(true)
+	# Back up, gamble, restore if down: refused even a minute later.
+	game.reset_game(true)
+	game.casino = {"open": true, "chips": 0.0}
+	game.cash = 1.0e6
+	game.buy_chips(1000.0)
+	game.restore_guard = true
+	game.save_game()
+	var gb_code: String = game.backup_code()
+	game.casino_stake(game.casino_max_bet())
+	_check(not game.restore_code(gb_code) and game.restore_error != "", "a backup can't undo a casino bet, even moments later")
+	game._guard.erase(str(int(game.started_at)) + "!")
+	game._guard.erase(str(int(game.started_at)))
+	game.restore_guard = false
+	game.reset_game(true)
 	# Rewards wait for a tap: achievements and goals add to the list, claiming
 	# pays exactly once, and the amount doesn't grow while it waits.
 	game.reset_game()

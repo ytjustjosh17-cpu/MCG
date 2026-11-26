@@ -57,6 +57,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 ## Guard rails (keep these true)
 
 1. Trading must not beat owning companies. `tests/market_test.gd` measures it: the average return 6, 24 and 72 hours after crash news, pump news and big dips must stay close to the normal return (limits 3%, 5%, 8%). A pull back to a home price made dips bounce by 12%, so coins no longer have one. Random moves go into the fair price itself (a random walk) and the price follows it, so dips are not promises of a bounce. Coin news shifts the coin's long-run anchor too. Re-run the exploit persona after any market change.
+2. After any casino bet, no backup saved before that bet can be restored into the same game, with no time allowance (`_guard_strict()`).
 2. Restoring a backup never passes time (so it can't re-roll the market), and a backup can't rewind the game it came from (`user://restore_guard.json`, kept through a reset). Otherwise backup-gamble-restore was a free undo worth +40 to 80% a day.
 3. Time away is worked out without the ×2 boost, then only the boosted hours are added back.
 4. Selling a unit to a buyer pays a little under what rebuying costs.

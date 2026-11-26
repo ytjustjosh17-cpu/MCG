@@ -1,5 +1,14 @@
 # Changelog
 
+## Managers explained
+
+- Tapping a company's manager row now explains what they do before you hire:
+  they start each expansion for you when the company is full and you have
+  the cash (also while you're away), you still buy the units, and they take
+  10% of that company's income until it's fully expanded.
+- Safety: after any casino bet, an older backup of the same game can't be
+  restored (no more "back up, gamble, restore if down").
+
 ## Rebirth and the RBP tree
 
 - Profile > Rebirth. From £10B net worth you can rebirth: start again for
