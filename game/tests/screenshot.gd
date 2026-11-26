@@ -298,6 +298,11 @@ func _run() -> void:
 	g.flush_changes()
 	await create_timer(0.4).timeout
 	await _shot("36_casino")
+	main.push(load("res://scripts/forge_page.gd").new())
+	await create_timer(1.6).timeout
+	await _shot("37b_sun_forge")
+	main.pop()
+	await create_timer(0.6).timeout
 	main.push(load("res://scripts/slots_page.gd").new("classic"))
 	await create_timer(1.0).timeout
 	await _shot("37_slots")
