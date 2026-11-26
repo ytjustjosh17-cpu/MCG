@@ -94,7 +94,7 @@ With every change the player can see, in the same commit:
 
 1. All checks above pass.
 2. Commit with a short summary. Ask the owner, and push to the working branch only when they say yes.
-3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.1.<run number>` (1.1 from the v1.1 release on; the updater compares only the last number).
+3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.2.<run number>` (1.2 from the 1.2.0 release on; the updater compares only the last number).
 4. The owner taps Update in Profile.
 
 The signing key lives in `game/android/release.keystore` (owner's choice). A move to a private key in GitHub Secrets is planned; the new key is not active yet.

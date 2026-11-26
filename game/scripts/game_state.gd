@@ -2917,6 +2917,40 @@ func cash_out(amount: float) -> bool:
 	return true
 
 
+func wheel_ready() -> bool:
+	## One free spin a day, once the casino is open.
+	return casino_open() and int(casino.get("wheel_day", -1)) < _today()
+
+
+func spin_wheel() -> Dictionary:
+	## Spins the free wheel: {index, kind ("cash"/"chips"), amount}. Saved at once.
+	if not wheel_ready():
+		return {}
+	var total := 0
+	for w in Data.WHEEL:
+		total += int(w[2])
+	var roll := randi() % total
+	var idx := 0
+	for i in range(Data.WHEEL.size()):
+		roll -= int(Data.WHEEL[i][2])
+		if roll < 0:
+			idx = i
+			break
+	var seg: Array = Data.WHEEL[idx]
+	var amount := maxf(base_income(), 100.0) * float(seg[1]) / 60.0
+	if String(seg[0]) == "chips":
+		casino["chips"] = chips() + amount
+	else:
+		cash += amount
+	casino["wheel_day"] = _today()
+	_bump("wheel_spins")
+	GameLog.info("casino", "Wheel: %s %s" % [seg[0], money(amount)])
+	recalc()
+	save_game()
+	flush_changes()
+	return {"index": idx, "kind": String(seg[0]), "amount": amount}
+
+
 func casino_stake(amount: float, limit_mult := 1.0) -> bool:
 	## Takes a bet from chips. limit_mult lets a bonus buy or a blackjack
 	## double or split go past one normal bet.
