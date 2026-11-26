@@ -60,6 +60,13 @@ with nothing lost.
 
 ### Fixed
 
+- Exploit: backing up, gambling all your cash on a coin and restoring if it
+  lost was a free undo (+40 to 80% a day). A backup now can't rewind the
+  game it came from; it still works on a new phone or after a reinstall.
+- Exploit: setting the phone clock back kept Rush, Frenzy and the x3 boost
+  running. They now move back with the clock.
+- Mining's 8% cap now holds even with a tiny income.
+
 - Mining news showed a 0% price change; it now shows the mining speed change.
 - Mined coins showed "No change · avg £0"; they now show as all profit.
 - Reaching a milestone now gives a burst, a sound and a note.

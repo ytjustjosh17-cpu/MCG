@@ -226,7 +226,7 @@ func _on_restore() -> void:
 				Kit.toast("Progress restored", true)
 			else:
 				Kit.haptic("error")
-				Kit.toast("That code didn't work")},
+				Kit.toast(Game.restore_error if Game.restore_error != "" else "That code didn't work")},
 	])
 
 
