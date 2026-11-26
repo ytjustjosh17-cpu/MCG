@@ -16,17 +16,9 @@ var _own: Label
 var _profit: Label
 var _extra: Label
 var _sell: Button
-var _stake_card: Control
-var _staked: Label
-var _stake_info: Label
-var _stake_btn: Button
-var _unstake_btn: Button
-var _rigs_l: Label
+var _lock_row: Row
+var _mine_line: Control
 var _mine_l: Label
-var _rig_btn: Button
-var _mine_note: Label
-var _hi: Label
-var _lo: Label
 var _news_box: VBoxContainer
 var _news_count := -1
 var _scrubbing := false
@@ -60,7 +52,8 @@ func build() -> void:
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 0)
 	head.add_child(hv)
-	var tag := UI.label("%s · %s" % [sym, a[4] if kind == "share" else "Crypto"], 13, UI.asset_color(sym))
+	var tag_text := "%s · %s · pays %.2f%%/day" % [sym, a[4], float(a[3]) * Data.STOCK_DIV_SCALE * 24.0 * 100.0] if kind == "share" else "%s · Crypto" % sym
+	var tag := UI.label(tag_text, 13, UI.asset_color(sym))
 	hv.add_child(tag)
 	_price = UI.display("", 40)
 	hv.add_child(_price)
@@ -90,10 +83,10 @@ func build() -> void:
 	h.add_child(_sell)
 	h.add_child(button("Buy", true, _on_buy))
 
-	# What you own: three short lines, hidden when you own none.
+	# What you own, in one card: hidden when you own none.
 	var c := card()
 	_own_card = c.get_parent()
-	_own = _line(c, "Owned")
+	_own = _line(c, "You own")
 	separator(c)
 	_profit = _line(c, "Profit")
 	# Long gains shrink and trim rather than push the card off screen.
@@ -105,45 +98,17 @@ func build() -> void:
 	var pl: Label = _profit.get_parent().get_child(0)
 	pl.size_flags_horizontal = Control.SIZE_FILL
 	separator(c)
-	_extra = _line(c, "Pays" if kind == "share" else "Staking")
-
+	_extra = _line(c, "Pays" if kind == "share" else "Earning")
 	if kind == "coin":
-		section("Lock", "+%.2f%%/day" % (Game.stake_rate(sym) * 2400.0))
-		var hint := UI.label("Lock 24 h. Earn more coins.", 13, UI.SUB)
-		body.add_child(hint)
-		var sc := card()
-		_stake_card = sc.get_parent()
-		_staked = _line(sc, "Locked")
-		separator(sc)
-		_stake_info = _line(sc, "Unlocks")
-		var sh := HBoxContainer.new()
-		sh.add_theme_constant_override("separation", 8)
-		body.add_child(sh)
-		_unstake_btn = button("Unlock", false, _on_unstake)
-		sh.add_child(_unstake_btn)
-		_stake_btn = button("Lock", false, _on_stake)
-		sh.add_child(_stake_btn)
-		# Mining: rigs that mine this coin all the time, even while away (up to 8 h).
-		section("Mine")
-		_mine_note = UI.label("", 13, UI.SUB)
-		_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.add_child(_mine_note)
-		var mc := card()
-		_rigs_l = _line(mc, "Rigs")
-		separator(mc)
-		_mine_l = _line(mc, "Mines")
-		_rig_btn = button("Buy rig", true, _on_rig)
-		body.add_child(_rig_btn)
-	else:
-		section("Stats")
-		var st := card()
-		_line(st, "Pays").text = "%.2f%% /day" % (float(a[3]) * Data.STOCK_DIV_SCALE * 24.0 * 100.0)
-		separator(st)
-		_line(st, "Sector").text = a[4]
-		separator(st)
-		_hi = _line(st, "7d high")
-		separator(st)
-		_lo = _line(st, "7d low")
+		separator(c)
+		_mine_l = _line(c, "Mining")
+		_mine_line = _mine_l.get_parent().get_parent()
+		# Locking (staking) is one row; tap it for the choices.
+		var lc := card()
+		_lock_row = Row.new("lock", "", true)
+		_lock_row.custom_minimum_size = Vector2(0, 64)
+		_lock_row.pressed.connect(_on_stake)
+		lc.add_child(_lock_row)
 
 	section("News")
 	_news_box = card()
@@ -233,36 +198,21 @@ func refresh() -> void:
 	if kind == "share":
 		var a := _asset()
 		_extra.text = price_text(free * Game.price(sym) * float(a[3]) * Data.STOCK_DIV_SCALE * Game.global_mult()) + " /h"
-		var wk: Array = Game.series(sym, "1W")
-		if wk.size() > 0:
-			_hi.text = price_text(maxf(wk.max(), Game.price(sym)))
-			_lo.text = price_text(minf(wk.min(), Game.price(sym)))
 	else:
-		_extra.text = ("+" + Game.money_short(Game.stake_earn_per_hour(sym)) + " /h") if locked > 0.0 else "None locked"
-		_staked.text = qty_text(locked) + " " + sym
-		var left := Game.stake_left(sym)
-		_stake_info.text = "None" if locked <= 0.0 else ("Ready" if left <= 0.0 else Game.clock(left))
-		# Lock stays tappable so an empty tap explains "Nothing to lock".
-		Page.set_enabled(_unstake_btn, locked > 0.0 and left <= 0.0, false)
-		_stake_btn.modulate.a = 1.0 if free > 0.0 else 0.4
-		_unstake_btn.modulate.a = 1.0 if locked > 0.0 and left <= 0.0 else 0.4
+		var earn := Game.stake_earn_per_hour(sym) + Game.mine_per_hour(sym) * Game.price(sym)
+		_extra.text = ("+" + Game.money_short(earn) + " /h") if earn > 0.0 else "Nothing yet"
 		var nr := Game.rig_count(sym)
-		_rigs_l.text = "%d  (%d / %d in all)" % [nr, Game.rigs_total(), Data.RIG_MAX]
-		var mph := Game.mine_per_hour(sym)
-		_mine_l.text = ("%s %s /h · %s" % [qty_text(mph), sym, Game.money_short(mph * Game.price(sym))]) if nr > 0 else "Nothing yet"
-		var eff := float(Game.mine_eff.get(sym, 1.0))
-		var notes: Array = ["Mined coins land in your wallet, even while away (up to 8 h)."]
-		if absf(eff - 1.0) > 0.02:
-			notes.append("Mining speed ×%.2f from news." % eff)
-		if Game.mining_capped():
-			notes.append("All mining is capped at %d%% of your income." % int(Data.MINE_CAP * 100.0))
-		_mine_note.text = " ".join(notes)
-		if Game.rigs_total() >= Data.RIG_MAX:
-			_rig_btn.text = "All rigs bought"
-			Page.set_enabled(_rig_btn, false)
+		_mine_line.visible = nr > 0
+		if nr > 0:
+			_mine_l.text = "%d rig%s · %s /h" % [nr, "" if nr == 1 else "s", qty_text(Game.mine_per_hour(sym))]
+		var left := Game.stake_left(sym)
+		var rate := "+%.2f%% a day" % (Game.stake_rate(sym) * 2400.0)
+		if locked <= 0.0:
+			_lock_row.set_texts("Lock to earn", rate + " · 24 h", "")
+		elif left > 0.0:
+			_lock_row.set_texts("Locked " + qty_text(locked), rate, Game.clock(left))
 		else:
-			_rig_btn.text = "Buy rig · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(Game.rig_gain(sym))]
-			Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price())
+			_lock_row.set_texts("Locked " + qty_text(locked), "Ready to unlock", "Unlock")
 	Page.set_enabled(_sell, free > 0.0, false)
 	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
 	var news_n := int(Game.counters.get("news_total", 0))
@@ -284,7 +234,7 @@ func _fill_news() -> void:
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		m.add_child(l)
 		return
-	for i in range(mini(items.size(), 5)):
+	for i in range(mini(items.size(), 3)):
 		if i > 0:
 			separator(_news_box)
 		_news_box.add_child(NewsPage.news_row(items[i], false))
@@ -334,33 +284,28 @@ func _on_sell() -> void:
 
 
 func _on_stake() -> void:
+	## One sheet for locking and unlocking.
+	Kit.tick()
 	var free := Game.holding(Game.coins, sym)
-	if free <= 0.0:
-		Kit.sheet("Lock " + sym, "Nothing to lock", [{"text": "Close", "style": "plain"}])
-		return
+	var locked := Game.staked(sym)
 	var actions: Array = []
+	if locked > 0.0 and Game.stake_left(sym) <= 0.0:
+		actions.append({"text": "Unlock " + qty_text(locked), "style": "primary", "call": _on_unstake})
 	for f in [0.5, 1.0]:
 		var ff: float = f
-		var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff)
-		actions.append({"text": label, "style": "primary" if ff >= 1.0 else "secondary", "call": func():
-			if Game.stake(sym, ff):
-				Kit.haptic("success")
-				Kit.toast("Locked for 24 h", true)})
+		if free > 0.0:
+			var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff)
+			actions.append({"text": label, "style": "secondary", "call": func():
+				if Game.stake(sym, ff):
+					Kit.haptic("success")
+					Kit.toast("Locked for 24 h", true)})
 	actions.append({"text": "Close", "style": "plain"})
-	Kit.sheet("Lock " + sym, "Earns %.2f%% a day.\nLocked 24 h." % (Game.stake_rate(sym) * 2400.0), actions)
-
-
-func _on_rig() -> void:
-	if Game.buy_rig(sym):
-		Kit.haptic("success")
-		Motion.pop(_rigs_l, 1.1)
-		Kit.toast("Rig mining %s" % sym, true)
-		Game.flush_changes()
-	else:
-		Kit.haptic("error")
-		Motion.shake(_rig_btn)
-		if Game.rigs_total() < Data.RIG_MAX:
-			Kit.toast("Need %s more" % Game.money_short(Game.rig_price() - Game.cash))
+	var body_t := "Locked coins earn %.2f%% a day and stay locked for 24 h." % (Game.stake_rate(sym) * 2400.0)
+	if free <= 0.0 and locked <= 0.0:
+		body_t = "Buy some %s first, then lock them to earn more." % sym
+	elif locked > 0.0 and Game.stake_left(sym) > 0.0:
+		body_t += "\nUnlocks in " + Game.clock(Game.stake_left(sym)) + "."
+	Kit.sheet("Lock " + sym, body_t, actions)
 
 
 func _on_unstake() -> void:

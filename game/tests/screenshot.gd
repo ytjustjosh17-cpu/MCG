@@ -238,5 +238,12 @@ func _run() -> void:
 	await create_timer(0.8).timeout
 	main._stack[-1].scroll.scroll_vertical = 420
 	await _shot("30_mining")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.show_page(2)
+	main._pages[2]._seg.select(2, true)
+	await create_timer(0.4).timeout
+	main._pages[2].scroll.scroll_vertical = 330
+	await _shot("31_crypto_mining")
 	g.reset_game()
 	quit()

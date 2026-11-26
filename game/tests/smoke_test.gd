@@ -236,11 +236,15 @@ func _run() -> void:
 			break
 	var best_sym := ""
 	var best_ch := -1e9
+	var nrv_owned: bool = game.holding(game.shares, "NRV") > 0.0
 	for st in Data.STOCKS:
+		if (game.holding(game.shares, st[0]) > 0.0) != nrv_owned:
+			continue   # only compare within the same list (Yours or Market)
 		if game.change_pct(st[0], 1440) > best_ch:
 			best_ch = game.change_pct(st[0], 1440)
 			best_sym = st[0]
 	_check(first_row == inv2._share_rows[best_sym], "Rising sort puts the biggest riser first")
+	_check(inv2._my_shares.get_parent().visible == (game.shares.size() > 0), "owned shares get their own section")
 	game.ui["sort"] = ""
 	main.show_page(0)
 	await create_timer(0.4).timeout
@@ -372,15 +376,19 @@ func _run() -> void:
 	inv._sector = "Tech"
 	inv.refresh()
 	var shown := 0
-	for k in inv._share_rows.keys():
-		if inv._share_rows[k].visible:
+	var tech_owned := 0
+	for sst in Data.STOCKS:
+		var rr: Control = inv._share_rows[sst[0]]
+		if rr.is_inside_tree() and rr.get_parent() == inv._all_shares:
 			shown += 1
-	_check(shown == 3, "sector filter shows Tech only")
+		if sst[4] == "Tech" and game.holding(game.shares, sst[0]) > 0.0:
+			tech_owned += 1
+	_check(shown == 3 - tech_owned, "sector filter shows Tech only in the market list (%d)" % shown)
 	var lines := 0
-	for k in inv._share_seps.keys():
-		if inv._share_seps[k].visible:
+	for ch in inv._all_shares.get_children():
+		if not (ch is Row):
 			lines += 1
-	_check(lines == 2, "sector filter hides extra divider lines")
+	_check(lines == maxi(0, shown - 1), "a divider only between rows")
 	main.show_page(0)
 	await process_frame
 

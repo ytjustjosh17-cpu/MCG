@@ -15,12 +15,23 @@ var _coin_rows := {}
 var _sector := ""
 var _chips := {}
 var _sector_pill: Button
-var _share_seps := {}   # sym -> divider line above that row
-var _coin_seps := {}
+var _my_shares: VBoxContainer
+var _all_shares: VBoxContainer
+var _my_shares_l: Label
+var _all_shares_l: Label
+var _my_coins: VBoxContainer
+var _all_coins: VBoxContainer
+var _my_coins_l: Label
+var _all_coins_l: Label
+var _mine_sum: Row
+var _mine_note: Label
+var _mine_list: VBoxContainer
+var _rig_btn: Button
+var _mine_sig := ""
 var _sort_pills: Array = []
 var _order_key := {}   # list -> last order, so rows only move when it changes
 var _sorted := {}   # list -> [mode, order]; kept until the player asks again
-const SORTS := [["", "Sort"], ["owned", "Owned first"], ["up", "Rising"], ["down", "Falling"]]
+const SORTS := [["", "Sort"], ["up", "Rising"], ["down", "Falling"]]
 var _news_rows: Array = []   # one news Row per tab that has one
 var _mood_box: Control
 var _mood_bar: Control
@@ -110,16 +121,18 @@ func build() -> void:
 	if _sector != "" and not Data.SECTORS.has(_sector):
 		_sector = ""
 	_paint_chips()
-	var shares_v := card(shares_box)
-	for i in range(Data.STOCKS.size()):
-		var st: Array = Data.STOCKS[i]
-		separator(shares_v)
-		_share_seps[st[0]] = shares_v.get_child(shares_v.get_child_count() - 1)
+	# Your shares first, then the rest of the market.
+	_my_shares_l = UI.label("Yours", 15, UI.SUB)
+	shares_box.add_child(_my_shares_l)
+	_my_shares = card(shares_box)
+	_all_shares_l = UI.label("Market", 15, UI.SUB)
+	shares_box.add_child(_all_shares_l)
+	_all_shares = card(shares_box)
+	for st in Data.STOCKS:
 		var r := Row.new()
 		var sym: String = st[0]
 		r.set_lead(AssetTile.new(sym))
 		r.pressed.connect(func(): _open("share", sym))
-		shares_v.add_child(r)
 		_share_rows[sym] = r
 
 	# ---- property ----
@@ -141,7 +154,7 @@ func build() -> void:
 	coins_box.add_child(_news_card())
 	# One-line header: "Coins" on the left, the sort drop-down on the right.
 	var sort_row := HBoxContainer.new()
-	var cl := UI.label("Coins", 15, UI.SUB)
+	var cl := UI.label("", 15, UI.SUB)
 	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	sort_row.add_child(cl)
@@ -149,16 +162,19 @@ func build() -> void:
 	csp.custom_minimum_size.x = 150
 	sort_row.add_child(csp)
 	coins_box.add_child(sort_row)
-	var coins_v := card(coins_box)
-	for i in range(Data.COINS.size()):
-		var c: Array = Data.COINS[i]
-		separator(coins_v)
-		_coin_seps[c[0]] = coins_v.get_child(coins_v.get_child_count() - 1)
+	_my_coins_l = UI.label("Yours", 15, UI.SUB)
+	coins_box.add_child(_my_coins_l)
+	_my_coins = card(coins_box)
+	# Mining has its own section: one place for all rigs.
+	coins_box.add_child(_mining_section())
+	_all_coins_l = UI.label("Market", 15, UI.SUB)
+	coins_box.add_child(_all_coins_l)
+	_all_coins = card(coins_box)
+	for c in Data.COINS:
 		var r := Row.new()
 		var sym: String = c[0]
 		r.set_lead(AssetTile.new(sym))
 		r.pressed.connect(func(): _open("coin", sym))
-		coins_v.add_child(r)
 		_coin_rows[sym] = r
 	_views = [shares_box, props_v.get_parent(), coins_box]
 	refresh_view()
@@ -266,22 +282,22 @@ func refresh() -> void:
 			_sum_line2.visible = v > 0.0 or paid_out > 0.0
 			_mood_box.visible = false
 			_set_news(_news_rows[0], _latest_news("share"))
-			var first := true
-			var stocks := _ordered(Data.STOCKS, Game.shares, "shares", _share_rows, _share_seps)
+			var stocks := _ordered(Data.STOCKS, "shares")
+			var mine: Array = []
+			var rest: Array = []
 			for st in stocks:
+				if Game.holding(Game.shares, st[0]) > 0.0:
+					mine.append(st)
+				elif _sector == "" or st[4] == _sector:
+					rest.append(st)
+			_place("shares", mine, rest, _share_rows, _my_shares, _all_shares, _my_shares_l, _all_shares_l)
+			for st in mine + rest:
 				var r: Row = _share_rows[st[0]]
-				r.visible = _sector == "" or st[4] == _sector
-				if _share_seps.has(st[0]):
-					_share_seps[st[0]].visible = r.visible and not first
-				if r.visible:
-					first = false
-				if not r.visible:
-					continue
 				var held := Game.holding(Game.shares, st[0])
 				var sub: String = st[0] + (" · " + Game.money_short(held * Game.price(st[0])) if held > 0 else "")
 				r.set_texts(st[1], sub, AssetDetail.price_text(Game.price(st[0])))
 				r.set_change(Game.change_pct(st[0], 1440))
-				r.mark.visible = held > 0
+				r.mark.visible = false
 		1:
 			_sum_sub.text = "Property · %d / %d" % [Game.props_owned(), Data.PROPERTIES.size()]
 			_sum_value.text = Game.money(Game.props_value())
@@ -315,15 +331,21 @@ func refresh() -> void:
 			_mood_label.text = "Mood · " + mood_name(_mood_value)
 			_mood_bar.queue_redraw()
 			_set_news(_news_rows[1], _latest_news("coin"))
-			var first_c := true
-			for c in _ordered(Data.COINS, Game.coins, "coins", _coin_rows, _coin_seps):
+			var cmine: Array = []
+			var crest: Array = []
+			for c in _ordered(Data.COINS, "coins"):
+				if Game.holding(Game.coins, c[0]) + Game.staked(c[0]) > 0.0:
+					cmine.append(c)
+				else:
+					crest.append(c)
+			_place("coins", cmine, crest, _coin_rows, _my_coins, _all_coins, _my_coins_l, _all_coins_l)
+			for c in cmine + crest:
 				var r: Row = _coin_rows[c[0]]
-				_coin_seps[c[0]].visible = not first_c
-				first_c = false
 				var held := Game.holding(Game.coins, c[0]) + Game.staked(c[0])
 				r.set_texts(c[1], c[0] + (" · " + Game.money_short(held * Game.price(c[0])) if held > 0 else ""), AssetDetail.price_text(Game.price(c[0])))
 				r.set_change(Game.change_pct(c[0], 1440))
-				r.mark.visible = held > 0
+				r.mark.visible = false
+			_refresh_mining()
 
 
 func _sort_pill() -> Button:
@@ -354,33 +376,135 @@ func _paint_sort() -> void:
 		b.text = label + "  ▾"
 
 
-func _ordered(list: Array, book: Dictionary, key: String, rows: Dictionary, seps: Dictionary) -> Array:
-	## The list in the chosen order; rows are moved only when the order changes.
+func _ordered(list: Array, key: String) -> Array:
+	## The list in the chosen order. Kept until the player asks again, so a
+	## row never jumps away just as it is tapped.
 	var mode := String(Game.ui.get("sort", ""))
 	var keep: Array = _sorted.get(key, [])
 	if keep.size() == 2 and keep[0] == mode:
 		return keep[1]
 	var out := list.duplicate()
 	match mode:
-		"owned":
-			out.sort_custom(func(a, b): return int(book.has(a[0])) > int(book.has(b[0])))
 		"up":
 			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) > Game.change_pct(b[0], 1440))
 		"down":
 			out.sort_custom(func(a, b): return Game.change_pct(a[0], 1440) < Game.change_pct(b[0], 1440))
 	_sorted[key] = [mode, out]
-	var sig := ""
-	for it in out:
-		sig += String(it[0]) + ","
-	if _order_key.get(key, "") != sig:
-		_order_key[key] = sig
-		var parent: Node = (rows[out[0][0]] as Control).get_parent()
-		var idx := 0
-		for it in out:
-			parent.move_child(seps[it[0]], idx)
-			parent.move_child(rows[it[0]], idx + 1)
-			idx += 2
 	return out
+
+
+func _place(key: String, mine: Array, rest: Array, rows: Dictionary, my_v: VBoxContainer, all_v: VBoxContainer, my_l: Label, all_l: Label) -> void:
+	## Puts rows into "Yours" and "Market"; only rebuilt when the split or order changes.
+	var sig := ""
+	for it in mine:
+		sig += String(it[0]) + ","
+	sig += "|"
+	for it in rest:
+		sig += String(it[0]) + ","
+	var has_mine := not mine.is_empty()
+	my_l.visible = has_mine
+	my_v.get_parent().visible = has_mine
+	all_l.visible = has_mine   # "Market" label only needed when there are two lists
+	if _order_key.get(key, "") == sig:
+		return
+	_order_key[key] = sig
+	for v in [my_v, all_v]:
+		for ch in v.get_children():
+			v.remove_child(ch)
+			if not (ch is Row):
+				ch.queue_free()
+	for pair in [[mine, my_v], [rest, all_v]]:
+		var first := true
+		for it in pair[0]:
+			if not first:
+				separator(pair[1])
+			first = false
+			pair[1].add_child(rows[it[0]])
+
+
+func _mining_section() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	box.add_child(UI.label("Mining", 15, UI.SUB))
+	var mc := card(box)
+	_mine_sum = Row.new("cpu", "", false)
+	_mine_sum.disabled = true
+	_mine_sum.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())
+	mc.add_child(_mine_sum)
+	_mine_list = VBoxContainer.new()
+	_mine_list.add_theme_constant_override("separation", 0)
+	mc.add_child(_mine_list)
+	_mine_note = UI.label("", 13, UI.SUB)
+	_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_mine_note)
+	_rig_btn = UI.pill("Buy rig", UI.TEXT, UI.INK, 17, 24)
+	_rig_btn.custom_minimum_size = Vector2(0, 48)
+	_rig_btn.pressed.connect(_on_buy_rig)
+	Kit.press_fx(_rig_btn)
+	box.add_child(_rig_btn)
+	return box
+
+
+func _refresh_mining() -> void:
+	var n := Game.rigs_total()
+	_mine_sum.set_texts("%d rig%s" % [n, "" if n == 1 else "s"], "%d of %d" % [n, Data.RIG_MAX], (Game.money_short(Game.mining_value_per_hour()) + " /h") if n > 0 else "")
+	var notes: Array = ["Rigs mine coins all the time, even while away (up to 8 h)."]
+	if Game.mining_capped():
+		notes.append("Capped at %d%% of your income." % int(Data.MINE_CAP * 100.0))
+	_mine_note.text = " ".join(notes)
+	# One line per coin you mine; rebuilt only when that list changes.
+	var sig := ""
+	for sym in Game.rigs.keys():
+		sig += "%s%d," % [sym, Game.rig_count(sym)]
+	if sig != _mine_sig:
+		_mine_sig = sig
+		for ch in _mine_list.get_children():
+			ch.queue_free()
+		for sym in Game.rigs.keys():
+			separator(_mine_list, 50)
+			var r := Row.new()
+			r.set_lead(AssetTile.new(sym))
+			var s2: String = sym
+			r.pressed.connect(func(): _open("coin", s2))
+			_mine_list.add_child(r)
+			r.set_meta("sym", sym)
+	for r in _mine_list.get_children():
+		if r is Row:
+			var sym: String = r.get_meta("sym")
+			var mph := Game.mine_per_hour(sym)
+			(r as Row).set_texts(Game._coin(sym)[1], "%d rig%s · %s %s /h" % [Game.rig_count(sym), "" if Game.rig_count(sym) == 1 else "s", AssetDetail.qty_text(mph), sym], Game.money_short(mph * Game.price(sym)) + " /h")
+	if n >= Data.RIG_MAX:
+		_rig_btn.text = "All rigs bought"
+		Page.set_enabled(_rig_btn, false)
+	else:
+		_rig_btn.text = "Buy rig · " + Game.money_short(Game.rig_price())
+		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price(), false)
+
+
+func _on_buy_rig() -> void:
+	Kit.tick()
+	if Game.rigs_total() >= Data.RIG_MAX:
+		return
+	if Game.cash < Game.rig_price():
+		Kit.haptic("error")
+		Motion.shake(_rig_btn)
+		Kit.toast("Need %s more" % Game.money_short(Game.rig_price() - Game.cash))
+		return
+	# Pick which coin it mines; best payers first, each with what it adds.
+	var opts: Array = []
+	for c in Data.COINS:
+		opts.append([c[0], "%s · +%s /h" % [c[1], Game.money_short(Game.rig_gain(c[0]))], Game.rig_gain(c[0])])
+	opts.sort_custom(func(a, b): return float(a[2]) > float(b[2]))
+	var shown: Array = []
+	for o in opts.slice(0, 6):
+		shown.append([o[0], o[1]])
+	Kit.pick("Rig to mine · %s" % Game.money_short(Game.rig_price()), shown, "", func(v):
+		if Game.buy_rig(String(v)):
+			Kit.haptic("success")
+			Kit.toast("Rig mining %s" % v, true)
+			Game.flush_changes()
+		else:
+			Kit.haptic("error"))
 
 
 func _property(i: int) -> void:
@@ -400,3 +524,11 @@ func _property(i: int) -> void:
 				Kit.toast("You own " + String(p[0]), true)},
 		{"text": "Close", "style": "plain"},
 	])
+
+
+func _exit_tree() -> void:
+	# Rows not in a list right now (filtered out) aren't in the tree; free them too.
+	for d in [_share_rows, _coin_rows]:
+		for r in d.values():
+			if is_instance_valid(r) and r.get_parent() == null:
+				r.queue_free()
