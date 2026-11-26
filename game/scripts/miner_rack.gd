@@ -13,6 +13,11 @@ var _spawn := 0.0
 func _init() -> void:
 	custom_minimum_size = Vector2(0, 112)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	clip_contents = true   # rising coins never draw over the card above
+
+
+func _ready() -> void:
+	Game.changed.connect(queue_redraw)   # a new miner or coin shows even with Less motion
 
 
 func _process(delta: float) -> void:
@@ -28,8 +33,8 @@ func _process(delta: float) -> void:
 			var r := _box(slot)
 			_coins.append([r.get_center().x, r.position.y, 1.0])
 	for c in _coins:
-		c[1] -= delta * 34.0
-		c[2] -= delta * 0.7
+		c[1] -= delta * 28.0
+		c[2] -= delta * 0.9
 	_coins = _coins.filter(func(c): return c[2] > 0.0)
 	queue_redraw()
 
@@ -68,11 +73,12 @@ func _draw() -> void:
 		var f: Font = UI.SEMI
 		draw_string(f, Vector2(size.x - 52.0, 14.0), "+%d" % (n - SLOTS), HORIZONTAL_ALIGNMENT_RIGHT, 40.0, 13, UI.SUB)
 	# Coins rising out of the machines.
-	var tex := AssetTile.logo(Game.mine_target) if Game.mine_target != "" else null
+	var tgt := Game.mine_target if Game.mine_target != "" else Game._first_coin_owned()
+	var tex := AssetTile.logo(tgt) if tgt != "" else null
 	for cn in _coins:
 		var p := Vector2(float(cn[0]), float(cn[1]))
 		var a := clampf(float(cn[2]), 0.0, 1.0)
 		if tex != null:
 			draw_texture_rect(tex, Rect2(p - Vector2(9, 9), Vector2(18, 18)), false, Color(1, 1, 1, a))
 		else:
-			draw_circle(p, 8.0, Color(UI.asset_color(Game.mine_target), a))
+			draw_circle(p, 8.0, Color(UI.asset_color(tgt), a))

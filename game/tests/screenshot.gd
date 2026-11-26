@@ -113,6 +113,10 @@ func _run() -> void:
 	await _shot("09g_buy")
 	root.get_node("Kit").close_top()
 	await create_timer(0.5).timeout
+	TradeSheet.open("coin", "XRP", "lock")
+	await _shot("09h_lock")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
 	main.pop()
 	await create_timer(0.4).timeout
 	inv._seg.select(0, true)
@@ -257,10 +261,16 @@ func _run() -> void:
 	await _shot("30_mining")
 	main.pop()
 	await create_timer(0.5).timeout
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
+	for i in 5:
+		g.buy_miner()
 	main.show_page(2)
 	main._pages[2]._seg.select(2, true)
 	await create_timer(0.4).timeout
 	main._pages[2].scroll.scroll_vertical = 300
+	await create_timer(1.6).timeout   # let a few coins rise
 	await _shot("31_crypto_mining")
 	main._pages[2]._on_pick_target()
 	await _shot("32_mine_pick")

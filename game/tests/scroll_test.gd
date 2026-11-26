@@ -265,6 +265,45 @@ func _run() -> void:
 		await create_timer(0.5).timeout
 	var sold: float = 1.0 - g.holding(g.coins, "DOGE") / maxf(q0, 1e-9)
 	_ok(ts_found and sold > 0.15 and sold < 0.35, "dragging the slider to about a quarter sells about a quarter (%.2f)" % sold)
+	# Typing an amount: a tap selects the old amount, typing £500 buys £500
+	# even while cash keeps arriving.
+	g.cash = 10000.0
+	TradeSheet.open("coin", "DOGE", "buy")
+	await create_timer(0.8).timeout
+	var tb = null
+	for n in root.get_node("Kit").find_children("*", "TradeSheet", true, false):
+		if n.mode == "buy":
+			tb = n
+	var tb_found: bool = tb != null
+	var spent := 0.0
+	if tb:
+		_ok(tb._field.select_all_on_focus, "the amount box selects its old amount on tap")
+		tb._field.grab_focus()
+		tb._field.text = "500"
+		tb._field.text_changed.emit("500")
+		g.cash += 2000.0
+		g.changed.emit()
+		await process_frame
+		_ok(tb._field.text == "500", "live updates don't rewrite the box while typing")
+		tb._field.release_focus()
+		var c0: float = g.cash
+		tb._confirm()
+		spent = c0 - g.cash
+		await create_timer(0.5).timeout
+	_ok(tb_found and absf(spent - 500.0) < 0.01, "typing £500 buys exactly £500 (%.2f)" % spent)
+	# Lock uses the same sheet: Max locks everything free.
+	TradeSheet.open("coin", "DOGE", "lock")
+	await create_timer(0.8).timeout
+	var tl = null
+	for n in root.get_node("Kit").find_children("*", "TradeSheet", true, false):
+		if n.mode == "lock":
+			tl = n
+	var free0: float = g.holding(g.coins, "DOGE")
+	var tl_found: bool = tl != null
+	if tl:
+		tl._confirm()
+		await create_timer(0.5).timeout
+	_ok(tl_found and g.holding(g.coins, "DOGE") < 1e-6 and absf(g.staked("DOGE") - free0) < free0 * 1e-4, "Lock sheet locks the amount shown (%s, free %.3f, staked %.3f of %.3f)" % [tl_found, g.holding(g.coins, "DOGE"), g.staked("DOGE"), free0])
 	# Tap targets: every visible button on every tab and main detail page is
 	# at least 44 px each way (mobile rule). Lists the offenders.
 	var small: Array = []
