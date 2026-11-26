@@ -153,6 +153,7 @@ func _ready() -> void:
 	Updater.state_changed.connect(_update_badges)
 	if OS.has_feature("android"):
 		get_tree().create_timer(3.0).timeout.connect(func(): Updater.check())
+	Guide.maybe_start.call_deferred(self)   # first-time guide for a brand-new game
 
 
 func push(p: Control) -> void:
