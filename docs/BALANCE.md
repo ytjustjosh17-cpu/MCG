@@ -44,6 +44,9 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Auto clicker | 5 levels (£25K, £400K, £8M, £250M, £10B): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
 | Selling a company | half its value (value = 60% of what was spent), so always a loss; not while expanding | `sell_business()` |
 | Managers | can be switched off (no expanding, no cut) and on again | `set_manager_on()` |
+| Bank savings | 0.2% an hour, capped at 5% of base income (floor £100/h); reset by rebirth | `BANK_*`, `savings_per_hour()` |
+| Loans | up to 6 h of base income (min £5K), 125% back in 5 payments every 4 h; cash can go below zero (nothing can be bought then); owing counts against net worth; reset by rebirth. Borrower robot 90% day 36.3 vs 36.9 | `LOAN_*`, `take_loan()`, `_bank_tick()` |
+| Daily wheel | once a day with the casino open: 5 to 180 minutes of income in cash or chips, about 20 on average | `WHEEL`, `spin_wheel()` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
@@ -96,6 +99,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 - Chips: bought with cash at the cage, cashed out any time, counted in net worth.
 - Limits follow base income (without the x2 boost): a bet is at most 6 minutes of income (`CASINO_MAX_BET_H`, at least £500), one payout at most 24 hours (`CASINO_MAX_WIN_H`, at least £100K). A slot bonus buy may stake up to 20 bets; a blackjack double or split up to 2. The "High roller" keystone doubles both.
 - Sun Forge (`tests/forge_test.gd`, 400k spins a mode): base 96.2%, ante 96.1% (free spins 1 in 188 vs 1 in 395), bought feature 95.7% (average 92.7x). Hit rate 30%. Max 5,000x, plus the round cap.
+- 1.2 games (`tests/casino12_test.gd`): video poker 9/6 97.7% with the hint strategy (about 99.5% perfect), crash about 97% (max 1000x, crash point fixed at the start), plinko 97.9 to 98.3%, races at most 95% a runner.
 - Payback, measured by `tests/casino_test.gd` on every build: slots 95.5 to 95.8% exactly from the reel strips (bonus buys about 93%), roulette 97.3% (every bet type, all 37 numbers), blackjack 99.3% with perfect basic strategy over 300k hands. The shoe is a fresh six decks every hand, so counting cards can't win.
 - Every bet and every payout is saved the moment it happens, before any animation, so closing the app can't undo a loss. A backup can't rewind the game either (restore guard).
 - Gambler robot (`SIM_GAMBLE=1`): 40 max-bet spins on Iron Vault (the wildest machine) every session, free spins played out. 90% complete on day 37.5, 38.8, 38.3 and 39.3 (seeds 7, 99, 2024, 5) against 38.5 without gambling. The luckiest seed won £3.8T in all and still finished on day 38.8, so a lucky streak can't skip weeks.
