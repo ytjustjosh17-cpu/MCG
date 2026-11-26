@@ -157,8 +157,8 @@ func _refresh() -> void:
 	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
-	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, can, "MAX" if maxed else Game.money_short(Game.level_cost()))
-	_tasks.set_state(UI.TEXT, -1.0, (Game.goals_open() > 0 and Game.taps > 0) or Game.unclaimed("goal") + Game.unclaimed("streak") > 0)
+	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, false, "MAX" if maxed else Game.money_short(Game.level_cost()))
+	_tasks.set_state(UI.TEXT, -1.0, Game.unclaimed("goal") + Game.unclaimed("streak") > 0)   # a dot only when a reward waits
 	_tick()
 
 
@@ -183,7 +183,7 @@ func _tick() -> void:
 	if Game.boost_active():
 		_boost_btn.set_state(UI.RED, Game.boost_left() / Game.BOOST_LEN_S, false, Game.clock(Game.boost_left()))
 	elif Game.boost_ready():
-		_boost_btn.set_state(UI.TEXT, 1.0, true, "×3")
+		_boost_btn.set_state(UI.TEXT, 1.0, false, "×3")   # the full ring says ready
 	else:
 		var total := Game.BOOST_COOLDOWN_S
 		_boost_btn.set_state(UI.SUB, 1.0 - Game.boost_cooldown_left() / total, false, Game.clock(Game.boost_cooldown_left()))

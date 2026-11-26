@@ -304,6 +304,31 @@ func _run() -> void:
 		tl._confirm()
 		await create_timer(0.5).timeout
 	_ok(tl_found and g.holding(g.coins, "DOGE") < 1e-6 and absf(g.staked("DOGE") - free0) < free0 * 1e-4, "Lock sheet locks the amount shown (%s, free %.3f, staked %.3f of %.3f)" % [tl_found, g.holding(g.coins, "DOGE"), g.staked("DOGE"), free0])
+	# Dots: only for a reward waiting, round, and opening the tab clears it.
+	g.rewards = []
+	g.ui["dots_seen"] = {}
+	main.show_page(1)
+	await create_timer(0.5).timeout
+	main._update_badges()
+	_ok(not main._nav._badges[1].visible and not main._nav._badges[2].visible, "no dots for things you can merely afford")
+	g.add_reward("test_goal", "goal", "Test goal", 10.0)
+	main._update_badges()
+	_ok(main._nav._badges[0].visible, "a reward to claim shows a dot on Earn")
+	_ok(main._nav._badges[0] is Panel, "the dot is round (a rounded panel, not a square)")
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	main._update_badges()
+	main.show_page(1)
+	await create_timer(0.5).timeout
+	main._update_badges()
+	_ok(not main._nav._badges[0].visible, "opening Earn clears its dot until something new arrives")
+	g.add_reward("test_goal2", "goal", "Test goal 2", 10.0)
+	main._update_badges()
+	_ok(main._nav._badges[0].visible, "a new reward brings the dot back")
+	g.rewards = []
+	main._update_badges()
+	main.show_page(0)
+	await create_timer(0.5).timeout
 	# Tap targets: every visible button on every tab and main detail page is
 	# at least 44 px each way (mobile rule). Lists the offenders.
 	var small: Array = []

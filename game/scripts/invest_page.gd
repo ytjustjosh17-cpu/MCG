@@ -245,9 +245,20 @@ func _open(k: String, sym: String) -> void:
 
 
 func refresh_view() -> void:
+	var was: Control = null
+	for v in _views:
+		if v.visible:
+			was = v
 	for i in range(_views.size()):
 		_views[i].visible = i == _seg.index
 	refresh()
+	# Shares, Property and Crypto fade in, not a hard cut.
+	var now: Control = _views[_seg.index]
+	if was != null and was != now:
+		now.modulate.a = 0.0
+		var t := Motion.tween(now, "seg")
+		t.set_parallel(true)
+		t.tween_property(now, "modulate:a", 1.0, Motion.d(0.2))
 
 
 func _latest_news(kind: String) -> Dictionary:

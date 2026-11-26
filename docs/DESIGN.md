@@ -93,7 +93,8 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 
 ## Small helpers players expect
 
-- Red dots on tabs when something is ready there (`Game.tab_badges()`).
+- Few dots, all round. A dot only means a reward is waiting to claim (Earn: goals and the daily gift; Profile: achievements) or an update is ready. Opening the tab clears its dot until something new arrives (`main._update_badges()`, seen counts in `Game.ui["dots_seen"]`). Nothing gets a dot just because you can afford it.
+- Page motion: detail pages slide in and back out on the same quint curve (0.38 s in, 0.32 s out), starting after the page is built so the first frames aren't skipped. Tabs cross-fade with a small slide. An open detail page fades away when you switch tab. Shares, Property and Crypto fade between each other. All of it respects Less motion.
 - Tapping the current tab scrolls back to the top.
 - Locked buttons say how long until you can afford them (`Game.eta()`: "~12 min").
 - Hold +1 to keep buying; it speeds up the longer you hold.

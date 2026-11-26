@@ -1471,36 +1471,6 @@ func eta(cost: float) -> String:
 	return "~%d days" % int(ceil(s / 86400.0))
 
 
-# ==== tab dots ===============================================================
-
-func tab_badges() -> Array:
-	## Which tabs have something worth a look right now (shown as red dots).
-	var earn := level < Data.MAX_LEVEL and can_level_up()
-	var business := false
-	for id in biz.keys():
-		if int(biz[id]["units"]) >= capacity(id) and can_expand(id):
-			business = true
-	for b in Data.BUSINESSES:
-		if not biz.has(b["id"]) and cash >= float(b["cost"]):
-			business = true
-			break
-	if fill_all_cost() > 0.0 and cash >= fill_all_cost():
-		business = true
-	for m in Data.MERGERS:
-		if not mergers.has(m["id"]) and merger_ready(m) and cash >= float(m["cost"]):
-			business = true
-	var invest := false
-	# (Locked coins keep earning after the 24 h, so they don't need a dot.)
-	var items := next_home_cost() > 0.0 and cash >= next_home_cost()
-	for c in Data.COLLECTIONS:
-		for i in range(c["items"].size()):
-			if not item_owned(c["id"], i):
-				if float(c["items"][i][1]) <= cash * 0.25:
-					items = true
-				break  # only the cheapest missing item in each set
-	return [earn, business, invest, items]
-
-
 # ==== next goal =============================================================
 
 func next_goal() -> Dictionary:

@@ -187,7 +187,6 @@ func _run() -> void:
 	game.streak_day = tday - 3
 	game._check_streak()
 	_check(game.streak == 1, "missing days resets the streak")
-	_check(game.tab_badges().size() == 4, "tab dots worked out")
 	game.ui["invest_tab"] = 2
 	var dd: Dictionary = game.to_dict()
 	_check(int(dd["ui"]["invest_tab"]) == 2 and dd.has("streak"), "screen choices and streak are saved")
@@ -210,6 +209,9 @@ func _run() -> void:
 	game.ui["deals_quiet"] = true
 	game.away_unseen = false   # a leftover welcome-back card would count as a pop-up
 	game.streak_unseen = []
+	while root.get_node("Kit").close_top():   # a gift sheet may already be open
+		await create_timer(0.3).timeout
+	await create_timer(0.4).timeout
 	game.deal = {"kind": "order", "id": game.biz.keys()[0], "value": 1.0, "title": "T", "text": "x", "yes": "Y"}
 	main._show_deal()
 	await create_timer(0.3).timeout
@@ -458,14 +460,20 @@ func _run() -> void:
 	var up = root.get_node("Updater")
 	up.latest_version = "1.0.999"
 	up._set_state(up.State.AVAILABLE)
+	main.show_page(0)
+	await create_timer(0.4).timeout
+	main._update_badges()
+	_check(main._nav._badges[4].visible, "Profile tab shows a dot for a new update")
 	main.show_page(4)
 	await create_timer(0.4).timeout
+	main._update_badges()
 	var prof = main._pages[4]
 	_check(prof._upd_card.visible and prof._upd_btn.text == "Update", "update card shows on Profile")
-	_check(main._nav._want[4] and not main._nav._badges[4].visible, "no red dot on the tab you're on")
+	_check(not main._nav._badges[4].visible, "no dot on the tab you're on")
 	main.show_page(0)
 	await create_timer(0.2).timeout
-	_check(main._nav._badges[4].visible, "Profile tab shows a red dot from another tab")
+	main._update_badges()
+	_check(not main._nav._badges[4].visible, "seen once, the update dot stays cleared")
 	main.show_page(4)
 	await create_timer(0.2).timeout
 	up.progress = 0.42

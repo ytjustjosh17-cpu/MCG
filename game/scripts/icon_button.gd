@@ -60,4 +60,4 @@ func _draw() -> void:
 		if ring > 0.0:
 			draw_arc(center, r - 3.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(ring, 0.0, 1.0), 64, UI.RED, 3.0, true)
 	if dot:
-		draw_rect(Rect2(center + Vector2(r * 0.55, -r * 0.85), Vector2(9, 9)), UI.RED, true)
+		draw_circle(center + Vector2(r * 0.72, -r * 0.72), 5.0, UI.RED)

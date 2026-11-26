@@ -147,7 +147,7 @@ func _ready() -> void:
 		Game.ui["seen_new"] = Data.RELEASE
 		get_tree().create_timer(2.5).timeout.connect(func(): Kit.toast("Updated to %s · see What's new in Profile" % Data.RELEASE, true))
 	Updater.update_available.connect(_on_update)
-	Updater.state_changed.connect(func(): _nav.set_badge(4, Updater.has_update()))
+	Updater.state_changed.connect(_update_badges)
 	if OS.has_feature("android"):
 		get_tree().create_timer(3.0).timeout.connect(func(): Updater.check())
 
@@ -172,15 +172,28 @@ func push(p: Control) -> void:
 	p.position.x = w
 	if p.has_method("entered"):
 		p.entered.call_deferred()
+	# Building a page can take a frame; start the slide after it so the
+	# first part of the motion isn't skipped on the phone.
 	var t := p.create_tween().set_parallel(true)
 	p.set_meta("push_tw", t)
-	t.tween_property(p, "position:x", 0.0, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "position:x", -w * 0.25, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "modulate:a", 0.4, Motion.d(0.36))
+	t.tween_property(p, "position:x", 0.0, Motion.d(0.38)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "position:x", -w * 0.25, Motion.d(0.38)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "modulate:a", 0.4, Motion.d(0.34))
+	t.pause()
+	_play_after_build(t)
 	t.chain().tween_callback(func():
 		# Only hide the page underneath if this page is still on top.
 		if is_instance_valid(under) and not _stack.is_empty() and _stack.back() == p:
 			under.visible = false)
+
+
+func _play_after_build(t: Tween) -> void:
+	## Waits out the slow frame that built the page, so the slide starts
+	## smoothly instead of jumping half way.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if t.is_valid():
+		t.play()
 
 
 func _pop_from(p: Control) -> void:
@@ -200,9 +213,10 @@ func pop() -> void:
 	under.visible = true
 	Kit.tick(5)
 	var t := p.create_tween().set_parallel(true)
-	t.tween_property(p, "position:x", w, Motion.d(0.26)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.tween_property(under, "position:x", 0.0, Motion.d(0.3)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	t.tween_property(under, "modulate:a", 1.0, Motion.d(0.26))
+	# Same curve as the push, in reverse: smooth, no snap at the end.
+	t.tween_property(p, "position:x", w, Motion.d(0.32)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "position:x", 0.0, Motion.d(0.32)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	t.tween_property(under, "modulate:a", 1.0, Motion.d(0.28))
 	t.chain().tween_callback(p.queue_free)
 
 
@@ -236,9 +250,20 @@ func _clear_stack() -> void:
 
 
 func show_page(i: int) -> void:
+	var leaving: Control = null   # an open detail page fades out with the tab
 	if not _stack.is_empty():
+		if i == _current:
+			# Same tab again: slide back to its main page, one smooth move.
+			while _stack.size() > 1:
+				var extra: Control = _stack.pop_front()
+				_stop_push(extra)
+				extra.queue_free()
+			pop()
+			return
+		leaving = _stack.pop_back()
+		_stop_push(leaving)
 		_clear_stack()
-		_pages[_current].visible = true
+		_pages[_current].visible = false
 	if i == _current:
 		# Re-tapping the current tab always leaves it fully shown,
 		# and scrolls it back to the top (like iOS).
@@ -263,10 +288,16 @@ func show_page(i: int) -> void:
 	# Old page fades out quickly, new page fades in with a short slide.
 	_kill_tab_tween(old)
 	_kill_tab_tween(new)
-	var to := old.create_tween()
+	if leaving != null:
+		var tl := leaving.create_tween()
+		tl.tween_property(leaving, "modulate:a", 0.0, Motion.d(0.12))
+		tl.tween_callback(leaving.queue_free)
+	var to := old.create_tween().set_parallel(true)
 	old.set_meta("tab_tw", to)
-	to.tween_property(old, "modulate:a", 0.0, Motion.d(0.1))
-	to.tween_callback(func():
+	to.tween_property(old, "modulate:a", 0.0, Motion.d(0.12))
+	if not Motion.reduced():
+		to.tween_property(old, "position:x", -10.0 * dir, Motion.d(0.12))
+	to.chain().tween_callback(func():
 		# Only hide it if the player hasn't already switched back to it.
 		if _pages[_current] != old:
 			old.visible = false
@@ -315,7 +346,7 @@ var _toasted_version := ""
 
 
 func _on_update(version: String) -> void:
-	_nav.set_badge(4, true)
+	_update_badges()
 	if version != _toasted_version:
 		_toasted_version = version
 		Kit.toast("New version · see Profile", true)
@@ -458,7 +489,15 @@ func _show_deal() -> void:
 
 
 func _update_badges() -> void:
-	var b: Array = Game.tab_badges()
-	for i in range(b.size()):
-		_nav.set_badge(i, b[i] and i != _current)
-	_nav.set_badge(4, Updater.has_update() or Game.unclaimed("ach") > 0)
+	## Few dots: only a reward to claim (Earn: goals and the daily gift,
+	## Profile: achievements) or an update. Opening the tab clears its dot
+	## until something new arrives.
+	var counts := {0: Game.unclaimed("goal") + Game.unclaimed("streak"), 4: Game.unclaimed("ach") + (1 if Updater.has_update() else 0)}
+	var seen: Dictionary = Game.ui.get("dots_seen", {})
+	for i in range(NavBar.TABS.size()):
+		var key := str(i)
+		var n := int(counts.get(i, 0))
+		if i == _current or n < int(seen.get(key, 0)):
+			seen[key] = n
+		_nav.set_badge(i, n > int(seen.get(key, 0)) and i != _current)
+	Game.ui["dots_seen"] = seen
