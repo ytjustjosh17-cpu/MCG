@@ -64,7 +64,7 @@ Rules:
 | Personal item picture | `ItemArt` (`item_art.gd`): every watch, painting, car, jet, yacht and island drawn with its own details; dim until owned |
 | Company or coin mark | `AssetTile` (`asset_tile.gd`): coins show their real logo (`assets/coins`, CC0); shares a sector shape with the company initial cut in |
 | Tabs inside a page | `Segmented` |
-| Bottom sheet, alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()`. Toasts queue (never replace each other), stay 2.6 to 4.5 s by length, and drop repeats |
+| Pop-up card (centred, floats in the middle, 14 px from the sides), alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()`. Toasts queue (never replace each other), stay 2.6 to 4.5 s by length, and drop repeats |
 | Buy / sell / convert / lock amounts | `TradeSheet` (`trade_sheet.gd`): what you own, a big live amount, a thick slider with quarter snaps, 25/50/75/Max chips, an £ amount box, "After:" line, one confirm button |
 | Rebirth tree | `RebirthPage.TreeView`: a star-chart map. Drag to move (14 px of wobble is still a tap), pinch or the 48 px + and - buttons to zoom, house button to re-centre. Small nodes are circles, notables diamonds, keystones hexagons; owned nodes are filled, owned paths red, buyable nodes outlined bright, locked ones dim. Tap a node for a sheet with what it gives and Buy |
 | Casino | Felt and pocket colours are tokens (`FELT`, `ROUL_*`, `GOLD`, `CHIP_COL`, `SLOT_COL`). Cards are Kenney's flat CC0 cards (`assets/cards`). Wins count up and celebrate without blocking taps; reels and the wheel finish at once with Less motion |
