@@ -1,5 +1,18 @@
 # Changelog
 
+## Rebirth and the RBP tree
+
+- Profile > Rebirth. From £10B net worth you can rebirth: start again for
+  RBP. The richer you are, the more RBP (10 at £10B, 100 at £10T). The card
+  shows what waiting would give.
+- Spend RBP on a big tree of 152 nodes: 8 branches (Empire, Hands, Estates,
+  Markets, Mining, Time, Head start, Rebirth) with notables and 16 keystones.
+  Drag to move around, pinch or + and - to zoom, tap a node to see it and buy.
+- Tree nodes stay forever. A rebirth clears cash, companies, property,
+  shares, coins, miners, items, home, level, Head office and unclaimed
+  rewards; it keeps achievements, stats and settings. Save v13.
+- Robot: the whole tree takes about 5 months; each run gets quicker.
+
 ## Fewer, rounder dots and smoother pages
 
 - Red dots are now small circles, and there are far fewer of them: only when

@@ -206,6 +206,7 @@ const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 
 # ---- golden sun (a small surprise while playing) -------------------------
 const SUN_EVERY_MIN := [15.0, 30.0]  # minutes of play between suns
+const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const SUN_PER_DAY := 4                # never more than this a day
 # What a caught sun gives: chance of a cash prize, else a short buff (1.1).
 const SUN_CASH_CHANCE := 0.5
@@ -337,4 +338,5 @@ const WHATS_NEW := [
 	"Sound, a Stats page and a growing tower.",
 	"Buy, sell or lock any amount: slide or type.",
 	"Convert coins, and watch your miners work.",
+	"Rebirth for RBP and grow the 152-node tree.",
 ]

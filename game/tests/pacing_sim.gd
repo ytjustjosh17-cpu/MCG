@@ -13,7 +13,16 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
+var policy := "never"   # rebirth policy (SIM_REBIRTH): never, asap, patient
+var run := 1
+var run_start := 0.0
+var best_rate := 0.0
+
+
 func _mark(key: String, label: String) -> void:
+	if run > 1:
+		key = "r%d_%s" % [run, key]
+		label = "run %d: %s" % [run, label]
 	if not marks.has(key):
 		var d: float = (g.sim_time - g.started_at) / 86400.0
 		marks[key] = d
@@ -215,6 +224,59 @@ func _milestones() -> void:
 		if g.completion() >= p / 100.0 - 0.0001: _mark("c%d" % p, "Completion %d%%" % p)
 
 
+func _maybe_rebirth() -> void:
+	## Rebirths by the chosen policy, then spends RBP on the tree.
+	var pend: int = g.rebirth_pending()
+	if pend <= 0 or policy == "never":
+		return
+	var earned := int(g.rebirth.get("earned", 0))
+	var go := false
+	if policy == "asap":
+		go = true
+	elif policy == "rate":
+		# A sensible player: rebirth once RBP per day of this run stops rising.
+		var d_run: float = maxf(0.5, (g.sim_time - g.started_at) / 86400.0 - run_start)
+		var rate := float(pend) / d_run
+		if rate > best_rate:
+			best_rate = rate
+		go = rate < best_rate * 0.92 and d_run > 2.0
+	elif policy == "patient":
+		go = pend >= maxi(10, earned) or (g.completion() >= 0.95 and pend >= maxi(10, earned / 2))
+	if not go:
+		return
+	var d: float = (g.sim_time - g.started_at) / 86400.0
+	var got: int = g.do_rebirth()
+	print("  REBIRTH %d on day %5.1f (run took %4.1f days): +%d RBP" % [g.rebirths(), d, d - run_start, got])
+	run += 1
+	run_start = d
+	best_rate = 0.0
+	_spend_rbp()
+
+
+func _spend_rbp() -> void:
+	## Cheapest open node first; among equal prices, money nodes first.
+	var pref := ["income", "all", "start", "rent", "div", "level", "speed", "away", "tap", "mine", "rbp"]
+	while true:
+		var best := {}
+		var best_score := 1e18
+		for n in RebirthTree.nodes():
+			if not g.node_open(String(n["id"])):
+				continue
+			var score := float(n["cost"]) * 100.0
+			for k in (n["fx"] as Dictionary).keys():
+				var i := pref.find(k)
+				score += float(i if i >= 0 else 50)
+			if score < best_score:
+				best_score = score
+				best = n
+		if best.is_empty() or int(best["cost"]) > g.rbp_free():
+			break
+		g.buy_node(String(best["id"]))
+	print("    tree: %d of %d nodes, %d RBP left" % [g.tree_owned_count(), RebirthTree.nodes().size() - 1, g.rbp_free()])
+	if g.tree_owned_count() >= RebirthTree.nodes().size() - 1:
+		_mark("tree", "Whole tree bought")
+
+
 func _run() -> void:
 	g = root.get_node("Game")
 	var days := 35
@@ -223,6 +285,8 @@ func _run() -> void:
 		days = int(args[0])
 	if args.size() > 1:
 		trader = args[1]
+	if OS.get_environment("SIM_REBIRTH") != "":
+		policy = OS.get_environment("SIM_REBIRTH")
 	seed(int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234)
 	g._tap_rng.seed = int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234
 	g._news_rng.seed = g._tap_rng.seed + 1
@@ -248,6 +312,7 @@ func _run() -> void:
 			g.advance(float(s[1]))
 			t_prev = g.sim_time
 			_milestones()
+			_maybe_rebirth()
 		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%  rigs %2d mine %4.1f%%" % [
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
 			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0,

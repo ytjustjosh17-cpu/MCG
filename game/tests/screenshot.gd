@@ -276,5 +276,26 @@ func _run() -> void:
 	await _shot("32_mine_pick")
 	root.get_node("Kit").close_top()
 	await create_timer(0.4).timeout
+	# Rebirth and the tree: a second run with part of the tree bought.
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
+	g.rebirth = {"count": 2, "earned": 260, "nodes": {}}
+	g._rb_cache = {}
+	for id in ["emp_g", "emp_t1", "emp_t2", "emp_t3", "hand_g", "soul_g", "est_g", "est_t1", "bridge_1", "hand_t1"]:
+		g.rebirth["nodes"][id] = true
+	g._rb_cache = {}
+	g.cash = 3.0e10
+	main.show_page(4)
+	await create_timer(0.6).timeout
+	main.push(RebirthPage.new())
+	await create_timer(1.0).timeout
+	await _shot("33_rebirth_tree")
+	main._stack[-1]._on_node("emp_t4")
+	await _shot("34_tree_node")
+	root.get_node("Kit").close_top()
+	await create_timer(0.4).timeout
+	main.pop()
+	await create_timer(0.4).timeout
 	g.reset_game()
 	quit()

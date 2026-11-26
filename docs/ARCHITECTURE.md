@@ -28,9 +28,11 @@ Pages never change state directly.
 | Content and tuning | `data.gd` (companies, stocks, coins, properties, homes, collections, mergers, rivals, all numbers) |
 | Rules and state | `game_state.gd` (money, tapping and big taps, companies, milestones, partners, markets, miners, locking, deals, managers, golden sun buffs, goals, achievements, saving) |
 | Tabs | `earn_page.gd`, `business_page.gd`, `invest_page.gd`, `items_page.gd`, `profile_page.gd` |
-| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `claim_list.gd` (rewards to claim), `trade_sheet.gd` (buy, sell, convert), `head_office_page.gd`, `ItemsPage.CollectionPage` |
+| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `claim_list.gd` (rewards to claim), `trade_sheet.gd` (buy, sell, convert, lock), `head_office_page.gd`, `rebirth_page.gd` (rebirth card and the tree map, `RebirthPage.TreeView`), `ItemsPage.CollectionPage` |
 | Building blocks | `page.gd`, `row.gd`, `segmented.gd`, `icon.gd`, `icon_button.gd`, `glass_panel.gd`, `count_label.gd`, `goal_card.gd`, `asset_tile.gd` |
 | Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `item_art.gd` (personal items), `miner_rack.gd` (animated miners), `asset_tile.gd` (coin logos, share badges), `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
+| Rebirth tree | `rebirth_tree.gd` (`RebirthTree`: every node with a fixed string id, position, links, cost and effects; built once). Effects are summed per stat by `Game.rb(stat)` and used where each rule lives |
+| Casino maths | `casino/slot_math.gd`, `casino/roulette_math.gd`, `casino/blackjack_math.gd`: pure rules, seedable, no UI (`tests/casino_test.gd` checks their payback) |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
 | Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |
 | Platform | `main.gd` (navigation, back button and cash pill, safe area, deal and welcome-back cards), `updater.gd`, `game_log.gd` |
@@ -54,6 +56,7 @@ Pages never change state directly.
 - Written safely: temp file, keep a `.bak`, then rename. If the main file is broken, the backup loads.
 - `SAVE_VERSION` and `_migrate()` upgrade old saves step by step. Rule R7 checks every saved field is loaded back.
 - Backup codes (`backup_code()`, `restore_code()`) are the save, gzipped and base64, minus price history and news. A code can't rewind the game it came from (`user://restore_guard.json`).
+- Rebirth (`do_rebirth()`) keeps every key in `REBIRTH_KEEP` and clears every key in `REBIRTH_RESET`; a test fails if a saved key is in neither. The save stores RBP earned and owned node ids; RBP left is worked out from those.
 - Time away is applied on load and on resume (`apply_offline()`), capped at 8 hours of income.
 
 ## Adding a feature (checklist)

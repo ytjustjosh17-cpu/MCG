@@ -669,6 +669,70 @@ func _run() -> void:
 	_check(game.restore_code(gcode), "it works on a new phone (no record of that game)")
 	game.restore_guard = false
 	game.reset_game()
+	# Rebirth: every saved key is either kept or cleared, nothing forgotten.
+	var rb_keys: Array = game.to_dict().keys()
+	var rb_unlisted: Array = []
+	for k in rb_keys:
+		if k in ["version", "saved_at"]:
+			continue
+		var rb_n_in := int(k in game.REBIRTH_RESET) + int(k in game.REBIRTH_KEEP)
+		if rb_n_in != 1:
+			rb_unlisted.append(k)
+	_check(rb_unlisted.is_empty(), "every saved field is either kept or cleared by a rebirth %s" % str(rb_unlisted))
+	game.reset_game(true)
+	game.cash = 1.0e9
+	_check(game.rebirth_pending() == 0 and game.do_rebirth() == 0, "no rebirth below £10B")
+	game.cash = 1.0e13
+	game.ui["sci"] = true
+	game.sci = true
+	game.achieved["test_ach"] = true
+	game.open_business("shop", "Reborn Test")
+	game.add_reward("rb_test", "goal", "Hoarded", 5.0e12)
+	game.restore_guard = true
+	game.save_game()
+	var rb_code: String = game.backup_code()
+	var rb_pend: int = game.rebirth_pending()
+	var rb_got_rb: int = game.do_rebirth()
+	_check(rb_pend == 100 and rb_got_rb == 100, "£10T gives 100 RBP (%d)" % rb_got_rb)
+	_check(game.cash == 0.0 and game.biz.is_empty() and game.level == 1, "rebirth clears money and companies")
+	_check(game.rewards.is_empty(), "rebirth clears unclaimed rewards (no hoarding into a new run)")
+	_check(game.achieved.has("test_ach") and game.sci, "rebirth keeps achievements and settings")
+	_check(game.rebirths() == 1 and game.rbp_free() == 100, "RBP banked")
+	game._guard[str(int(game.started_at))] = game.now() + 3600.0
+	_check(not game.restore_code(rb_code), "a backup from before a rebirth can't undo it")
+	game.restore_guard = false
+	# The tree: only nodes next to something owned, paid in RBP, effects add up.
+	_check(not game.buy_node("emp_t1"), "can't buy a node that isn't linked to yours")
+	var rb_inc0: float = game.rb("income")
+	_check(game.buy_node("emp_g") and game.rb("income") > rb_inc0, "buying the Empire gate adds company income")
+	_check(game.node_open("emp_t1") and game.node_open("hand_g"), "its neighbours open up (trunk and ring)")
+	var rb_all_cost := 0
+	for nd in RebirthTree.nodes():
+		rb_all_cost += int(nd["cost"])
+	_check(RebirthTree.nodes().size() >= 150 and rb_all_cost > 5000, "the tree is big (%d nodes, %d RBP)" % [RebirthTree.nodes().size(), rb_all_cost])
+	var rb_ids := {}
+	for nd in RebirthTree.nodes():
+		rb_ids[nd["id"]] = true
+	_check(rb_ids.size() == RebirthTree.nodes().size(), "node rb_ids are unique")
+	game.cash = 1.0e6
+	game.open_business("shop", "Tree Test")
+	game.recalc()
+	var rb_with_node: float = game.income_per_hour
+	game.rebirth["nodes"].erase("emp_g")
+	game._rb_cache = {}
+	game.recalc()
+	_check(rb_with_node > game.income_per_hour * 1.05, "tree income really raises income")
+	game.rebirth["nodes"]["emp_g"] = true
+	game._rb_cache = {}
+	game.save_game()
+	game.load_game()
+	_check(game.node_owned("emp_g") and game.rebirths() == 1, "tree and rebirth count survive save and load")
+	var rb_old12: Dictionary = game.to_dict()
+	rb_old12["version"] = 12
+	rb_old12.erase("rebirth")
+	var rb_mig: Dictionary = game._migrate(rb_old12)
+	_check(int(rb_mig["version"]) == game.SAVE_VERSION and rb_mig.has("rebirth") and (rb_mig["rebirth"]["nodes"] as Dictionary).is_empty(), "v12 saves load with an empty tree")
+	game.reset_game(true)
 	# Rewards wait for a tap: achievements and goals add to the list, claiming
 	# pays exactly once, and the amount doesn't grow while it waits.
 	game.reset_game()
