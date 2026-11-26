@@ -241,6 +241,9 @@ const CASINO_MIN_WIN_CAP := 1.0e5
 # AUTO_IDLE_S without a touch), so leaving the phone on can't farm money.
 const AUTO_LEVELS := [[2.5e4, 2.0], [4.0e5, 1.5], [8.0e6, 1.0], [2.5e8, 0.75], [1.0e10, 0.5]]
 const AUTO_TAP_SHARE := 0.5
+const TAP_HEAT_MAX := 1200.0     # tap "heat" before taps tire (about 4 min at 7 a second)
+const TAP_HEAT_COOL := 2.0       # heat lost per second
+const TAP_TIRED_MULT := 0.25     # tired taps pay a quarter
 const AUTO_IDLE_S := 120.0
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const SUN_PER_DAY := 4                # never more than this a day

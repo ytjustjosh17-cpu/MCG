@@ -866,6 +866,25 @@ func _run() -> void:
 	var sl_price: float = game.sell_price("shop")
 	var sl_got: float = game.sell_business("shop")
 	_check(absf(sl_got - game.biz_value("shop") * 0.5) < 0.01 or (absf(sl_got - sl_price) < 0.01 and not game.owns("shop") and absf(game.cash - sl_cash - sl_got) < 0.01), "selling pays half the company's value and removes it")
+	# Tired taps: a tapping app can't farm for hours at full pay.
+	game.reset_game(true)
+	game.cash = 0.0
+	game._tap_heat = 0.0
+	game._heat_ms = Time.get_ticks_msec()
+	game._tap_tokens = 7.0
+	var tt_c0: float = game.cash
+	game._tap_rng.seed = 1
+	game.tap()
+	var tt_full: float = game.cash - tt_c0
+	game._tap_heat = Data.TAP_HEAT_MAX + 50.0
+	game._heat_ms = Time.get_ticks_msec()
+	game._tap_tokens = 7.0
+	var tt_c1: float = game.cash
+	game.tap()
+	var tt_tired: float = game.cash - tt_c1
+	_check(game.tap_tired() and tt_tired < tt_full * 0.5 and tt_tired > 0.0, "after a long non-stop run taps pay a quarter (%.2f vs %.2f)" % [tt_tired, tt_full])
+	game._tap_heat = 0.0
+	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
 	tk._toast_q.clear()

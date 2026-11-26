@@ -273,17 +273,27 @@ func _on_button(pos: Vector2) -> bool:
 	return false
 
 
+var _fx_ms := 0
+
+
 func _do_tap(pos: Vector2) -> void:
-	Kit.sound("tap")
 	var v := Game.tap()
+	# Very fast tapping (or a tapping app): sound and buzz at most ~14 a second.
+	var ms := Time.get_ticks_msec()
+	var fx_ok := ms - _fx_ms >= 70
+	if fx_ok:
+		_fx_ms = ms
+		Kit.sound("tap")
 	_combo_tick(pos)
 	if _rows > 0:
 		_flash_index = randi() % (COLS * _rows)
 	_flash_time = 0.12
 	queue_redraw()
-	if Game.vibrate:
+	if Game.vibrate and fx_ok:
 		Input.vibrate_handheld(18)
-	if Game.last_tap_crit and v > 0.0:
+	if v <= 0.0:
+		return   # an unpaid extra tap: no "+£0"
+	if Game.last_tap_crit:
 		_spawn_crit(pos, v)
 	elif _float_count < 12:
 		_spawn_float(pos, v)

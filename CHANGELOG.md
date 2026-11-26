@@ -1,5 +1,15 @@
 # Changelog
 
+## Fast tapping and tapping apps
+
+- Taps past the 7-a-second limit no longer show "+£0"; they just light the
+  tower.
+- Tired hands: after about 4 minutes of non-stop tapping at full speed (a
+  tapping app, say), taps pay a quarter until you rest a little. Normal
+  play never hits it. Earn shows "tired, rest a bit" when it happens.
+- Tap sound and buzz play at most about 14 times a second, so very fast
+  tapping stays smooth.
+
 ## Sell companies, manager switch, centred pop-ups, less text
 
 - Company page: "Sell company" at the bottom pays half its value (not

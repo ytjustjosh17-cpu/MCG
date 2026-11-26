@@ -91,6 +91,8 @@ var away_unseen := false  # show the welcome-back card once
 var last_tap_at := 0.0
 var tap_cap := true  # tests switch this off to tap in bulk
 var _tap_tokens := 7.0
+var _tap_heat := 0.0      # paid taps, cooling 2 a second: long non-stop tapping tires
+var _heat_ms := 0
 var _tap_ms := 0
 var away_notes: Array = []
 var ui := {}          # remembered screen choices (tabs, chart range)
@@ -324,6 +326,11 @@ func start_ibost() -> bool:
 	return true
 
 
+func tap_tired() -> bool:
+	var cool := float(Time.get_ticks_msec() - _heat_ms) / 1000.0 * Data.TAP_HEAT_COOL
+	return _tap_heat - cool > Data.TAP_HEAT_MAX
+
+
 func tap() -> float:
 	## At most 7 paid taps a second (faster than any thumb); extra taps still
 	## light the tower but earn nothing.
@@ -334,6 +341,13 @@ func tap() -> float:
 		return 0.0
 	_tap_tokens -= 1.0
 	var mult := 1.0
+	if sim_time < 0.0:
+		# Tired hands: tapping (or a tapping app) can go on for ever, but after
+		# about 4 minutes non-stop at full speed taps pay a quarter until you rest.
+		_tap_heat = maxf(0.0, _tap_heat - float(t - _heat_ms) / 1000.0 * Data.TAP_HEAT_COOL) + 1.0
+		_heat_ms = t
+		if _tap_heat > Data.TAP_HEAT_MAX:
+			mult *= Data.TAP_TIRED_MULT
 	if boost_active():
 		mult = BOOST_MULT
 	if frenzy_active():
