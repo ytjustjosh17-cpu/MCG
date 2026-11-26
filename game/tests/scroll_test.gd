@@ -86,6 +86,8 @@ func _run() -> void:
 	_ok(taps[0] == 1, "a tap still presses the row")
 	# On a share page, an up/down drag on the chart scrolls; a sideways drag reads prices.
 	await create_timer(0.6).timeout  # pushes within 450 ms are ignored on purpose (spam guard)
+	g.cash = maxf(g.cash, 1.0e6)
+	g.buy_asset("share", "NRV", 1.0e5)   # owning some makes the page long enough to scroll
 	var pg = load("res://scripts/asset_detail.gd").new("share", "NRV")
 	main.push(pg)
 	await create_timer(0.8).timeout

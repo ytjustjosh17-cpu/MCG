@@ -104,6 +104,8 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - The Earn tower grows in five wealth tiers (net worth £1M, £100M, £10B, £1T, £100T): a second block, roof lights, searchlights, a sky bridge, a red crown.
 - Sounds come from `Kit.sound()` (made in code in `sfx.gd`); `Kit.tick()` and `Kit.haptic()` already play the right one.
 - Sheets: glass, follow the finger down, rubber-band when dragged up, close on a quick flick.
+- Invest lists split into "Yours" (what you own) and "Market". Crypto has its own Mining section with one Buy rig button (pick the coin; best payers first).
+- A share or coin page: price, chart, Buy and Sell, one "You own" card, then (coins) one Lock row, and the latest 3 news items. Nothing else.
 - Profile shows the next achievement. The nav bar names only the active tab.
 
 ## Words and terms
