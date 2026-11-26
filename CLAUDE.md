@@ -36,7 +36,8 @@ Run all of these from the repo root. All must pass.
 python3 tools/check_rules.py
 cd game && $G --headless --path . -s res://tests/smoke_test.gd
 cd game && $G --headless --path . -s res://tests/stress_test.gd
-cd game && (printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; $G --headless --path . -s res://tests/scroll_test.gd; rm override.cfg)
+cd game && $G --headless --path . -s res://tests/casino_test.gd
+cd game && (printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; for t in scroll_test slots_ui_test tables_ui_test; do $G --headless --path . -s res://tests/$t.gd; done; rm override.cfg)
 ```
 
 `$G` is the Godot 4.4.1 editor binary. TESTING.md says where to get it.
@@ -57,7 +58,7 @@ If you changed a screen, take screenshots and look at them (TESTING.md).
 | R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`, extra keys) | Clean repo |
 | R9 | No `print()` in game code; use `GameLog.info()` | Logs go in the problem report |
 | R10 | Pushed pages are marked `super(title, true)`; the back button sits in the bottom bar (`main.gd`) | Never trap the player |
-| R11 | The four test suites exist | CI runs them |
+| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, slots UI, tables UI) | CI runs them |
 
 Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 

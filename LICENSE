@@ -14,6 +14,7 @@ Third-party components keep their own licences:
   in this repository; the build downloads them from Fontshare.
 - Phosphor icons: MIT License (game/assets/icons/LICENSE-phosphor.txt)
 - Coin logos: cryptocurrency-icons, CC0 1.0 (game/assets/coins/LICENSE.txt)
+- Playing cards: Kenney Boardgame Pack, CC0 1.0 (game/assets/cards/LICENSE-kenney.txt)
 - Godot Engine: MIT License (https://godotengine.org/license)
 
 DISCLAIMER

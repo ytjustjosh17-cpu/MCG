@@ -32,6 +32,7 @@ Pages never change state directly.
 | Building blocks | `page.gd`, `row.gd`, `segmented.gd`, `icon.gd`, `icon_button.gd`, `glass_panel.gd`, `count_label.gd`, `goal_card.gd`, `asset_tile.gd` |
 | Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `item_art.gd` (personal items), `miner_rack.gd` (animated miners), `asset_tile.gd` (coin logos, share badges), `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
 | Rebirth tree | `rebirth_tree.gd` (`RebirthTree`: every node with a fixed string id, position, links, cost and effects; built once). Effects are summed per stat by `Game.rb(stat)` and used where each rule lives |
+| Casino pages | `casino_page.gd` (lobby: unlock, cage, limits, games; `CasinoPage.CasinoArt` drawings), `slots_page.gd`, `roulette_page.gd`, `blackjack_page.gd`. Money only moves through `Game.casino_stake()` and `Game.casino_pay()` |
 | Casino maths | `casino/slot_math.gd`, `casino/roulette_math.gd`, `casino/blackjack_math.gd`: pure rules, seedable, no UI (`tests/casino_test.gd` checks their payback) |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
 | Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |

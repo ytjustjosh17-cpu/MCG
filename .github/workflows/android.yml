@@ -97,6 +97,10 @@ jobs:
         working-directory: game
         run: godot --headless --path . -s res://tests/market_test.gd -- 20
 
+      - name: Casino test (the house always keeps a small edge)
+        working-directory: game
+        run: godot --headless --path . -s res://tests/casino_test.gd
+
       - name: Scroll test (as a touchscreen)
         working-directory: game
         run: |

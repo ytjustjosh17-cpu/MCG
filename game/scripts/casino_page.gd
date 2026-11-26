@@ -27,6 +27,7 @@ func _init() -> void:
 func build() -> void:
 	var sign := CasinoArt.new("sign")
 	sign.custom_minimum_size = Vector2(0, 120)
+	sign.clip_contents = true
 	var sc := card()
 	sc.add_child(sign)
 	# Locked: one clear price and one button.
@@ -173,14 +174,17 @@ class CasinoArt extends Control:
 		match kind:
 			"sign":
 				draw_rect(Rect2(Vector2.ZERO, s), UI.SKY)
-				# A low red sun behind a block of concrete with a lit sign.
-				draw_circle(Vector2(s.x * 0.5, s.y * 0.92), s.y * 0.55, UI.RED)
-				draw_rect(Rect2(Vector2(s.x * 0.12, s.y * 0.38), Vector2(s.x * 0.76, s.y * 0.62)), UI.SIDE)
-				for i in 9:
+				# A red sun rising behind a concrete block with a lit marquee.
+				draw_circle(Vector2(s.x * 0.5, s.y * 0.5), s.y * 0.36, UI.RED)
+				draw_rect(Rect2(Vector2(0, s.y * 0.78), Vector2(s.x, s.y * 0.22)), UI.FAR)
+				var blk := Rect2(Vector2(s.x * 0.14, s.y * 0.46), Vector2(s.x * 0.72, s.y * 0.54))
+				draw_rect(blk, UI.SIDE)
+				draw_rect(Rect2(blk.position, Vector2(blk.size.x, 3)), UI.TRACK)
+				for i in 11:
 					var on := fmod(_t * 3.0 + float(i) * 0.7, 2.0) < 1.4
-					draw_circle(Vector2(s.x * (0.18 + 0.08 * i), s.y * 0.46), 3.0, UI.GOLD if on else UI.TRACK)
+					draw_circle(Vector2(blk.position.x + 10.0 + (blk.size.x - 20.0) * float(i) / 10.0, blk.position.y + 10.0), 2.5, UI.GOLD if on else UI.TRACK)
 				var f: Font = UI.DISPLAY
-				draw_string(f, Vector2(0, s.y * 0.8), "SOL CASINO", HORIZONTAL_ALIGNMENT_CENTER, s.x, 30, UI.TEXT)
+				draw_string(f, Vector2(blk.position.x, blk.position.y + blk.size.y * 0.72), "SOL CASINO", HORIZONTAL_ALIGNMENT_CENTER, blk.size.x, 28, UI.TEXT)
 			"classic", "neon", "vault":
 				var body: Color = {"classic": UI.RED, "neon": UI.SLOT_COL["wild"], "vault": UI.DIM}[kind]
 				var r := Rect2(Vector2(s.x * 0.16, s.y * 0.08), Vector2(s.x * 0.62, s.y * 0.86))

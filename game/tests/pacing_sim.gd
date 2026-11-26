@@ -75,7 +75,44 @@ func _hold_trade() -> void:
 			holds.append([sym, amt, g.sim_time])
 
 
+var gamble_net := 0.0
+var _slot: SlotMath
+
+
+func _gamble() -> void:
+	## Gambler persona (SIM_GAMBLE=1): 40 max-bet spins on the high-risk slot
+	## every session, playing out free spins, then cashing out.
+	if not g.casino_open():
+		if g.cash >= Data.CASINO_COST * 4.0:
+			g.unlock_casino()
+		return
+	if _slot == null:
+		_slot = SlotMath.new("vault", 4242 + int(OS.get_environment("SIM_SEED")))
+	var line: float = g.casino_max_bet() / float(SlotMath.LINES)
+	var need: float = g.casino_max_bet() * 40.0
+	if g.cash < need * 2.0:
+		return
+	var c0: float = g.cash
+	g.buy_chips(need)
+	var free := 0
+	for i in 40:
+		if not g.casino_stake(line * SlotMath.LINES):
+			break
+		var r: Dictionary = _slot.spin(line)
+		g.casino_pay(float(r["total"]))
+		free += int(r["free_spins_awarded"])
+		while free > 0:
+			free -= 1
+			var fr: Dictionary = _slot.spin(line, true)
+			g.casino_pay(float(fr["total"]))
+			free += int(fr["free_spins_awarded"])
+	g.cash_out(g.chips())
+	gamble_net += g.cash - c0
+
+
 func _session(active_s: float) -> void:
+	if OS.get_environment("SIM_GAMBLE") == "1":
+		_gamble()
 	if trader in ["news", "dip", "hold"]:
 		_trade()
 	# Tap for a while (3 taps a second), using the tap boost when ready.
@@ -317,6 +354,8 @@ func _run() -> void:
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
 			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0,
 			g.rigs_total(), g.mining_value_per_hour() / maxf(1.0, g.income_per_hour) * 100.0])
+	if OS.get_environment("SIM_GAMBLE") == "1":
+		print("Gambler net from the casino: %s" % g.money_short(gamble_net))
 	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()

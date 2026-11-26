@@ -86,6 +86,15 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real. The robot starts from a fresh market (`reset_game(true)`), so the same seed gives the same result every time.
 4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes), `nodeals` (skip deals and managers) or `nomine` (no mining rigs). `news`, `dip` and `hold` run trading bots that try to profit from news.
 
+## Casino
+
+- Opens once for £2.5M (about day 4 for the robot). Stays open through rebirth; chips do not (they are money).
+- Chips: bought with cash at the cage, cashed out any time, counted in net worth.
+- Limits follow base income (without the x2 boost): a bet is at most 6 minutes of income (`CASINO_MAX_BET_H`, at least £500), one payout at most 24 hours (`CASINO_MAX_WIN_H`, at least £100K). A slot bonus buy may stake up to 20 bets; a blackjack double or split up to 2. The "High roller" keystone doubles both.
+- Payback, measured by `tests/casino_test.gd` on every build: slots 95.5 to 95.8% exactly from the reel strips (bonus buys about 93%), roulette 97.3% (every bet type, all 37 numbers), blackjack 99.3% with perfect basic strategy over 300k hands. The shoe is a fresh six decks every hand, so counting cards can't win.
+- Every bet and every payout is saved the moment it happens, before any animation, so closing the app can't undo a loss. A backup can't rewind the game either (restore guard).
+- Gambler robot (`SIM_GAMBLE=1`): 40 max-bet spins on Iron Vault (the wildest machine) every session, free spins played out. 90% complete on day 37.5, 38.8, 38.3 and 39.3 (seeds 7, 99, 2024, 5) against 38.5 without gambling. The luckiest seed won £3.8T in all and still finished on day 38.8, so a lucky streak can't skip weeks.
+
 ## Rebirth and the RBP tree
 
 - Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000.
