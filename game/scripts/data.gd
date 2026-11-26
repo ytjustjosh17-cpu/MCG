@@ -389,16 +389,9 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.2"
 const WHATS_NEW := [
-	"Money in pounds, to the penny.",
-	"Buy ×1, ×10, ×100 or Max.",
-	"More units and Partners raise income.",
-	"Big taps, and golden sun bonuses.",
-	"Real coins; miners dig the one you pick.",
-	"Sound, a Stats page and a growing tower.",
-	"Buy, sell or lock any amount: slide or type.",
-	"Convert coins, and watch your miners work.",
-	"Rebirth for RBP and grow the RBP tree.",
-	"Tree unlocks: casino, Frontier, islands, relics.",
-	"Shares pay dividends every hour, on the hour.",
-	"Auto clicker on Earn; deals no longer pop up.",
+	"Bank: save for interest, borrow and repay.",
+	"Casino: poker, crash, plinko, races, daily wheel.",
+	"Day and night, rain and fog on your city.",
+	"Your companies in the skyline; look inside home.",
+	"Stats charts, and a short guide for new games.",
 ]

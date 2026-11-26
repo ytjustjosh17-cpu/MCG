@@ -374,6 +374,18 @@ func _run() -> void:
 	g.reduce_motion = keep_rm
 	main.pop()
 	await create_timer(0.5).timeout
+	# Bank with savings and a loan running.
+	g.cash = 2.0e6
+	g.deposit(5.0e5)
+	g.take_loan(g.loan_limit() * 0.5)
+	main.show_page(4)
+	await create_timer(0.5).timeout
+	main.push(BankPage.new())
+	await create_timer(0.9).timeout
+	await _shot("48_bank")
+	main.pop()
+	await create_timer(0.5).timeout
+	g.bank = {"saved": 0.0, "loan": {}}
 	# Rebirth and the tree: a second run with part of the tree bought.
 	g.streak_unseen = []
 	while root.get_node("Kit").close_top():

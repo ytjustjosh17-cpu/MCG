@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0
+
+- Bank (Profile > Bank): save cash for 0.2% interest an hour (capped), and
+  borrow up to 6 hours of income, one loan at a time, paid back in 5 set
+  payments every 4 hours (125% in all). Short on a payment? Your cash goes
+  into the minus and buying waits until income covers it. Save v17.
+- Casino: video poker, crash, plinko and races, plus a free daily wheel
+  (cash or chips). The house keeps a small edge in every game.
+- Day and night follow your clock; rain and fog come and go; your companies
+  appear in the skyline; look inside your home from the Items tab.
+- Stats: net worth and income charts (1D, 1W, All), where income comes
+  from, and tidier totals. A short guide for a brand-new game (skip any time,
+  replay from Settings).
+- Update check at most every 10 minutes.
+
 ## Better Level up
 
 - Each level now nearly doubles your tap's base value (x1.9, was x1.64)

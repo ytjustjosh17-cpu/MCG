@@ -20,7 +20,8 @@ Tap to earn, start companies, trade made-up shares and well-known crypto coins, 
 - Shares, property and real crypto coins (with miners and locking)
 - Daily and weekly goals, golden suns, rivals, achievements
 - Rebirth for RBP and a 158-node tree that stays forever, with unlocks for new content
-- A casino (unlocked in the tree): slots, roulette and blackjack, play money only
+- A casino (unlocked in the tree): slots, roulette, blackjack, poker, crash, plinko, races, play money only
+- A bank to save and borrow, day and night, weather, and charts
 - Built to take weeks, not days
 
 Latest changes: [CHANGELOG.md](CHANGELOG.md).
