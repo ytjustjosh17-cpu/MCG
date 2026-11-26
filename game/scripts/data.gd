@@ -245,6 +245,12 @@ const TAP_HEAT_MAX := 1200.0     # tap "heat" before taps tire (about 4 min at 7
 const TAP_HEAT_COOL := 2.0       # heat lost per second
 const TAP_TIRED_MULT := 0.25     # tired taps pay a quarter
 const AUTO_IDLE_S := 120.0
+# Free daily wheel in the casino: [kind, minutes of income, weight].
+# Average about 20 minutes of income a day, so it's a treat, not a shortcut.
+const WHEEL := [
+	["cash", 5.0, 22], ["chips", 10.0, 18], ["cash", 10.0, 16], ["chips", 20.0, 12],
+	["cash", 20.0, 12], ["chips", 45.0, 8], ["cash", 60.0, 7], ["cash", 180.0, 5],
+]
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const SUN_PER_DAY := 4                # never more than this a day
 # What a caught sun gives: chance of a cash prize, else a short buff (1.1).
@@ -370,7 +376,7 @@ static func business(id: String) -> Dictionary:
 
 
 # ---- what's new (shown from Profile) -------------------------------------
-const RELEASE := "1.1"
+const RELEASE := "1.2"
 const WHATS_NEW := [
 	"Money in pounds, to the penny.",
 	"Buy ×1, ×10, ×100 or Max.",

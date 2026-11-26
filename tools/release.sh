@@ -30,7 +30,7 @@ for d in json.load(sys.stdin).get('workflow_runs',[]):
     if d['head_sha'].startswith('$SHA'):
         print(d['run_number'], d['status'], d['conclusion']); break" 2>/dev/null)
 	case "$r" in
-		*completed*success*) echo "Released v1.1.${r%% *} (build ok). Owner: tap Update in Profile."; exit 0;;
+		*completed*success*) echo "Released v1.2.${r%% *} (build ok). Owner: tap Update in Profile."; exit 0;;
 		*completed*) echo "Build finished but not ok: $r. Check the Actions log."; exit 1;;
 	esac
 	sleep 20
