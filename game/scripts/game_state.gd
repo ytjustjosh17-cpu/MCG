@@ -722,9 +722,9 @@ func stake(sym: String, fraction: float) -> bool:
 		return false
 	coins[sym]["qty"] = free - q
 	coins[sym]["staked"] = staked(sym) + q
-	# Adding to a stake keeps the time already counting down.
-	if staked(sym) - q <= 0.0 or stake_left(sym) <= 0.0:
-		coins[sym]["stake_until"] = now() + Data.STAKE_LOCK_H * 3600.0
+	# Adding to a stake starts a fresh 24 h for all of it, so a tiny early
+	# lock can't let a big one skip most of the wait.
+	coins[sym]["stake_until"] = now() + Data.STAKE_LOCK_H * 3600.0
 	GameLog.info("invest", "Staked %s %s" % [str(snappedf(q, 0.0001)), sym])
 	recalc()
 	return true
@@ -754,7 +754,7 @@ func _stake_scale() -> float:
 		raw += staked(c) * stake_rate(c) * price(c)
 	if raw <= 0.0:
 		return 1.0
-	return minf(1.0, maxf(income_per_hour, 1000.0) * Data.STAKE_CAP / raw)
+	return minf(1.0, maxf(income_per_hour, 200.0) * Data.STAKE_CAP / raw)
 
 
 func staking_per_hour() -> float:

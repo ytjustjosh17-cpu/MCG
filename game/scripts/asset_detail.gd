@@ -311,7 +311,7 @@ func _on_stake() -> void:
 					Kit.haptic("success")
 					Kit.toast("Locked for 24 h", true)})
 	actions.append({"text": "Close", "style": "plain"})
-	var body_t := "Locked coins earn %.2f%% a day. You can't sell them for 24 h." % (Game.stake_rate(sym) * 2400.0)
+	var body_t := "Locked coins earn up to %.2f%% a day (all locks together pay at most %d%% of your income). You can't sell them for 24 h." % [Game.stake_rate(sym) * 2400.0, int(Data.STAKE_CAP * 100.0)]
 	if free <= 0.0 and locked <= 0.0:
 		body_t = "Buy some %s first, then lock them to earn more." % sym
 	elif locked > 0.0 and Game.stake_left(sym) > 0.0:
