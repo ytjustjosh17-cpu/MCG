@@ -193,7 +193,7 @@ func _step_bet(d: int) -> void:
 func _refresh_bet() -> void:
 	var tb := total_bet() if _free_left <= 0 else math.total_bet(_free_line)
 	_bet_l.text = Game.money_short(tb)
-	_bet_sub.text = "%s a line · 20 lines" % Game.money_short(line_bet() if _free_left <= 0 else _free_line)
+	_bet_sub.text = "%s a line" % Game.money_short(line_bet() if _free_left <= 0 else _free_line)
 
 
 func refresh() -> void:
@@ -895,7 +895,7 @@ class SlotMachine extends Control:
 			return "Free spins so far · " + Game.money_short(_free_won)
 		if not _res.is_empty() and float(_res.get("total", 0.0)) <= 0.0:
 			return "No win this time"
-		return "20 lines · tap SPIN"
+		return "Tap SPIN"
 
 	func _is_hl(r: int, row: int) -> bool:
 		if _show_line == -1 or _res.is_empty():

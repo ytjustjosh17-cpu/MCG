@@ -389,18 +389,20 @@ class TableView extends Control:
 	func _init() -> void:
 		clip_contents = true
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# The shoe: the top card back peeking out, top right.
+		# The shoe: a small card box inside the felt, top right (never clipped).
 		_shoe = TextureRect.new()
 		_shoe.texture = load("res://assets/cards/cardBack.png") as Texture2D
 		_shoe.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_shoe.stretch_mode = TextureRect.STRETCH_SCALE
-		_shoe.size = BlackjackPage.CARD
+		_shoe.size = SHOE
 		_shoe.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_shoe)
-		resized.connect(func(): _shoe.position = shoe_pos() + Vector2(0, 8))
+		resized.connect(func(): _shoe.position = shoe_pos())
+
+	const SHOE := Vector2(36, 49)
 
 	func shoe_pos() -> Vector2:
-		return Vector2(size.x - BlackjackPage.CARD.x - 12.0, -BlackjackPage.CARD.y * 0.6)
+		return Vector2(size.x - SHOE.x - 16.0, 14.0)
 
 	func clear_cards() -> void:
 		for c in _cards:
@@ -487,8 +489,8 @@ class TableView extends Control:
 		draw_arc(Vector2(size.x * 0.5, size.y * 0.06), size.x * 0.62, PI * 0.18, PI * 0.82, 64, UI.FELT_LINE, 1.5, true)
 		var f: Font = UI.SEMI
 		# Shoe, top right.
-		var sp := shoe_pos() + Vector2(0, 8)
-		draw_rect(Rect2(sp + Vector2(-6, 0), BlackjackPage.CARD + Vector2(12, 4)), UI.SIDE)
+		var sp := shoe_pos()
+		draw_rect(Rect2(sp + Vector2(-5, -5), SHOE + Vector2(10, 10)), UI.SIDE)
 		# Table rules, printed on the felt like a real layout.
 		var mid := size.y * 0.47
 		draw_string(f, Vector2(0, mid - 26.0), "BLACKJACK PAYS 3 TO 2", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, UI.GOLD)
