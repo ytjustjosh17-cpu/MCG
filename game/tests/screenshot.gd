@@ -207,6 +207,11 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	main.pop()
 	await create_timer(0.6).timeout
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
+	for k in 60:
+		g.history.append([g.now() - (60 - k) * 1800.0, 2.0e6 * pow(1.06, k), 3.0e4 * pow(1.05, k)])
 	main.push(load("res://scripts/stats_page.gd").new())
 	await _shot("23c_stats")
 	await create_timer(0.4).timeout
@@ -368,5 +373,14 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	main._pages[2].scroll.scroll_vertical = 5000
 	await _shot("42_isles")
+	# First-time guide on a brand-new game.
+	g.reset_game()
+	g.ui["guide_done"] = false
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	Guide.maybe_start(main)
+	await create_timer(0.8).timeout
+	await _shot("43_guide")
+	g.ui["guide_done"] = true
 	g.reset_game()
 	quit()

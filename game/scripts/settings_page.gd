@@ -65,6 +65,19 @@ func build() -> void:
 	var bk := _row(hc, "copy", true)
 	bk.set_texts("Backup")
 	bk.pressed.connect(_on_backup_menu)
+	separator(hc, 50)
+	var gd := _row(hc, "info", false)
+	gd.set_texts("Replay guide")
+	gd.pressed.connect(func():
+		Kit.tick()
+		Guide.replay()
+		# Back to Earn, where the guide starts.
+		var m: Node = self
+		while m != null and m.get("_pages") == null:
+			m = m.get_parent()
+		if m != null:
+			m.show_page(0)
+			Guide.maybe_start(m))
 	_storage = GameLog.bytes(GameLog.storage_used())
 	Updater.state_changed.connect(_on_update_state)
 	Updater.check_finished.connect(_on_check_finished)
