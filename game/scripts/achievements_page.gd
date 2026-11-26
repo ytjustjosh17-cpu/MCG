@@ -9,6 +9,11 @@ const GROUP := {
 	"biz": "biz", "expansions": "biz", "managers": "biz", "synergies": "biz", "full50": "biz", "upgrades": "biz", "mergers": "biz", "deals": "biz", "rivals": "biz",
 	"props": "invest", "shares": "invest", "crypto_profit": "invest", "dividends": "invest", "stake_earned": "invest",
 }
+const KIND_ICON := {"taps": "earn", "boosts": "bolt", "level": "level", "worth": "pie", "home": "home",
+	"biz": "business", "expansions": "level", "managers": "profile", "mergers": "check", "deals": "coins",
+	"rivals": "goal", "props": "home", "shares": "invest", "crypto_profit": "coins", "dividends": "coins",
+	"stake_earned": "lock", "collections": "diamond", "suns": "star", "goals": "list", "synergies": "sparkle",
+	"full50": "business", "upgrades": "gear"}
 const MONEY := ["worth", "shares", "crypto_profit", "dividends", "stake_earned"]
 
 static var _filter := "all"
@@ -73,7 +78,8 @@ func refresh() -> void:
 				separator(_list, 50)
 			var a: Dictionary = all[i]
 			var done := i >= locked.size()
-			var r := Row.new("check" if done else "lock", "", false)
+			# Each kind of achievement has its own icon; done ones are lit.
+			var r := Row.new(KIND_ICON.get(String(a.get("m", "")), "trophy"), "", false)
 			r.custom_minimum_size = Vector2(0, 56)
 			var ic: Icon = r.lead
 			ic.set_style(UI.TEXT if done else UI.DIM, done)

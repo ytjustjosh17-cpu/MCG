@@ -30,7 +30,7 @@ Pages never change state directly.
 | Tabs | `earn_page.gd`, `business_page.gd`, `invest_page.gd`, `items_page.gd`, `profile_page.gd` |
 | Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `head_office_page.gd`, `ItemsPage.CollectionPage` |
 | Building blocks | `page.gd`, `row.gd`, `segmented.gd`, `icon.gd`, `icon_button.gd`, `glass_panel.gd`, `count_label.gd`, `goal_card.gd`, `asset_tile.gd` |
-| Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
+| Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `item_art.gd` (personal items), `asset_tile.gd` (coin logos, share badges), `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
 | Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |
 | Platform | `main.gd` (navigation, back button and cash pill, safe area, deal and welcome-back cards), `updater.gd`, `game_log.gd` |

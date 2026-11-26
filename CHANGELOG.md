@@ -1,5 +1,13 @@
 # Changelog
 
+## Everything gets its own picture
+
+- All 36 personal items have their own drawing (each watch, painting, car,
+  jet, yacht and island differs); not-yet-owned ones are dim.
+- Collections show their top item; properties in the list show their own
+  scene; achievements show an icon for their type; partner boosts show the
+  partner company.
+
 ## Head office, fairer miners, real logos
 
 - New: Head office (Business > More). Ten one-off upgrades: stronger taps,

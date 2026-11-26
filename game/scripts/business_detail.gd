@@ -140,7 +140,7 @@ func build() -> void:
 			if i > 0:
 				separator(sc, 50)
 			var sy: Array = syns[i]
-			var r := Row.new("sparkle", "", false)
+			var r := Row.new("", String(Data.business(sy[2])["kind"]), false)   # the partner company's picture
 			r.custom_minimum_size = Vector2(0, 64)
 			var sid: String = sy[0]
 			r.pressed.connect(func(): _on_synergy(sid, r))

@@ -61,6 +61,7 @@ Rules:
 |---|---|
 | A page | `Page` (`page.gd`): `card()`, `padded()`, `section()`, `separator()`, `button()` |
 | A list row | `Row` (`row.gd`), with `set_texts()`, `set_change()`, `set_lead()` |
+| Personal item picture | `ItemArt` (`item_art.gd`): every watch, painting, car, jet, yacht and island drawn with its own details; dim until owned |
 | Company or coin mark | `AssetTile` (`asset_tile.gd`): coins show their real logo (`assets/coins`, CC0); shares a sector shape with the company initial cut in |
 | Tabs inside a page | `Segmented` |
 | Bottom sheet, alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()` |
@@ -68,6 +69,7 @@ Rules:
 | Count-up number | `CountLabel` |
 | Price chart | `PriceChart` |
 
+Nothing shares one picture: companies and properties have their own scenes, items their own drawings, coins their logos, shares their own badge, achievements an icon for their type.
 No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare and tinted (`Icon`).
 
 ## Motion
