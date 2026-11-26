@@ -52,6 +52,7 @@ Rules:
 - Buttons and controls are at least 48 px each way (Android's 48 dp touch target): primary and secondary 48, segmented 48, drop-downs 48.
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
 - Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
+- Cash you can spend is always shown: big on Earn, and as a small glass pill at the top right on every other screen (`main.gd`), fixed while you scroll.
 - Every pressable thing is at least 48 x 48 px. The touch test measures what is on screen on each tab and the main detail pages.
 
 ## Components (use these, don't rebuild them)
