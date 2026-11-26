@@ -115,6 +115,8 @@ jobs:
           godot --headless --path . -s res://tests/slots_ui_test.gd
           printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-forge-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
           godot --headless --path . -s res://tests/forge_ui_test.gd
+          printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-casino12-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
+          godot --headless --path . -s res://tests/casino12_test.gd
           rm override.cfg
 
       - name: Export APK

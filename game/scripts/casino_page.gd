@@ -5,13 +5,17 @@ extends Page
 ## tables (roulette and blackjack). Tree nodes last through every rebirth.
 
 const GAMES := [
-	# id, title, subtitle, page script, arg
-	["forge", "Sun Forge", "Tumbles · sun orbs · buy free spins", "res://scripts/forge_page.gd", "forge"],
-	["classic", "Red Sun Classic", "Slots · steady, small wins", "res://scripts/slots_page.gd", "classic"],
-	["neon", "Neon Reef", "Slots · balanced", "res://scripts/slots_page.gd", "neon"],
-	["vault", "Iron Vault", "Slots · rare, big wins", "res://scripts/slots_page.gd", "vault"],
-	["roulette", "Roulette", "European wheel · single zero", "res://scripts/roulette_page.gd", ""],
-	["blackjack", "Blackjack", "Six decks · blackjack pays 3 to 2", "res://scripts/blackjack_page.gd", ""],
+	# id, title, subtitle, page script, arg, gate ("slots" = Sol Casino, "tables" = High tables)
+	["forge", "Sun Forge", "Tumbles · sun orbs · buy free spins", "res://scripts/forge_page.gd", "forge", "slots"],
+	["classic", "Red Sun Classic", "Slots · steady, small wins", "res://scripts/slots_page.gd", "classic", "slots"],
+	["neon", "Neon Reef", "Slots · balanced", "res://scripts/slots_page.gd", "neon", "slots"],
+	["vault", "Iron Vault", "Slots · rare, big wins", "res://scripts/slots_page.gd", "vault", "slots"],
+	["crash", "Crash", "Cash out before it crashes", "res://scripts/crash_page.gd", "", "slots"],
+	["plinko", "Plinko", "Drop a ball · three risk levels", "res://scripts/plinko_page.gd", "", "slots"],
+	["roulette", "Roulette", "European wheel · single zero", "res://scripts/roulette_page.gd", "", "tables"],
+	["blackjack", "Blackjack", "Six decks · blackjack pays 3 to 2", "res://scripts/blackjack_page.gd", "", "tables"],
+	["poker", "Video poker", "Jacks or better · hold and draw", "res://scripts/video_poker_page.gd", "", "tables"],
+	["races", "Races", "Back a car · six runners", "res://scripts/race_page.gd", "", "tables"],
 ]
 
 var _locked: VBoxContainer
@@ -21,6 +25,7 @@ var _chips: Label
 var _limits: Label
 var _stats: Label
 var _table_rows: Array = []
+var _wheel_row: Row
 
 
 func _init() -> void:
@@ -86,6 +91,16 @@ func build() -> void:
 		TradeSheet.open("chips", "", "chips_out"))
 	Kit.press_fx(out)
 	row.add_child(out)
+	# The free daily wheel.
+	var wc := PanelContainer.new()
+	wc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
+	_open.add_child(wc)
+	_wheel_row = Row.new("", "", true)
+	_wheel_row.set_lead(CasinoArt.new("wheel", 48.0))
+	_wheel_row.pressed.connect(func():
+		Kit.tick()
+		WheelSheet.open())
+	wc.add_child(_wheel_row)
 	_open.add_child(UI.label("Games", 17, UI.TEXT, true))
 	var list := PanelContainer.new()
 	list.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
@@ -105,7 +120,7 @@ func build() -> void:
 		r.set_texts(String(gm[1]), String(gm[2]))
 		var path: String = gm[3]
 		var arg: String = gm[4]
-		var table := arg == ""
+		var table: bool = gm[5] == "tables"
 		if table:
 			_table_rows.append(r)
 		r.pressed.connect(func():
@@ -121,7 +136,7 @@ func build() -> void:
 	_stats = UI.label("", 13, UI.SUB)
 	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(_stats)
-	var fine := UI.label("The house keeps a small edge: slots ~95%, roulette 97.3%, blackjack ~99.4%.", 13, UI.DIM)
+	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, blackjack and poker ~99%.", 13, UI.DIM)
 	fine.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(fine)
 
@@ -140,6 +155,7 @@ func refresh() -> void:
 	for tr in _table_rows:
 		(tr as Row).modulate.a = 1.0 if Game.tables_open() else 0.55
 	_chips.text = Game.money(Game.chips())
+	_wheel_row.set_texts("Daily wheel", "Free spin ready" if Game.wheel_ready() else "Next spin tomorrow", "Spin" if Game.wheel_ready() else "")
 	_limits.text = "Max bet %s · max win %s a round (they grow with your income)" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]
 	var bet := float(Game.counters.get("casino_bet", 0.0))
 	var won := float(Game.counters.get("casino_won", 0.0))
@@ -222,6 +238,51 @@ class CasinoArt extends Control:
 				draw_circle(c, rad * 0.55, UI.FELT)
 				draw_circle(c, rad * 0.2, UI.GOLD)
 				draw_circle(c + Vector2(rad * 0.75, -rad * 0.3), 3.0, UI.TEXT)
+			"wheel":
+				var c := s * 0.5
+				var rad := minf(s.x, s.y) * 0.44
+				for i in 8:
+					var a0 := TAU * float(i) / 8.0
+					var a1 := TAU * float(i + 1) / 8.0
+					var pts := PackedVector2Array([c])
+					for k in 5:
+						var a := lerpf(a0, a1, float(k) / 4.0)
+						pts.append(c + Vector2(cos(a), sin(a)) * rad)
+					draw_colored_polygon(pts, UI.CHIP_COL[i % UI.CHIP_COL.size()] if i % 2 == 0 else UI.RAISED)
+				draw_circle(c, rad * 0.22, UI.GOLD)
+				draw_colored_polygon(PackedVector2Array([c + Vector2(-4, -rad - 3), c + Vector2(4, -rad - 3), c + Vector2(0, -rad + 6)]), UI.RED)
+			"crash":
+				draw_rect(Rect2(Vector2(s.x * 0.08, s.y * 0.1), Vector2(s.x * 0.84, s.y * 0.8)), UI.INK)
+				var pts2 := PackedVector2Array()
+				for k in 12:
+					var x := float(k) / 11.0
+					pts2.append(Vector2(s.x * (0.14 + 0.72 * x), s.y * (0.82 - 0.62 * x * x)))
+				draw_polyline(pts2, UI.GOLD, 2.5, true)
+				draw_circle(pts2[pts2.size() - 1], 3.5, UI.RED)
+			"plinko":
+				for row in 4:
+					for k in row + 1:
+						draw_circle(Vector2(s.x * 0.5 + (float(k) - float(row) * 0.5) * s.x * 0.18, s.y * (0.18 + 0.16 * float(row))), 2.5, UI.SUB)
+				for k in 5:
+					draw_rect(Rect2(Vector2(s.x * (0.1 + 0.165 * float(k)), s.y * 0.82), Vector2(s.x * 0.14, s.y * 0.1)), UI.GOLD if k == 0 or k == 4 else UI.RAISED)
+				draw_circle(Vector2(s.x * 0.56, s.y * 0.42), 4.0, UI.RED)
+			"poker":
+				var cards := ["cardSpadesA.png", "cardSpadesK.png", "cardSpadesQ.png"]
+				var h2 := s.y * 0.78
+				var w2 := h2 * 140.0 / 190.0
+				for i in 3:
+					var tx := load("res://assets/cards/" + cards[i]) as Texture2D
+					if tx:
+						draw_set_transform(Vector2(s.x * (0.12 + 0.2 * float(i)), s.y * 0.11), 0.0)
+						draw_texture_rect(tx, Rect2(Vector2.ZERO, Vector2(w2, h2)), false)
+				draw_set_transform(Vector2.ZERO, 0.0)
+			"races":
+				for k in 3:
+					var y := s.y * (0.25 + 0.25 * float(k))
+					draw_line(Vector2(s.x * 0.06, y + 6), Vector2(s.x * 0.94, y + 6), UI.TRACK, 1.0)
+					var x := s.x * (0.25 + 0.2 * float(k))
+					RacePage.draw_car(self, Vector2(x, y), 0.55, UI.CHIP_COL[(k + 1) % UI.CHIP_COL.size()])
+				draw_rect(Rect2(Vector2(s.x * 0.86, s.y * 0.14), Vector2(3, s.y * 0.72)), UI.TEXT)
 			"blackjack":
 				var a := load("res://assets/cards/cardSpadesA.png") as Texture2D
 				var k := load("res://assets/cards/cardHeartsK.png") as Texture2D
@@ -233,3 +294,108 @@ class CasinoArt extends Control:
 					draw_set_transform(Vector2(s.x * 0.42, s.y * 0.06), 0.14)
 					draw_texture_rect(k, Rect2(Vector2.ZERO, Vector2(w, h)), false)
 					draw_set_transform(Vector2.ZERO, 0.0)
+
+
+
+# ---- shared pieces for the casino games -------------------------------------
+
+static func status_row(parent: Control) -> Label:
+	## "Bet ... / Chips ..." text on the left and "+ Chips" on the right.
+	var sr := HBoxContainer.new()
+	sr.add_theme_constant_override("separation", 8)
+	parent.add_child(sr)
+	var l := UI.label("", 13, UI.SUB)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sr.add_child(l)
+	var buy := UI.pill("+ Chips", UI.RAISED, UI.TEXT, 15, 16)
+	buy.custom_minimum_size = Vector2(88, 48)
+	buy.pressed.connect(func():
+		Kit.tick()
+		if Game.cash < 0.01:
+			Kit.toast("No cash to spend")
+			return
+		TradeSheet.open("chips", "", "chips_in"))
+	Kit.press_fx(buy)
+	sr.add_child(buy)
+	return l
+
+
+static func game_button(t: String, primary: bool, call: Callable) -> Button:
+	var b := UI.pill(t, UI.TEXT if primary else UI.RAISED, UI.INK if primary else UI.TEXT, 16, 18)
+	b.custom_minimum_size = Vector2(0, 52)
+	b.pressed.connect(call)
+	Kit.press_fx(b)
+	return b
+
+
+class BetBar extends HBoxContainer:
+	## The bet: - and + step through round amounts up to the table limit, Max
+	## jumps to the limit. `locked` while a round is running.
+	var value := 0.0
+	var locked := false
+	var _l: Label
+	var _ladder: Array = []
+
+	func _init() -> void:
+		add_theme_constant_override("separation", 6)
+		var minus := UI.pill("-", UI.RAISED, UI.TEXT, 20, 0)
+		minus.custom_minimum_size = Vector2(52, 52)
+		minus.pressed.connect(func(): _step(-1))
+		add_child(minus)
+		_l = UI.label("", 17, UI.TEXT, true)
+		_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		add_child(_l)
+		var plus := UI.pill("+", UI.RAISED, UI.TEXT, 20, 0)
+		plus.custom_minimum_size = Vector2(52, 52)
+		plus.pressed.connect(func(): _step(1))
+		add_child(plus)
+		var mx := UI.pill("Max", UI.RAISED, UI.TEXT, 15, 12)
+		mx.custom_minimum_size = Vector2(64, 52)
+		mx.pressed.connect(func():
+			if locked:
+				return
+			Kit.haptic("selection")
+			_rebuild()
+			value = _ladder[_ladder.size() - 1]
+			_show())
+		add_child(mx)
+		for b in [minus, plus, mx]:
+			Kit.press_fx(b)
+
+	func _rebuild() -> void:
+		var mx := Game.casino_max_bet()
+		_ladder = []
+		var v := RoulettePage.nice(maxf(1.0, mx / 500.0))
+		while v < mx - 0.001 and _ladder.size() < 40:
+			_ladder.append(v)
+			var p := pow(10.0, floor(log(v) / log(10.0)))
+			var m := roundf(v / p)
+			v = (2.0 if m < 2.0 else (5.0 if m < 5.0 else 10.0)) * p
+		_ladder.append(mx)
+
+	func refresh() -> void:
+		_rebuild()
+		if value <= 0.0:
+			value = _ladder[mini(3, _ladder.size() - 1)]
+		value = minf(value, _ladder[_ladder.size() - 1])
+		_show()
+
+	func _step(d: int) -> void:
+		if locked:
+			return
+		Kit.haptic("selection")
+		_rebuild()
+		var i := 0
+		for k in range(_ladder.size()):
+			if _ladder[k] <= value + 0.001:
+				i = k
+		value = _ladder[clampi(i + d, 0, _ladder.size() - 1)]
+		_show()
+
+	func _show() -> void:
+		_l.text = "Bet " + Game.money_short(value)
+		modulate.a = 0.5 if locked else 1.0
