@@ -6,6 +6,7 @@ extends Page
 
 const GAMES := [
 	# id, title, subtitle, page script, arg
+	["forge", "Sun Forge", "Tumbles · sun orbs · buy free spins", "res://scripts/forge_page.gd", "forge"],
 	["classic", "Red Sun Classic", "Slots · steady, small wins", "res://scripts/slots_page.gd", "classic"],
 	["neon", "Neon Reef", "Slots · balanced", "res://scripts/slots_page.gd", "neon"],
 	["vault", "Iron Vault", "Slots · rare, big wins", "res://scripts/slots_page.gd", "vault"],
@@ -185,6 +186,19 @@ class CasinoArt extends Control:
 					draw_circle(Vector2(blk.position.x + 10.0 + (blk.size.x - 20.0) * float(i) / 10.0, blk.position.y + 10.0), 2.5, UI.GOLD if on else UI.TRACK)
 				var f: Font = UI.DISPLAY
 				draw_string(f, Vector2(blk.position.x, blk.position.y + blk.size.y * 0.72), "SOL CASINO", HORIZONTAL_ALIGNMENT_CENTER, blk.size.x, 28, UI.TEXT)
+			"forge":
+				# A furnace window: an iron frame, a molten seam, gems inside.
+				var fr := Rect2(Vector2(s.x * 0.08, s.y * 0.14), Vector2(s.x * 0.84, s.y * 0.72))
+				draw_rect(fr, UI.SIDE)
+				draw_rect(Rect2(fr.position, Vector2(fr.size.x, 3.0)), UI.RED)
+				var inner := fr.grow(-4.0)
+				draw_rect(inner, UI.INK)
+				var cw := inner.size.x / 3.0
+				var ch := inner.size.y / 2.0
+				var gems := [6, 8, 0, 10, 3, 9]
+				for gi in 6:
+					var gc := inner.position + Vector2(cw * (float(gi % 3) + 0.5), ch * (float(gi / 3) + 0.5))
+					ForgePage.ForgeGrid.draw_symbol(self, gems[gi], 5, gc, minf(cw, ch) * 1.15, 1.0, 1.0)
 			"classic", "neon", "vault":
 				var body: Color = {"classic": UI.RED, "neon": UI.SLOT_COL["wild"], "vault": UI.DIM}[kind]
 				var r := Rect2(Vector2(s.x * 0.16, s.y * 0.08), Vector2(s.x * 0.62, s.y * 0.86))

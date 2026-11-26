@@ -158,7 +158,7 @@ for p in SCRIPTS:
             fail("R10", p, 0, "pushed page without a back button; use super(title, true)")
 
 # R11 Tests exist for each test suite CI runs.
-for t in ("smoke_test.gd", "stress_test.gd", "scroll_test.gd", "pacing_sim.gd", "market_test.gd", "casino_test.gd", "slots_ui_test.gd", "tables_ui_test.gd"):
+for t in ("smoke_test.gd", "stress_test.gd", "scroll_test.gd", "pacing_sim.gd", "market_test.gd", "casino_test.gd", "slots_ui_test.gd", "tables_ui_test.gd", "forge_test.gd", "forge_ui_test.gd"):
     if not os.path.exists(os.path.join(GAME, "tests", t)):
         fail("R11", None, 0, f"missing tests/{t}")
 
