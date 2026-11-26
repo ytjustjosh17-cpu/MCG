@@ -11,6 +11,9 @@ var _key := ""
 var _open := false
 
 
+var _top_open := false
+
+
 func _init() -> void:
 	super("Rivals", true)
 
@@ -60,7 +63,7 @@ func refresh() -> void:
 	else:
 		_next.text = "Richest of all"
 	# Rebuild only when your place changes; just update your money otherwise.
-	var key := "%d:%s" % [me, _open]
+	var key := "%d:%s:%s" % [me, _open, _top_open]
 	if key == _key and is_instance_valid(_me):
 		_me.value_l.text = Game.money_short(nw)
 		return
@@ -70,7 +73,21 @@ func refresh() -> void:
 		ch.queue_free()
 	var passed := rows.size() - me - 1
 	var first := true
-	for i in range(rows.size()):
+	# Your row stays in view: only the two just above you, the rest folded.
+	var start := 0 if _top_open else maxi(0, me - 2)
+	if me > 2:
+		var t := Row.new("", "", false)
+		t.custom_minimum_size = Vector2(0, 48)
+		t.set_texts("Richer rivals (%d)" % me, "", "▴" if _top_open else "▾")
+		t.title_l.add_theme_color_override("font_color", UI.SUB)
+		t.value_l.add_theme_color_override("font_color", UI.SUB)
+		t.pressed.connect(func():
+			Kit.tick()
+			_top_open = not _top_open
+			refresh())
+		_list.add_child(t)
+		first = false
+	for i in range(start, rows.size()):
 		if i > me and not _open:
 			break
 		if not first:

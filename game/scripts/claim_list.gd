@@ -1,8 +1,8 @@
 class_name ClaimList
 extends VBoxContainer
 ## "To claim": rewards you've earned (goals, the daily gift, achievements)
-## waiting for a tap. Each has its own Claim button; Claim all when there are
-## several. Hidden when nothing is waiting.
+## waiting for a tap. Tap a row to claim it (the whole row is the button);
+## Claim all sits on top when there are several. Hidden when nothing waits.
 
 var kinds: Array = []
 var _sig := "-"
@@ -55,7 +55,7 @@ func refresh() -> void:
 	var total := 0.0
 	for r in list:
 		total += float(r.get("amount", 0.0))
-	_title.text = "To claim · %s" % Game.money_short(total)
+	_title.text = "To claim · %d · tap one to claim it" % list.size() if list.size() > 1 else "To claim · tap it"
 	if list.size() > 1:
 		# Claim all first, so a long list never pushes it out of reach.
 		var top := MarginContainer.new()
@@ -81,32 +81,18 @@ func refresh() -> void:
 
 
 func _row(r: Dictionary) -> Control:
-	var m := MarginContainer.new()
-	m.add_theme_constant_override("margin_left", 16)
-	m.add_theme_constant_override("margin_right", 12)
-	m.custom_minimum_size = Vector2(0, 64)
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 10)
-	m.add_child(h)
 	var kind := String(r.get("kind", ""))
-	var ic := Icon.new({"ach": "trophy", "goal": "goal", "streak": "star"}.get(kind, "star"), UI.TEXT, 22.0)
-	ic.set_style(UI.TEXT, true)
-	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(ic)
-	var l := UI.label(String(r.get("title", "")), 15, UI.TEXT)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	l.clip_text = true
-	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	h.add_child(l)
-	var b := UI.pill("Claim " + Game.money_short(float(r.get("amount", 0.0))), UI.TEXT, UI.INK, 15, 20)
-	b.custom_minimum_size = Vector2(0, 48)
-	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var row := Row.new({"ach": "trophy", "goal": "goal", "streak": "star"}.get(kind, "star"), "", false)
+	row.custom_minimum_size = Vector2(0, 56)
+	(row.lead as Icon).set_style(UI.TEXT, true)
+	row.title_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	row.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.title_l.clip_text = true
+	row.set_texts(String(r.get("title", "")), "", "+" + Game.money_short(float(r.get("amount", 0.0))))
 	var key := String(r["key"])
-	b.pressed.connect(func(): _celebrate(Game.claim(key)))
-	Kit.press_fx(b)
-	h.add_child(b)
-	return m
+	row.pressed.connect(func(): _celebrate(Game.claim(key)))
+	Kit.press_fx(row)
+	return row
 
 
 func _celebrate(v: float) -> void:

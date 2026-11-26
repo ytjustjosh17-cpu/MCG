@@ -4,6 +4,9 @@ extends Page
 
 var _cash: Label
 var _grid: GridContainer
+var _owned_row: Row
+var _owned_list: Label
+var _owned_open := false
 var _tiles := {}
 var _name_index := {}
 
@@ -13,7 +16,8 @@ func _init() -> void:
 
 
 func build() -> void:
-	_cash = UI.label("", 15, UI.SUB)
+	# Cash is in the pill at the top; this line only shows when nothing is left.
+	_cash = UI.label("You own every kind of company.", 15, UI.SUB)
 	body.add_child(_cash)
 	_grid = GridContainer.new()
 	_grid.columns = 2
@@ -43,6 +47,21 @@ func build() -> void:
 		_grid.add_child(t)
 		_tiles[id] = [t, n, c, sc]
 		_name_index[id] = 0
+	# Owned kinds fold into one line, so the grid only shows what's left to open.
+	var oc := card()
+	_owned_row = Row.new("check", "", false)
+	_owned_row.pressed.connect(func():
+		Kit.tick()
+		_owned_open = not _owned_open
+		refresh())
+	oc.add_child(_owned_row)
+	var om := MarginContainer.new()
+	for side in ["left", "right", "bottom"]:
+		om.add_theme_constant_override("margin_" + side, 16)
+	oc.add_child(om)
+	_owned_list = UI.label("", 13, UI.SUB)
+	_owned_list.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	om.add_child(_owned_list)
 
 
 func refresh() -> void:
@@ -56,12 +75,21 @@ func refresh() -> void:
 		return ka < kb if ka != kb else float(a["cost"]) < float(b["cost"]))
 	for i in range(order.size()):
 		_grid.move_child(_tiles[order[i]["id"]][0], i)
-	_cash.text = "Cash " + Game.money_short(Game.cash)
+	var owned_names: Array = []
+	for b in Game.businesses():
+		if Game.owns(b["id"]):
+			owned_names.append(String(b["name"]))
+	_cash.visible = owned_names.size() == Game.businesses().size()
+	_owned_row.get_parent().get_parent().visible = not owned_names.is_empty()
+	_owned_row.set_texts("Owned · %d" % owned_names.size(), "", "Hide" if _owned_open else "Show")
+	_owned_list.text = ", ".join(owned_names)
+	_owned_list.get_parent().visible = _owned_open
 	for b in Game.businesses():
 		var id: String = b["id"]
 		var parts: Array = _tiles[id]
 		var t: Button = parts[0]
 		var owned := Game.owns(id)
+		t.visible = not owned
 		var can := Game.cash >= float(b["cost"])
 		var bg := UI.box(UI.RAISED if can and not owned else UI.PANEL, 16)
 		for st in ["normal", "hover", "pressed", "focus"]:
