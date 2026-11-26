@@ -1,5 +1,15 @@
 # Changelog
 
+## No deal pop-ups, auto clicker
+
+- Deals never pop up by themselves any more: they wait on the Business tab
+  until you look. Time away no longer brings a deal closer.
+- New on Earn: Auto clicker. Buy it for £25K and upgrade it 4 times (up to
+  a tap every half second). Each auto tap is worth half a normal tap. It
+  runs while you play and pauses after 2 minutes without a touch. Save v16.
+- Settings > Pop-ups now only switches news pop-ups.
+- Robot: 90% day 39.3 (was 38.3), so it stays a help, not a shortcut.
+
 ## Hourly dividends, a simpler game, smoother running
 
 - Shares now pay dividends once an hour, on the hour, at a set rate per

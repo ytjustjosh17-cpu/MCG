@@ -13,11 +13,12 @@ signal golden_sun
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
 signal dividends_paid(amount: float)
+signal auto_tapped(count: int, amount: float)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 15
+const SAVE_VERSION := 16
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -63,6 +64,8 @@ var synergies := {}    # id -> true (v8)
 var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for them (v10)
 var mine_target := ""  # the one coin every miner digs up (v10); change it any time
 var upgrades := {}     # head office upgrades bought: id -> true (v11)
+var auto_level := 0    # auto clicker level, 0 = none (v16)
+var _auto_acc := 0.0
 var rewards: Array = []  # earned but not yet claimed: {key, kind, title, amount} (v12)
 var rebirth := {"count": 0, "earned": 0, "nodes": {}}   # RBP earned in total, tree nodes owned (v13)
 var _rb_cache := {}      # stat -> summed tree effect; cleared when the tree changes
@@ -140,6 +143,52 @@ func now() -> float:
 
 func tap_value() -> float:
 	return (Data.tap_base(level) + income_per_hour * 0.0012) * (1.5 if has_up("tap") else 1.0) * (1.0 + rb("tap"))
+
+
+# ---- auto clicker --------------------------------------------------------
+
+func auto_cost() -> float:
+	## Price of the next level (0 when maxed).
+	return float(Data.AUTO_LEVELS[auto_level][0]) if auto_level < Data.AUTO_LEVELS.size() else 0.0
+
+
+func auto_interval() -> float:
+	return float(Data.AUTO_LEVELS[auto_level - 1][1]) if auto_level > 0 else 0.0
+
+
+func auto_running() -> bool:
+	return auto_level > 0 and now() - last_tap_at <= Data.AUTO_IDLE_S
+
+
+func buy_auto() -> bool:
+	var c := auto_cost()
+	if c <= 0.0 or cash < c:
+		return false
+	cash -= c
+	auto_level += 1
+	_bump("auto_bought")
+	GameLog.info("earn", "Auto clicker level %d" % auto_level)
+	recalc()
+	return true
+
+
+func auto_tick(dt: float) -> int:
+	## Taps for you while you play. Each tap is half a normal tap (no big
+	## taps, no Frenzy). Returns how many taps it made.
+	if not auto_running() or dt <= 0.0:
+		_auto_acc = 0.0
+		return 0
+	_auto_acc += minf(dt, 1.0)
+	var iv := auto_interval()
+	var n := int(_auto_acc / iv)
+	if n <= 0:
+		return 0
+	_auto_acc -= float(n) * iv
+	var v := tap_value() * Data.AUTO_TAP_SHARE * float(n)
+	_earn(v)
+	counters["auto_taps"] = int(counters.get("auto_taps", 0)) + n
+	auto_tapped.emit(n, v)
+	return n
 
 
 # ---- head office upgrades -------------------------------------------------
@@ -2130,6 +2179,7 @@ func _process(delta: float) -> void:
 		_earn((income_per_hour - float(_income_parts.get("div", 0.0))) * minf(delta, 1.0) / 3600.0)
 	tick_deals(delta)
 	tick_sun(delta)
+	auto_tick(delta)
 	if was_boosting != ibost_active():
 		recalc()
 	_check_timer += delta
@@ -2178,7 +2228,7 @@ func apply_offline(seconds: float) -> void:
 	_ensure_weekly()
 	# Some of the time away counts towards the next deal (up to 2 h), so
 	# short-session players still get them.
-	deal_wait -= minf(s, 1800.0)
+	# (Time away no longer brings a deal closer: deals come from play time.)
 	var capped := minf(s, offline_cap_h() * 3600.0)
 	var before := cash
 	var ib_part := 0.0
@@ -2288,7 +2338,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "auto_level": auto_level, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "div_hour": div_hour, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2502,6 +2552,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# so counting starts from the save time (nothing paid twice).
 		d["div_hour"] = int(floor(float(d.get("saved_at", 0.0)) / 3600.0)) if float(d.get("saved_at", 0.0)) > 0.0 else -1
 		v = 15
+	if v < 16:
+		# v16: the auto clicker (none yet).
+		d["auto_level"] = int(d.get("auto_level", 0))
+		v = 16
 	d["version"] = v
 	return d
 
@@ -2592,6 +2646,7 @@ func _reset_state() -> void:
 	miners = {"n": 0, "hash": 0.0}
 	mine_target = ""
 	upgrades = {}
+	auto_level = 0
 	rewards = []
 	rebirth = {"count": 0, "earned": 0, "nodes": {}}
 	_rb_cache = {}
@@ -2661,6 +2716,7 @@ func load_game() -> void:
 	mine_target = String(d.get("mine_target", ""))
 	upgrades = d.get("upgrades", {})
 	rewards = d.get("rewards", [])
+	auto_level = int(d.get("auto_level", 0))
 	rebirth = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
 	_rb_cache = {}
 	casino = d.get("casino", {"open": false, "chips": 0.0})
@@ -2854,7 +2910,7 @@ func casino_pay(amount: float) -> float:
 # every saved key is in exactly one of these lists.
 const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost_until", "ibost_ready_at",
 	"biz", "shares", "coins", "props", "items", "mergers", "synergies", "miners", "mine_target",
-	"upgrades", "rewards", "home", "deal", "payouts", "history"]
+	"upgrades", "auto_level", "rewards", "home", "deal", "payouts", "history"]
 const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
 	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
 	"weekly", "deal_wait", "div_hour", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",

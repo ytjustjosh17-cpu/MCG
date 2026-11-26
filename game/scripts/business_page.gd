@@ -96,7 +96,7 @@ func refresh() -> void:
 		_boost.set_texts("×2 income", "", "Ready in " + Game.clock(Game.ibost_cooldown_left()))
 	_boost.value_l.add_theme_color_override("font_color", UI.TEXT)
 	_count.text = "%d of %d" % [Game.companies(), Game.businesses().size()]
-	_deal_card.visible = not Game.deal.is_empty() and bool(Game.ui.get("deals_quiet", false))
+	_deal_card.visible = not Game.deal.is_empty()   # deals wait here, never pop up
 	if _deal_card.visible:
 		_deal_row.set_texts(String(Game.deal.get("title", "Deal")), String(Game.deal.get("text", "")))
 	_empty.visible = not has

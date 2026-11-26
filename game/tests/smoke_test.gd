@@ -831,6 +831,24 @@ func _run() -> void:
 	_check(dv_div <= dv_paid * (1.0 + ceil(game.offline_cap_h())) * 1.01, "time away pays at most the away cap in hours")
 	game.sim_time = -1.0
 	game.reset_game(true)
+	# Auto clicker: bought in levels, taps while you play, pauses when idle.
+	game.reset_game(true)
+	game.cash = 1.0e5
+	_check(game.auto_tick(10.0) == 0, "no auto clicker, no auto taps")
+	_check(game.buy_auto() and game.auto_level == 1 and absf(game.cash - 7.5e4) < 0.01, "auto clicker level 1 costs %s" % game.money_short(Data.AUTO_LEVELS[0][0]))
+	game.tap()
+	var ac_cash: float = game.cash
+	var ac_n := 0
+	for k in 10:
+		ac_n += game.auto_tick(1.0)
+	_check(ac_n == 5 and game.cash > ac_cash, "level 1 taps every 2 s while you play (%d taps in 10 s)" % ac_n)
+	game.last_tap_at = game.now() - Data.AUTO_IDLE_S - 1.0
+	_check(game.auto_tick(5.0) == 0, "it pauses after 2 minutes without a touch")
+	var ac_old: Dictionary = game.to_dict()
+	ac_old["version"] = 15
+	ac_old.erase("auto_level")
+	_check(int(game._migrate(ac_old).get("auto_level", -1)) == 0, "v15 saves load with no auto clicker")
+	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
 	tk._toast_q.clear()
