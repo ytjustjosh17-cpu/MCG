@@ -220,7 +220,7 @@ func _on_auto() -> void:
 	Kit.tick()
 	var lv := Game.auto_level
 	var maxed := Game.auto_cost() <= 0.0
-	var body := "Taps the tower for you while you play. Each tap is worth half a normal tap. It pauses after 2 minutes without a touch, and starts again when you tap."
+	var body := "Taps for you while you play (half a tap each). Pauses after 2 min without a touch."
 	if lv > 0:
 		body += "\nNow: level %d, a tap every %s s." % [lv, str(Game.auto_interval())]
 	var actions: Array = []

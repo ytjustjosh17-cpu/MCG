@@ -455,7 +455,7 @@ func biz_income(id: String) -> float:
 	v *= Data.INCOME_SCALE * merger_mult(id) * global_mult() * milestone_mult(id) * synergy_mult(id) * (1.0 + rb("income") + rb("all"))
 	if ibost_active():
 		v *= 2.0
-	if s.get("manager", false) and int(s["stage"]) < Data.MAX_STAGE:
+	if s.get("manager", false) and not s.get("mgr_off", false) and int(s["stage"]) < Data.MAX_STAGE:
 		v *= 1.0 - manager_cut()  # no cut once fully expanded
 	return v
 
@@ -483,11 +483,41 @@ func hire_manager(id: String) -> bool:
 	return true
 
 
+func manager_on(id: String) -> bool:
+	## Hired and not switched off.
+	return has_manager(id) and not bool(biz[id].get("mgr_off", false))
+
+
+func set_manager_on(id: String, on: bool) -> void:
+	## Switch a hired manager off (no expanding, no cut) or back on.
+	if has_manager(id):
+		biz[id]["mgr_off"] = not on
+		recalc()
+
+
+func sell_price(id: String) -> float:
+	return biz_value(id) * 0.5
+
+
+func sell_business(id: String) -> float:
+	## Sells a whole company for half its value. Its units, stage and
+	## manager go; partners and mergers stay bought but need it again.
+	if not biz.has(id) or expanding(id):
+		return 0.0
+	var v := sell_price(id)
+	biz.erase(id)
+	cash += v
+	_bump("companies_sold")
+	GameLog.info("biz", "Sold %s for %s" % [id, money(v)])
+	recalc()
+	return v
+
+
 func _managers_work() -> void:
 	## Managers start the next expansion as soon as a company is full and
 	## there's cash for it. They never buy units.
 	for id in biz.keys():
-		if has_manager(id) and int(biz[id]["units"]) >= capacity(id) and can_expand(id):
+		if manager_on(id) and int(biz[id]["units"]) >= capacity(id) and can_expand(id):
 			start_expansion(id)
 
 

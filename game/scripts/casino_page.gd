@@ -111,7 +111,7 @@ func build() -> void:
 		r.pressed.connect(func():
 			Kit.tick()
 			if table and not Game.tables_open():
-				Kit.sheet("High tables", "Roulette and blackjack open with the High tables node in your Rebirth tree (%d RBP from what you own)." % Game.path_cost("u_tables"), [
+				Kit.sheet("High tables", "Unlock High tables in the Rebirth tree (%d RBP)." % Game.path_cost("u_tables"), [
 					{"text": "Open the tree", "style": "primary", "call": func(): push_page.emit(RebirthPage.new())},
 					{"text": "Close", "style": "plain"}])
 				return
@@ -121,7 +121,7 @@ func build() -> void:
 	_stats = UI.label("", 13, UI.SUB)
 	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(_stats)
-	var fine := UI.label("Play for fun. Every game pays back a little less than you put in over time (slots about 95%, roulette 97.3%, blackjack about 99.4% with good play).", 13, UI.DIM)
+	var fine := UI.label("The house keeps a small edge: slots ~95%, roulette 97.3%, blackjack ~99.4%.", 13, UI.DIM)
 	fine.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(fine)
 
