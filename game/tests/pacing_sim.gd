@@ -113,6 +113,10 @@ func _spend() -> void:
 		for m in Data.MERGERS:
 			if not g.mergers.has(m["id"]) and g.merger_ready(m) and g.cash >= m["cost"]:
 				g.merge(m["id"]); bought = true
+		# Mining rigs while mining isn't capped and a rig costs under a tenth of cash.
+		# Mined coins are kept (they count for the Coin Exchange merger).
+		if trader not in ["news", "dip", "hold", "nomine"] and g.rigs_total() < Data.RIG_MAX and not g.mining_capped() and g.rig_price() < g.cash * 0.1 and g.companies() >= 5:
+			g.buy_rig(Data.COINS[g.rigs_total() % Data.COINS.size()][0]); bought = true
 		# Synergies when they pay back within about a day.
 		for sy in Data.SYNERGIES:
 			if g.synergy_ready(sy[0]) and g.cash >= float(sy[6]) and g.biz_income(sy[4]) * (float(sy[5]) - 1.0) * 24.0 >= float(sy[6]):

@@ -91,6 +91,10 @@ jobs:
         working-directory: game
         run: godot --headless --path . -s res://tests/stress_test.gd
 
+      - name: Market test (no easy trading edge)
+        working-directory: game
+        run: godot --headless --path . -s res://tests/market_test.gd -- 20
+
       - name: Scroll test (as a touchscreen)
         working-directory: game
         run: |

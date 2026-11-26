@@ -100,8 +100,20 @@ const COINS := [
 	["TDE", "Tide", 9.12, 0.015, 0.0006], ["EMB", "Ember", 0.0042, 0.03, 0.0015],
 	["NVA", "Nova", 1.84, 0.02, 0.001], ["PBL", "Pebble", 0.31, 0.022, 0.001],
 	["GLT", "Glint", 640.0, 0.012, 0.0005], ["DRF", "Drift", 0.0009, 0.035, 0.002],
+	# 1.1: new coins go at the end so old saves line up.
+	["VLT", "Volt", 12.4, 0.02, 0.0009], ["QRT", "Quartz", 0.56, 0.024, 0.0011],
+	["HLO", "Halo", 88.0, 0.014, 0.0006],
 ]
 const STAKE_LOCK_H := 24.0
+# Mining (1.1): buy rigs for a coin; they mine that coin all the time.
+# Rig prices climb across ALL coins (spreading out doesn't dodge it).
+const RIG_BASE := 25000.0
+const RIG_GROWTH := 1.3
+const RIG_MAX := 40              # rigs in total
+const MINE_YIELD := 0.018        # a rig mines 1.8% of its price per hour, at the coin's base price
+const MINE_CAP := 0.08           # all mining together pays at most 8% of hourly income
+const NEWS_MINE_UP := ["%s network upgrade speeds up mining", "Cheap power boosts %s miners"]
+const NEWS_MINE_DOWN := ["%s halving cuts mining rewards", "%s miners hit by power costs"]
 
 # ---- market news ---------------------------------------------------------
 const NEWS_STOCK_UP := ["%s wins a big contract", "%s profits beat forecasts", "%s reports record sales", "%s expands overseas"]
@@ -151,7 +163,7 @@ const HOME_BONUS := 0.01  # extra income per step up (kept small on purpose)
 # ---- managers ------------------------------------------------------------
 # ---- milestones and synergies (v1.1) ----------------------------------------
 # Owning this many units of one company multiplies its income (they stack).
-const MILESTONES := [[10, 1.1], [25, 1.15], [50, 1.25]]
+const MILESTONES := [[5, 1.1], [25, 1.15], [50, 1.25]]
 # One-off upgrades: when one company reaches a stage, it can boost another.
 # id, name, source company, source stage, target company, income multiplier, cost
 const SYNERGIES := [

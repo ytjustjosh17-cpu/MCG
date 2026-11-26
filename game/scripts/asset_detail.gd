@@ -21,6 +21,10 @@ var _staked: Label
 var _stake_info: Label
 var _stake_btn: Button
 var _unstake_btn: Button
+var _rigs_l: Label
+var _mine_l: Label
+var _rig_btn: Button
+var _mine_note: Label
 var _hi: Label
 var _lo: Label
 var _news_box: VBoxContainer
@@ -119,6 +123,17 @@ func build() -> void:
 		sh.add_child(_unstake_btn)
 		_stake_btn = button("Lock", false, _on_stake)
 		sh.add_child(_stake_btn)
+		# Mining: rigs that mine this coin all the time, even while away (up to 8 h).
+		section("Mine")
+		_mine_note = UI.label("", 13, UI.SUB)
+		_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(_mine_note)
+		var mc := card()
+		_rigs_l = _line(mc, "Rigs")
+		separator(mc)
+		_mine_l = _line(mc, "Mines")
+		_rig_btn = button("Buy rig", true, _on_rig)
+		body.add_child(_rig_btn)
 	else:
 		section("Stats")
 		var st := card()
@@ -228,6 +243,23 @@ func refresh() -> void:
 		Page.set_enabled(_unstake_btn, locked > 0.0 and left <= 0.0, false)
 		_stake_btn.modulate.a = 1.0 if free > 0.0 else 0.4
 		_unstake_btn.modulate.a = 1.0 if locked > 0.0 and left <= 0.0 else 0.4
+		var nr := Game.rig_count(sym)
+		_rigs_l.text = "%d  (%d / %d in all)" % [nr, Game.rigs_total(), Data.RIG_MAX]
+		var mph := Game.mine_per_hour(sym)
+		_mine_l.text = ("%s %s /h · %s" % [qty_text(mph), sym, Game.money_short(mph * Game.price(sym))]) if nr > 0 else "Nothing yet"
+		var eff := float(Game.mine_eff.get(sym, 1.0))
+		var notes: Array = ["Mined coins land in your wallet, even while away (up to 8 h)."]
+		if absf(eff - 1.0) > 0.02:
+			notes.append("Mining speed ×%.2f from news." % eff)
+		if Game.mining_capped():
+			notes.append("All mining is capped at %d%% of your income." % int(Data.MINE_CAP * 100.0))
+		_mine_note.text = " ".join(notes)
+		if Game.rigs_total() >= Data.RIG_MAX:
+			_rig_btn.text = "All rigs bought"
+			Page.set_enabled(_rig_btn, false)
+		else:
+			_rig_btn.text = "Buy rig · " + Game.money_short(Game.rig_price())
+			Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price())
 	Page.set_enabled(_sell, free > 0.0, false)
 	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
 	var news_n := int(Game.counters.get("news_total", 0))
@@ -313,6 +345,19 @@ func _on_stake() -> void:
 				Kit.toast("Locked for 24 h", true)})
 	actions.append({"text": "Close", "style": "plain"})
 	Kit.sheet("Lock " + sym, "Earns %.2f%% a day.\nLocked 24 h." % (Game.stake_rate(sym) * 2400.0), actions)
+
+
+func _on_rig() -> void:
+	if Game.buy_rig(sym):
+		Kit.haptic("success")
+		Motion.pop(_rigs_l, 1.1)
+		Kit.toast("Rig mining %s" % sym, true)
+		Game.flush_changes()
+	else:
+		Kit.haptic("error")
+		Motion.shake(_rig_btn)
+		if Game.rigs_total() < Data.RIG_MAX:
+			Kit.toast("Need %s more" % Game.money_short(Game.rig_price() - Game.cash))
 
 
 func _on_unstake() -> void:

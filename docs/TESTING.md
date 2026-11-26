@@ -27,6 +27,11 @@ $G --headless --path . -s res://tests/scroll_test.gd
 rm override.cfg
 ```
 
+Market fairness (8 seconds; CI runs it):
+```
+$G --headless --path . -s res://tests/market_test.gd -- 20
+```
+
 Screenshots of a mid-game save, every tab, sheets and popups:
 ```
 xvfb-run -a -s "-screen 0 1280x1024x24" $G --path . --rendering-driver opengl3 \
