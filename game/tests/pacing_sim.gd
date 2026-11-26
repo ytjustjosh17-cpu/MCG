@@ -95,7 +95,10 @@ func _session(active_s: float) -> void:
 	for i in taps:
 		g.tap()
 	g.ibost_ready() and g.start_ibost()
+	g._check_achievements()
+	g.claim_all()   # claims every waiting reward before spending, like a player would
 	_spend()
+	g.claim_all()
 	g._check_achievements()
 	g.daily_tasks()
 

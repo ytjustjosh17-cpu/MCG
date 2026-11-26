@@ -42,9 +42,9 @@ func _ready() -> void:
 	earn.open_tab.connect(show_page)
 	(_pages[1] as BusinessPage).deal_open.connect(open_waiting_deal)
 	Game.achievement.connect(func(title: String, reward: float):
-		Kit.toast("%s · +%s" % [title, Game.money_short(reward)], true))
+		Kit.toast("%s · claim %s in Profile" % [title, Game.money_short(reward)], true))
 	Game.goal_done.connect(func(scope: String, text: String, reward: float):
-		Kit.celebrate("Goal done" if scope == "daily" else "Week goal done", text, "+" + Game.money_short(reward)))
+		Kit.celebrate("Goal done" if scope == "daily" else "Week goal done", text + " · claim it in Goals", Game.money_short(reward)))
 	Game.rival_beaten.connect(func(i: int):
 		var r: Array = Data.RIVALS[i]
 		Kit.haptic("success")
@@ -417,7 +417,17 @@ func _show_deal() -> void:
 		if Game.streak_lost >= 2:
 			line = "Your %d day streak ended" % Game.streak_lost
 			Game.streak_lost = 0
-		Kit.celebrate(title, line, "+" + Game.money_short(st[1]))
+		# The gift waits for a tap on Claim (it also waits in Goals if closed).
+		Kit.sheet(title, line, [
+			{"text": "Claim " + Game.money_short(st[1]), "style": "primary", "call": func():
+				var got := Game.claim_all("streak")
+				if got > 0.0:
+					Kit.haptic("success")
+					Kit.sound("fanfare")
+					Kit.toast("+" + Game.money_short(got), true)
+					Game.flush_changes()},
+			{"text": "Later", "style": "plain"},
+		], true, UI.display("+" + Game.money_short(st[1]), 40))
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
@@ -451,4 +461,4 @@ func _update_badges() -> void:
 	var b: Array = Game.tab_badges()
 	for i in range(b.size()):
 		_nav.set_badge(i, b[i] and i != _current)
-	_nav.set_badge(4, Updater.has_update())
+	_nav.set_badge(4, Updater.has_update() or Game.unclaimed("ach") > 0)

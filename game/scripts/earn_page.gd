@@ -158,7 +158,7 @@ func _refresh() -> void:
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
 	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, can, "MAX" if maxed else Game.money_short(Game.level_cost()))
-	_tasks.set_state(UI.TEXT, -1.0, Game.goals_open() > 0 and Game.taps > 0)
+	_tasks.set_state(UI.TEXT, -1.0, (Game.goals_open() > 0 and Game.taps > 0) or Game.unclaimed("goal") + Game.unclaimed("streak") > 0)
 	_tick()
 
 

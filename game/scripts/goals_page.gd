@@ -16,6 +16,8 @@ func _init() -> void:
 
 
 func build() -> void:
+	# Finished goals and the daily gift wait here for a tap.
+	body.add_child(ClaimList.new(["goal", "streak"]))
 	var d := _header()
 	_day_title = d[0]
 	_day_note = d[1]

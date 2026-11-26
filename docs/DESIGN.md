@@ -113,6 +113,7 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - Sheets: glass, follow the finger down, rubber-band when dragged up, close on a quick flick.
 - Invest lists split into "Yours" (what you own) and "Market". Crypto has its own Mining section with one Buy rig button (pick the coin; best payers first).
 - A share or coin page: price, chart, Buy and Sell, one "You own" card, then (coins) one Lock row, and the latest 3 news items. Nothing else.
+- Rewards never pay by themselves. Finished goals, the daily gift and achievements wait in a "To claim" card (`ClaimList`) on Goals and Achievements, each with its own Claim button and Claim all at the top; the daily gift pop-up has a Claim button. Red dots show where something is waiting.
 - Profile shows the next achievement. The nav bar names only the active tab.
 
 ## Words and terms

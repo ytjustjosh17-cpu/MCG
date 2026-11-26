@@ -1,5 +1,14 @@
 # Changelog
 
+## Claim your rewards
+
+- Goals, the daily gift and achievements no longer pay by themselves. They
+  wait in a "To claim" card on Goals and Achievements, each with a Claim
+  button (and Claim all at the top), with confetti and a sound when you tap.
+- The daily gift pop-up has a Claim button (or Later).
+- Red dots on the Goals button and Profile tab show something is waiting.
+- The amount is fixed when you earn it, so waiting never pays more. Save v12.
+
 ## Everything gets its own picture
 
 - All 36 personal items have their own drawing (each watch, painting, car,

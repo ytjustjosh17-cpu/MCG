@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 11
+const SAVE_VERSION := 12
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -62,6 +62,7 @@ var synergies := {}    # id -> true (v8)
 var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for them (v10)
 var mine_target := ""  # the one coin every miner digs up (v10); change it any time
 var upgrades := {}     # head office upgrades bought: id -> true (v11)
+var rewards: Array = []  # earned but not yet claimed: {key, kind, title, amount} (v12)
 var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
@@ -1766,7 +1767,7 @@ func _check_achievements() -> void:
 			got = true
 			GameLog.info("game", "Achievement: %s" % a["title"])
 			var reward := maxf(500.0, income_per_hour * 1.0)
-			_earn(reward)
+			add_reward("ach:" + String(a["id"]), "ach", String(a["title"]), reward)   # waits for a tap
 			achievement.emit(a["title"], reward)
 	if got:
 		recalc()  # each achievement adds a little to all income
@@ -1796,7 +1797,7 @@ func _check_streak() -> void:
 	streak_lost = old if (streak == 1 and old >= 2) else 0
 	streak_day = today
 	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
-	_pay(gift)
+	add_reward("streak:%d" % today, "streak", "Day %d in a row" % streak, gift)   # waits for a tap
 	streak_unseen = [streak, gift]
 	streak_gift.emit(streak, gift)
 
@@ -1847,7 +1848,9 @@ func _advance(book: Dictionary, id: String, n: float, scope: String) -> void:
 			if float(t["progress"]) >= float(t["goal"]):
 				t["done"] = true
 				var r := daily_reward() if scope == "daily" else weekly_reward()
-				_pay(r)
+				var period := int(book.get("day", book.get("week", 0)))
+				t["key"] = "goal:%s:%d:%s" % [scope, period, String(t["id"])]
+				add_reward(String(t["key"]), "goal", String(t["text"]), r)   # waits for a tap
 				_bump("goals_done")
 				goal_done.emit(scope, String(t["text"]), r)
 
@@ -1904,6 +1907,63 @@ func weekly_reward() -> float:
 
 func week_left() -> float:
 	return float(_week() + 1) * 7.0 * 86400.0 - 3.0 * 86400.0 - _local_now()
+
+
+# ---- rewards you claim with a tap -----------------------------------------
+
+func add_reward(key: String, kind: String, title: String, amount: float) -> void:
+	if not reward_for(key).is_empty():
+		return
+	rewards.append({"key": key, "kind": kind, "title": title, "amount": amount})
+	_mark()
+
+
+func reward_for(key: String) -> Dictionary:
+	for r in rewards:
+		if String(r.get("key", "")) == key:
+			return r
+	return {}
+
+
+func claim(key: String) -> float:
+	## Pays a waiting reward. The amount was fixed when it was earned, so
+	## waiting to claim never pays more.
+	for i in range(rewards.size()):
+		var r: Dictionary = rewards[i]
+		if String(r.get("key", "")) == key:
+			rewards.remove_at(i)
+			var v := float(r.get("amount", 0.0))
+			if String(r.get("kind", "")) == "ach":
+				_earn(v)
+			else:
+				_pay(v)
+			GameLog.info("game", "Claimed %s (%s)" % [key, money(v)])
+			return v
+	return 0.0
+
+
+func claim_all(kind := "") -> float:
+	var total := 0.0
+	for r in rewards.duplicate():
+		if kind == "" or String(r.get("kind", "")) == kind:
+			total += claim(String(r["key"]))
+	return total
+
+
+func unclaimed(kind := "") -> int:
+	var n := 0
+	for r in rewards:
+		if kind == "" or String(r.get("kind", "")) == kind:
+			n += 1
+	return n
+
+
+func unclaimed_total(kind := "") -> float:
+	var v := 0.0
+	for r in rewards:
+		if kind == "" or String(r.get("kind", "")) == kind:
+			v += float(r.get("amount", 0.0))
+	return v
 
 
 func goals_open() -> int:
@@ -2162,7 +2222,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2343,6 +2403,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v11 adds head office upgrades (none bought yet).
 		d["upgrades"] = d.get("upgrades", {})
 		v = 11
+	if v < 12:
+		# v12: rewards wait to be claimed. Older ones were already paid.
+		d["rewards"] = d.get("rewards", [])
+		v = 12
 	d["version"] = v
 	return d
 
@@ -2433,6 +2497,7 @@ func _reset_state() -> void:
 	miners = {"n": 0, "hash": 0.0}
 	mine_target = ""
 	upgrades = {}
+	rewards = []
 	mine_eff = {}
 	achieved = {}
 	counters = {}
@@ -2496,6 +2561,7 @@ func load_game() -> void:
 	miners = d.get("miners", {"n": 0, "hash": 0.0})
 	mine_target = String(d.get("mine_target", ""))
 	upgrades = d.get("upgrades", {})
+	rewards = d.get("rewards", [])
 	if not mine_target.is_empty() and _coin(mine_target).is_empty():
 		mine_target = ""
 	mine_eff = d.get("mine_eff", {})

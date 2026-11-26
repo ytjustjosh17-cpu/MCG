@@ -28,7 +28,7 @@ Pages never change state directly.
 | Content and tuning | `data.gd` (companies, stocks, coins, properties, homes, collections, mergers, rivals, all numbers) |
 | Rules and state | `game_state.gd` (money, tapping and big taps, companies, milestones, partners, markets, miners, locking, deals, managers, golden sun buffs, goals, achievements, saving) |
 | Tabs | `earn_page.gd`, `business_page.gd`, `invest_page.gd`, `items_page.gd`, `profile_page.gd` |
-| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `head_office_page.gd`, `ItemsPage.CollectionPage` |
+| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `claim_list.gd` (rewards to claim), `head_office_page.gd`, `ItemsPage.CollectionPage` |
 | Building blocks | `page.gd`, `row.gd`, `segmented.gd`, `icon.gd`, `icon_button.gd`, `glass_panel.gd`, `count_label.gd`, `goal_card.gd`, `asset_tile.gd` |
 | Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `item_art.gd` (personal items), `asset_tile.gd` (coin logos, share badges), `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
