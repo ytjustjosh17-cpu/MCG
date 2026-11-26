@@ -18,7 +18,6 @@ var _per_tap: Label
 var _buff: Label
 var _level_btn: IconButton
 var _boost_btn: IconButton
-var _goal: GoalCard
 var _hint: Label
 var _level_cap: Label
 var _boost_cap: Label
@@ -56,12 +55,6 @@ func _ready() -> void:
 	_rate = UI.label("", 15, UI.SUB)
 	add_child(_rate)
 
-	_goal = GoalCard.new()
-	_goal.pressed.connect(func():
-		if not _goal.goal.is_empty():
-			Kit.tick()
-			open_tab.emit(int(_goal.goal["tab"])))
-	add_child(_goal)
 
 	_card = TowerCard.new()
 	_card.name = "TowerCard"
@@ -113,9 +106,7 @@ func _layout() -> void:
 		_meter[i].position = Vector2(66 + i * 8, 18)
 	_worth.position = Vector2(20, 58)
 	_rate.position = Vector2(22, 112)
-	_goal.position = Vector2(16, 140)
-	_goal.size = Vector2(w - 32, 52)
-	var top := 204.0 if _goal.visible else 148.0
+	var top := 148.0
 	_card.position = Vector2(16, top)
 	_card.size = Vector2(w - 32, maxf(260.0, h - NAV_SPACE - top))
 	_level_btn.size = _level_btn.custom_minimum_size
@@ -149,10 +140,6 @@ func _refresh() -> void:
 	var prog := Game.level_progress()
 	for i in 5:
 		_meter[i].color = UI.RED if prog >= (i + 1) / 5.0 - 0.001 else UI.TRACK
-	var had := _goal.visible
-	_goal.set_goal(Game.next_goal())
-	if had != _goal.visible:
-		_layout.call_deferred()
 	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
 	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	var maxed := Game.level >= Data.MAX_LEVEL

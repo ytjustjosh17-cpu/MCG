@@ -204,8 +204,7 @@ func _run() -> void:
 	_ev_button(tp, false)
 	await create_timer(0.3).timeout
 	_ok(g.taps == taps0 + 1, "tapping the tower still earns")
-	await _wobble_tap(earn._goal.get_global_rect().get_center())
-	_ok(main._current != 0, "tapping the goal card opens its tab")
+	_ok(earn.get("_goal") == null, "the Earn screen has no next-goal card (owner removed it)")
 	# Hold +1 on a company to keep buying outlets.
 	g.cash = 1.0e9
 	g.open_business("shop", "Hold Test")
