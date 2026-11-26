@@ -328,6 +328,50 @@ func _run() -> void:
 	await _shot("39_blackjack")
 	main.pop()
 	await create_timer(0.6).timeout
+	# 1.2 casino: wheel, video poker, crash, plinko, races.
+	var keep_rm: bool = g.reduce_motion
+	g.reduce_motion = false
+	g.casino["wheel_day"] = -1
+	WheelSheet.open()
+	await create_timer(0.8).timeout
+	await _shot("39b_wheel")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	var vp = load("res://scripts/video_poker_page.gd").new()
+	main.push(vp)
+	await create_timer(0.9).timeout
+	vp._on_go()
+	await create_timer(1.0).timeout
+	await _shot("39c_video_poker")
+	main.pop()
+	await create_timer(0.6).timeout
+	var cp = load("res://scripts/crash_page.gd").new()
+	main.push(cp)
+	await create_timer(0.9).timeout
+	cp._cm.rng.seed = 12
+	cp._on_go()
+	await create_timer(4.0).timeout
+	await _shot("39d_crash")
+	main.pop()
+	await create_timer(0.6).timeout
+	var pp = load("res://scripts/plinko_page.gd").new()
+	main.push(pp)
+	await create_timer(0.9).timeout
+	for k in 4:
+		pp._on_drop()
+		await create_timer(0.25).timeout
+	await _shot("39e_plinko")
+	main.pop()
+	await create_timer(0.6).timeout
+	var rp = load("res://scripts/race_page.gd").new()
+	main.push(rp)
+	await create_timer(0.9).timeout
+	rp._on_go()
+	await create_timer(2.6).timeout
+	await _shot("39f_races")
+	main.pop()
+	await create_timer(0.6).timeout
+	g.reduce_motion = keep_rm
 	main.pop()
 	await create_timer(0.5).timeout
 	# Rebirth and the tree: a second run with part of the tree bought.
