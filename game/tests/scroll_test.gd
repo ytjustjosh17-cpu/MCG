@@ -309,6 +309,40 @@ func _run() -> void:
 		tl._confirm()
 		await create_timer(0.5).timeout
 	_ok(tl_found and g.holding(g.coins, "DOGE") < 1e-6 and absf(g.staked("DOGE") - free0) < free0 * 1e-4, "Lock sheet locks the amount shown (%s, free %.3f, staked %.3f of %.3f)" % [tl_found, g.holding(g.coins, "DOGE"), g.staked("DOGE"), free0])
+	# First-time guide: starts for a new player, lets the tower be tapped,
+	# moves on when the player does the thing, and Skip ends it.
+	var gd_taps: int = g.taps
+	var gd_biz: Dictionary = g.biz.duplicate(true)
+	g.taps = 0
+	g.biz = {}
+	g.ui["guide_done"] = false
+	g.ui["guide_step"] = 0
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	Guide.maybe_start(main)
+	await create_timer(0.5).timeout
+	var gd = main.find_children("*", "Guide", false, false)
+	_ok(gd.size() == 1, "the guide starts for a new player")
+	var gd_card: Control = main._pages[0]._card
+	for k in 6:
+		await _wobble_tap(gd_card.get_global_rect().get_center() + Vector2(k * 3, 0))
+	await create_timer(0.3).timeout
+	_ok(g.taps >= 5 and int(g.ui.get("guide_step", 0)) == 1, "taps go through the guide and it moves on (%d taps, step %d)" % [g.taps, int(g.ui.get("guide_step", 0))])
+	var gd_skip: Button = null
+	if gd.size() == 1:
+		for bb in gd[0].find_children("*", "Button", true, false):
+			gd_skip = bb
+	_ok(gd_skip != null and gd_skip.size.y >= 48.0, "Skip is easy to tap")
+	if gd_skip:
+		await _wobble_tap(gd_skip.get_global_rect().get_center())
+	await create_timer(0.6).timeout
+	_ok(bool(g.ui.get("guide_done", false)) and main.find_children("*", "Guide", false, false).is_empty(), "Skip ends the guide")
+	Guide.maybe_start(main)
+	await process_frame
+	_ok(main.find_children("*", "Guide", false, false).is_empty(), "a finished guide doesn't come back")
+	g.taps = gd_taps
+	g.biz = gd_biz
+	g.recalc()
 	# Dots: only for a reward waiting, round, and opening the tab clears it.
 	g.rewards = []
 	g.ui["dots_seen"] = {}
@@ -377,7 +411,7 @@ func _run() -> void:
 		main.show_page(ti)
 		await create_timer(0.6).timeout
 		_check_targets(main._pages[ti], small)
-	for path in ["res://scripts/business_detail.gd", "res://scripts/start_business_page.gd", "res://scripts/settings_page.gd", "res://scripts/goals_page.gd", "res://scripts/rebirth_page.gd"]:
+	for path in ["res://scripts/business_detail.gd", "res://scripts/start_business_page.gd", "res://scripts/settings_page.gd", "res://scripts/goals_page.gd", "res://scripts/rebirth_page.gd", "res://scripts/stats_page.gd"]:
 		main.show_page(1)
 		await create_timer(0.3).timeout
 		var pg2 = load(path).new("shop") if path.ends_with("business_detail.gd") else load(path).new()
