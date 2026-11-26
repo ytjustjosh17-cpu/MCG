@@ -329,6 +329,40 @@ func _run() -> void:
 	main._update_badges()
 	main.show_page(0)
 	await create_timer(0.5).timeout
+	# The RBP tree: a wobbly tap on a node opens it; a drag moves the map and
+	# opens nothing.
+	g.rebirth = {"count": 1, "earned": 50, "nodes": {}}
+	g._rb_cache = {}
+	main.show_page(4)
+	await create_timer(0.5).timeout
+	main.push(RebirthPage.new())
+	await create_timer(1.2).timeout
+	var tr_rp = main._stack.back()
+	var tr_tv = tr_rp._view
+	var tr_gate: Vector2 = tr_tv.global_position + tr_tv.to_screen(RebirthTree.node("emp_g"))
+	await _wobble_tap(tr_gate)
+	var tr_kit = root.get_node("Kit")
+	var tr_opened_title := ""
+	if tr_kit.has_open():
+		tr_opened_title = tr_kit._stack.back().get("title", "")
+	_ok(tr_opened_title == "Empire gate", "a wobbly tap on a tree node opens it (%s)" % tr_opened_title)
+	while tr_kit.close_top():
+		await create_timer(0.3).timeout
+	await create_timer(0.4).timeout
+	var tr_pan0: Vector2 = tr_tv.pan
+	var tr_c0: Vector2 = tr_tv.global_position + tr_tv.size * 0.5 + Vector2(40, 60)
+	_ev_button(tr_c0, true)
+	await process_frame
+	for k in range(1, 9):
+		_ev_move(tr_c0 + Vector2(k * 10, k * 6), Vector2(10, 6))
+		await process_frame
+	_ev_button(tr_c0 + Vector2(80, 48), false)
+	await create_timer(0.6).timeout
+	_ok(tr_tv.pan.distance_to(tr_pan0) > 60.0 and not tr_kit.has_open(), "dragging moves the tree and opens nothing")
+	g.rebirth = {"count": 0, "earned": 0, "nodes": {}}
+	g._rb_cache = {}
+	main.pop()
+	await create_timer(0.5).timeout
 	# Tap targets: every visible button on every tab and main detail page is
 	# at least 44 px each way (mobile rule). Lists the offenders.
 	var small: Array = []
@@ -338,7 +372,7 @@ func _run() -> void:
 		main.show_page(ti)
 		await create_timer(0.6).timeout
 		_check_targets(main._pages[ti], small)
-	for path in ["res://scripts/business_detail.gd", "res://scripts/start_business_page.gd", "res://scripts/settings_page.gd", "res://scripts/goals_page.gd"]:
+	for path in ["res://scripts/business_detail.gd", "res://scripts/start_business_page.gd", "res://scripts/settings_page.gd", "res://scripts/goals_page.gd", "res://scripts/rebirth_page.gd"]:
 		main.show_page(1)
 		await create_timer(0.3).timeout
 		var pg2 = load(path).new("shop") if path.ends_with("business_detail.gd") else load(path).new()

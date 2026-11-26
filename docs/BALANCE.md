@@ -86,7 +86,23 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real. The robot starts from a fresh market (`reset_game(true)`), so the same seed gives the same result every time.
 4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes), `nodeals` (skip deals and managers) or `nomine` (no mining rigs). `news`, `dip` and `hold` run trading bots that try to profit from news.
 
+## Rebirth and the RBP tree
+
+- Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000.
+- Rebirth clears money and assets (`REBIRTH_RESET`), including rewards not yet claimed, the waiting deal and the daily gift, so nothing is carried into a new run. It keeps the market, achievements, stats, settings, goal and streak timers and the tree (`REBIRTH_KEEP`).
+- The tree: 152 nodes (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones), 7,328 RBP in all. Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
+- Guard rails it moves: away cap up to +7.25 h, one more golden sun a day (so 6 at most with Head office), big taps ×10 with Thunder taps, managers' cut 0 with Loyal staff.
+- Robot (`SIM_REBIRTH=never|asap|patient|rate`, 240 days, seed 1234):
+
+| Policy | Result |
+|---|---|
+| never | identical to before (first run 90% day 37.9) |
+| asap (rebirth at £10B) | 10 RBP a run, runs of about 20 days, 21 nodes by day 180. A trap, on purpose |
+| rate (rebirth when RBP per day stops rising) | 1st rebirth day 70 (+921), runs then 44, 28, 21, 17, 16, 12 days; whole tree day 163 |
+
+- The rebirth card shows what ten times the net worth would give, so waiting is visible.
+
 ## Open questions for the owner
 
-- Late game: after everything is bought (around day 55 for heavy players) there is nothing new to do. Options: a "new empire" restart with a permanent bonus, more rivals above $50T, levels past 25.
+- After the whole tree (around day 163 for the robot) RBP has nothing to buy. Options: repeatable nodes, a second tree ring.
 - The once-a-day player loses a lot to the 8-hour cap. Options: raise it, or pay a smaller rate beyond it.

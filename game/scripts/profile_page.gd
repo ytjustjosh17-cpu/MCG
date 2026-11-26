@@ -7,6 +7,7 @@ var _stats: Label
 var _pct: Label
 var _bar: ProgressBar
 var _rows := {}
+var _reb_row: Row
 var _ach_row: Row
 var _rival_row: Row
 var _upd_card: PanelContainer
@@ -97,6 +98,12 @@ func build() -> void:
 		_rows[parts[i][0]] = r
 
 	var ac := card()
+	_reb_row = Row.new("sparkle")
+	_reb_row.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(RebirthPage.new()))
+	ac.add_child(_reb_row)
+	separator(ac, 50)
 	_ach_row = Row.new("trophy")
 	_ach_row.pressed.connect(func():
 		Kit.tick()
@@ -149,6 +156,10 @@ func refresh() -> void:
 	var na := Game.next_achievement()
 	var waiting := Game.unclaimed("ach")
 	_ach_row.set_texts("Achievements", ("%d to claim" % waiting) if waiting > 0 else (("Next: %s · %d%%" % [na["title"], int(float(na["progress"]) * 100.0)]) if not na.is_empty() else "All done"), "%d/%d" % [Game.achieved.size(), Game.achievements().size()])
+	var pend := Game.rebirth_pending()
+	var free := Game.rbp_free()
+	var sub := ("Ready: +%s RBP" % Game.group(pend)) if pend > 0 else ("Unlocks at %s net worth" % Game.money_short(Data.REBIRTH_MIN) if Game.rebirths() == 0 else "Next at %s net worth" % Game.money_short(Data.REBIRTH_MIN))
+	_reb_row.set_texts("Rebirth", sub, ("%s RBP" % Game.group(free)) if free > 0 else "")
 	_rival_row.set_texts("Rivals", "", "%d/%d" % [Game.rivals_beaten(), Data.RIVALS.size()])
 
 

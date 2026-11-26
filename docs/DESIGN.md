@@ -66,6 +66,7 @@ Rules:
 | Tabs inside a page | `Segmented` |
 | Bottom sheet, alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()` |
 | Buy / sell / convert / lock amounts | `TradeSheet` (`trade_sheet.gd`): what you own, a big live amount, a thick slider with quarter snaps, 25/50/75/Max chips, an £ amount box, "After:" line, one confirm button |
+| Rebirth tree | `RebirthPage.TreeView`: a star-chart map. Drag to move (14 px of wobble is still a tap), pinch or the 48 px + and - buttons to zoom, house button to re-centre. Small nodes are circles, notables diamonds, keystones hexagons; owned nodes are filled, owned paths red, buyable nodes outlined bright, locked ones dim. Tap a node for a sheet with what it gives and Buy |
 | Miners at work | `MinerRack` (`miner_rack.gd`): machines with spinning fans, blinking lights and coins rising; still with Less motion |
 | Celebration | `Kit.celebrate()` (never blocks taps, leaves by itself) |
 | Count-up number | `CountLabel` |

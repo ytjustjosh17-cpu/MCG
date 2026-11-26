@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 12
+const SAVE_VERSION := 13
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -63,6 +63,8 @@ var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for th
 var mine_target := ""  # the one coin every miner digs up (v10); change it any time
 var upgrades := {}     # head office upgrades bought: id -> true (v11)
 var rewards: Array = []  # earned but not yet claimed: {key, kind, title, amount} (v12)
+var rebirth := {"count": 0, "earned": 0, "nodes": {}}   # RBP earned in total, tree nodes owned (v13)
+var _rb_cache := {}      # stat -> summed tree effect; cleared when the tree changes
 var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
@@ -132,7 +134,7 @@ func now() -> float:
 # ==== tapping and levels =================================================
 
 func tap_value() -> float:
-	return (Data.tap_base(level) + income_per_hour * 0.0012) * (1.5 if has_up("tap") else 1.0)
+	return (Data.tap_base(level) + income_per_hour * 0.0012) * (1.5 if has_up("tap") else 1.0) * (1.0 + rb("tap"))
 
 
 # ---- head office upgrades -------------------------------------------------
@@ -160,19 +162,25 @@ func buy_upgrade(id: String) -> bool:
 
 
 func offline_cap_h() -> float:
-	return Data.OFFLINE_CAP_H + (2.0 if has_up("away1") else 0.0) + (2.0 if has_up("away2") else 0.0)
+	return Data.OFFLINE_CAP_H + (2.0 if has_up("away1") else 0.0) + (2.0 if has_up("away2") else 0.0) + rb("away")
 
 
 func sun_per_day() -> int:
-	return Data.SUN_PER_DAY + (1 if has_up("sun") else 0)
+	return Data.SUN_PER_DAY + (1 if has_up("sun") else 0) + int(rb("sun"))
 
 
 func manager_cut() -> float:
+	if rb("mgr0") > 0.0:
+		return 0.0
 	return 0.06 if has_up("mgr") else Data.MANAGER_CUT
 
 
 func crit_chance() -> float:
-	return Data.CRIT_BASE + Data.CRIT_PER_LEVEL * float(level - 1)
+	return Data.CRIT_BASE + Data.CRIT_PER_LEVEL * float(level - 1) + rb("crit")
+
+
+func crit_mult() -> float:
+	return Data.CRIT_MULT * (2.0 if rb("critx") > 0.0 else 1.0)
 
 
 func frenzy_active() -> bool:
@@ -278,7 +286,7 @@ func tap() -> float:
 		mult = maxf(mult, Data.FRENZY_MULT)   # the bigger one wins; they don't stack
 	last_tap_crit = _tap_rng.randf() < crit_chance()
 	if last_tap_crit:
-		mult *= Data.CRIT_MULT
+		mult *= crit_mult()
 		_bump("crits")
 	var v := tap_value() * mult
 	taps += 1
@@ -390,7 +398,7 @@ func biz_income(id: String) -> float:
 	var b := Data.business(id)
 	var s: Dictionary = biz[id]
 	var v := float(s["units"]) * float(b["unit_income"]) * pow(float(b["stage_mult"]), int(s["stage"]) - 1)
-	v *= Data.INCOME_SCALE * merger_mult(id) * global_mult() * milestone_mult(id) * synergy_mult(id)
+	v *= Data.INCOME_SCALE * merger_mult(id) * global_mult() * milestone_mult(id) * synergy_mult(id) * (1.0 + rb("income") + rb("all"))
 	if ibost_active():
 		v *= 2.0
 	if s.get("manager", false) and int(s["stage"]) < Data.MAX_STAGE:
@@ -669,7 +677,7 @@ func expansion_cost(id: String) -> float:
 
 
 func expansion_seconds(id: String) -> float:
-	var k := (0.85 if has_up("fast1") else 1.0) * (0.85 if has_up("fast2") else 1.0)
+	var k := (0.85 if has_up("fast1") else 1.0) * (0.85 if has_up("fast2") else 1.0) * (1.0 - minf(0.5, rb("speed")))
 	return Data.expansion_minutes(Data.business(id), int(biz[id]["stage"])) * 60.0 * k if biz.has(id) else 0.0
 
 
@@ -751,7 +759,7 @@ func stake_left(sym: String) -> float:
 
 func stake_rate(sym: String) -> float:
 	var c := _coin(sym)
-	return (float(c[4]) if c.size() > 4 else 0.0) * (1.25 if has_up("lock") else 1.0)
+	return (float(c[4]) if c.size() > 4 else 0.0) * (1.25 if has_up("lock") else 1.0) * (1.0 + rb("stake"))
 
 
 func stake(sym: String, fraction: float) -> bool:
@@ -907,7 +915,7 @@ func mine_per_hour(sym: String) -> float:
 
 
 func mining_value_per_hour() -> float:
-	return _mine_raw_value() * _mine_scale()
+	return _mine_raw_value() * _mine_scale() * (1.0 + rb("mine"))
 
 
 func mining_capped() -> bool:
@@ -1035,7 +1043,7 @@ func dividends_per_hour() -> float:
 		var s := _stock(sym)
 		if not s.is_empty():
 			v += float(shares[sym]["qty"]) * price(sym) * float(s[3]) * Data.STOCK_DIV_SCALE
-	return v * global_mult()
+	return v * global_mult() * (1.0 + rb("div") + rb("all"))
 
 
 func _market_tick(minutes := 1) -> void:
@@ -1274,7 +1282,7 @@ func prop_rent(i: int) -> float:
 	for k in range(imps.size()):
 		if imps[k]:
 			extra += float(Data.IMPROVEMENTS[k][2])
-	return prop_price(i) * Data.RENT_PER_H * (1.0 + extra) * global_mult()
+	return prop_price(i) * Data.RENT_PER_H * (1.0 + extra) * global_mult() * (1.0 + rb("rent") + rb("all"))
 
 
 func prop_value(i: int) -> float:
@@ -2207,7 +2215,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "rebirth": rebirth, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2392,6 +2400,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v12: rewards wait to be claimed. Older ones were already paid.
 		d["rewards"] = d.get("rewards", [])
 		v = 12
+	if v < 13:
+		# v13: rebirth. Nobody has reborn yet, so the tree starts empty.
+		d["rebirth"] = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
+		v = 13
 	d["version"] = v
 	return d
 
@@ -2483,6 +2495,8 @@ func _reset_state() -> void:
 	mine_target = ""
 	upgrades = {}
 	rewards = []
+	rebirth = {"count": 0, "earned": 0, "nodes": {}}
+	_rb_cache = {}
 	mine_eff = {}
 	achieved = {}
 	counters = {}
@@ -2547,6 +2561,8 @@ func load_game() -> void:
 	mine_target = String(d.get("mine_target", ""))
 	upgrades = d.get("upgrades", {})
 	rewards = d.get("rewards", [])
+	rebirth = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
+	_rb_cache = {}
 	if not mine_target.is_empty() and _coin(mine_target).is_empty():
 		mine_target = ""
 	mine_eff = d.get("mine_eff", {})
@@ -2610,6 +2626,146 @@ func reset_game(fresh_market := false) -> void:
 	_record_history()
 	save_game()
 	flush_changes()
+
+
+# ==== rebirth and the RBP tree ===========================================
+
+# What a rebirth clears. Everything else in the save is kept (market, stats,
+# achievements, settings, goal and streak timers, the tree). A test checks
+# every saved key is in exactly one of these lists.
+const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost_until", "ibost_ready_at",
+	"biz", "shares", "coins", "props", "items", "mergers", "synergies", "miners", "mine_target",
+	"upgrades", "rewards", "home", "deal", "payouts", "history"]
+const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
+	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
+	"weekly", "deal_wait", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
+	"reduce_motion", "started_at", "rebirth"]
+
+
+func rb(stat: String) -> float:
+	## The tree's total for one stat (owned nodes only).
+	if _rb_cache.is_empty():
+		_rb_cache = {"_": 0.0}
+		for id in (rebirth.get("nodes", {}) as Dictionary).keys():
+			var n := RebirthTree.node(String(id))
+			for k in (n.get("fx", {}) as Dictionary).keys():
+				_rb_cache[k] = float(_rb_cache.get(k, 0.0)) + float(n["fx"][k])
+	return float(_rb_cache.get(stat, 0.0))
+
+
+func rbp_spent() -> int:
+	var t := 0
+	for id in (rebirth.get("nodes", {}) as Dictionary).keys():
+		t += int(RebirthTree.node(String(id)).get("cost", 0))
+	return t
+
+
+func rbp_free() -> int:
+	return int(rebirth.get("earned", 0)) - rbp_spent()
+
+
+func rebirths() -> int:
+	return int(rebirth.get("count", 0))
+
+
+func node_owned(id: String) -> bool:
+	return id == "core" or (rebirth.get("nodes", {}) as Dictionary).has(id)
+
+
+func node_open(id: String) -> bool:
+	## Buyable now: not owned, and linked to something owned.
+	if node_owned(id):
+		return false
+	for l in RebirthTree.node(id).get("links", []):
+		if node_owned(String(l)):
+			return true
+	return false
+
+
+func buy_node(id: String) -> bool:
+	var n := RebirthTree.node(id)
+	if n.is_empty() or not node_open(id) or rbp_free() < int(n["cost"]):
+		return false
+	rebirth["nodes"][id] = true
+	_rb_cache = {}
+	_bump("nodes_bought")
+	GameLog.info("rebirth", "Bought %s (%d RBP)" % [id, int(n["cost"])])
+	recalc()
+	save_game()
+	return true
+
+
+func tree_owned_count() -> int:
+	return (rebirth.get("nodes", {}) as Dictionary).size()
+
+
+func rebirth_pending() -> int:
+	## RBP a rebirth would give now: 10 at £10B net worth, then the cube root.
+	var nw := net_worth()
+	if nw < Data.REBIRTH_MIN:
+		return 0
+	return int(floor(10.0 * pow(nw / Data.REBIRTH_MIN, 1.0 / 3.0) * (1.0 + minf(0.5, rb("rbp"))) + 1e-6))
+
+
+func start_level() -> int:
+	return clampi(1 + int(rb("level")), 1, Data.MAX_LEVEL)
+
+
+func do_rebirth() -> int:
+	## Starts a new run: money and assets go, the tree and the rest stay.
+	var got := rebirth_pending()
+	if got <= 0:
+		return 0
+	var keep := {}
+	var d := to_dict()
+	for k in REBIRTH_KEEP:
+		keep[k] = d[k]
+	var keep_sci := sci
+	_reset_state()
+	total_earned = float(keep["total_earned"])
+	taps = int(keep["taps"])
+	boosts_used = int(keep["boosts_used"])
+	prices = keep["prices"]
+	price_hist = keep["price_hist"]
+	hist_q = keep["hist_q"]
+	hist_h = keep["hist_h"]
+	moods = keep["moods"]
+	coin_shift = keep["coin_shift"]
+	trends = keep["trends"]
+	fair_log = keep["fair_log"]
+	news = keep["news"]
+	mine_eff = keep["mine_eff"]
+	achieved = keep["achieved"]
+	counters = keep["counters"]
+	daily = keep["daily"]
+	weekly = keep["weekly"]
+	deal_wait = float(keep["deal_wait"])
+	ui = keep["ui"]
+	streak = int(keep["streak"])
+	streak_day = int(keep["streak_day"])
+	sun_wait = float(keep["sun_wait"])
+	sun_day = int(keep["sun_day"])
+	sun_count = int(keep["sun_count"])
+	vibrate = bool(keep["vibrate"])
+	reduce_motion = bool(keep["reduce_motion"])
+	started_at = float(keep["started_at"])
+	rebirth = keep["rebirth"]
+	sci = keep_sci
+	rebirth["count"] = int(rebirth.get("count", 0)) + 1
+	rebirth["earned"] = int(rebirth.get("earned", 0)) + got
+	_rb_cache = {}
+	counters["run_started"] = now()
+	cash = RebirthTree.start_cash(rb("start"))
+	level = start_level()
+	streak_unseen = []
+	away_unseen = false
+	GameLog.info("rebirth", "Rebirth %d: +%d RBP" % [rebirths(), got])
+	_init_market()
+	recalc()
+	_record_history()
+	save_game()
+	flush_changes()
+	return got
 
 
 # ==== number formatting ===================================================
