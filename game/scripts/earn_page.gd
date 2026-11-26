@@ -18,6 +18,8 @@ var _per_tap: Label
 var _buff: Label
 var _level_btn: IconButton
 var _boost_btn: IconButton
+var _auto_btn: IconButton
+var _auto_cap: Label
 var _hint: Label
 var _level_cap: Label
 var _boost_cap: Label
@@ -81,8 +83,17 @@ func _ready() -> void:
 	_boost_btn.pressed.connect(_on_boost)
 	_boost_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	_card.add_child(_boost_btn)
+	_auto_btn = IconButton.new("cpu", 64.0)
+	_auto_btn.custom_minimum_size = Vector2(80, 86)
+	_auto_btn.pressed.connect(_on_auto)
+	_auto_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	_card.add_child(_auto_btn)
 	_level_cap = _caption("Level up")
 	_boost_cap = _caption("Boost")
+	_auto_cap = _caption("Auto")
+	Game.auto_tapped.connect(func(_n: int, _v: float):
+		if is_visible_in_tree() and not Motion.reduced():
+			Motion.pop(_auto_btn, 1.06))
 
 	resized.connect(_layout)
 	Game.changed.connect(_refresh)
@@ -111,6 +122,9 @@ func _layout() -> void:
 	_card.size = Vector2(w - 32, maxf(260.0, h - NAV_SPACE - top))
 	_level_btn.size = _level_btn.custom_minimum_size
 	_boost_btn.size = _boost_btn.custom_minimum_size
+	_auto_btn.size = _auto_btn.custom_minimum_size
+	_auto_btn.position = Vector2(182, _card.size.y - 118)
+	_auto_cap.position = Vector2(182, _card.size.y - 32)
 	_level_btn.position = Vector2(10, _card.size.y - 118)
 	_boost_btn.position = Vector2(96, _card.size.y - 118)
 	_level_cap.position = Vector2(10, _card.size.y - 32)
@@ -174,6 +188,13 @@ func _tick() -> void:
 	else:
 		var total := Game.BOOST_COOLDOWN_S
 		_boost_btn.set_state(UI.SUB, 1.0 - Game.boost_cooldown_left() / total, false, Game.clock(Game.boost_cooldown_left()))
+	# Auto clicker: ring fills towards the next auto tap; caption shows speed or price.
+	if Game.auto_level == 0:
+		_auto_btn.set_state(UI.TEXT if Game.cash >= Game.auto_cost() else UI.SUB, -1.0, false, Game.money_short(Game.auto_cost()))
+	elif Game.auto_running():
+		_auto_btn.set_state(UI.TEXT, clampf(Game._auto_acc / Game.auto_interval(), 0.0, 1.0), false, "%s s" % str(Game.auto_interval()))
+	else:
+		_auto_btn.set_state(UI.SUB, 0.0, false, "Paused")
 	_card.queue_redraw()
 
 
@@ -193,6 +214,31 @@ func _on_level_up() -> void:
 		Motion.shake(_level_btn)
 		var wait := Game.eta(Game.level_cost())
 		Kit.toast("Lv up needs %s more%s" % [Game.money_short(Game.level_cost() - Game.cash), (" · " + wait) if wait != "" else ""])
+
+
+func _on_auto() -> void:
+	Kit.tick()
+	var lv := Game.auto_level
+	var maxed := Game.auto_cost() <= 0.0
+	var body := "Taps the tower for you while you play. Each tap is worth half a normal tap. It pauses after 2 minutes without a touch, and starts again when you tap."
+	if lv > 0:
+		body += "\nNow: level %d, a tap every %s s." % [lv, str(Game.auto_interval())]
+	var actions: Array = []
+	if not maxed:
+		var nxt: Array = Data.AUTO_LEVELS[lv]
+		body += "\nNext: a tap every %s s." % str(nxt[1])
+		var can := Game.cash >= float(nxt[0])
+		actions.append({"text": ("Upgrade · " if lv > 0 else "Buy · ") + Game.money_short(float(nxt[0])) if can else "Need " + Game.money_short(float(nxt[0]) - Game.cash), "style": "primary", "disabled": not can, "call": func():
+			if Game.buy_auto():
+				Kit.haptic("success")
+				Kit.sound("buy")
+				Kit.toast("Auto clicker · level %d" % Game.auto_level, true)
+				Game.flush_changes()
+				_tick()})
+	else:
+		body += "\nFully upgraded."
+	actions.append({"text": "Close", "style": "plain"})
+	Kit.sheet("Auto clicker", body, actions)
 
 
 func _on_boost() -> void:

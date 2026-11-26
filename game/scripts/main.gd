@@ -476,8 +476,8 @@ func _show_deal() -> void:
 		return
 	if Game.deal.is_empty() or _deal_open or Kit.has_open():
 		return
-	if bool(Game.ui.get("deals_quiet", false)) and not _deal_forced:
-		return  # quiet mode: the deal waits on the Business tab
+	if not _deal_forced:
+		return  # deals never pop up by themselves: they wait on the Business tab
 	var forced := _deal_forced
 	_deal_forced = false
 	if not forced and (not _stack.is_empty() or Game.now() - Game.last_tap_at < 4.0 or Kit._cele_open):

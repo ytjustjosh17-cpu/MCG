@@ -236,6 +236,12 @@ const CASINO_MAX_BET_H := 0.1         # a bet is at most 6 minutes of income
 const CASINO_MAX_WIN_H := 24.0        # one payout is at most a day of income
 const CASINO_MIN_BET_CAP := 500.0     # early on you can still bet a little
 const CASINO_MIN_WIN_CAP := 1.0e5
+# Auto clicker (Earn): [cost, seconds between taps]. Each auto tap is worth
+# half a normal tap, and it only runs while you play (pauses after
+# AUTO_IDLE_S without a touch), so leaving the phone on can't farm money.
+const AUTO_LEVELS := [[2.5e4, 2.0], [4.0e5, 1.5], [8.0e6, 1.0], [2.5e8, 0.75], [1.0e10, 0.5]]
+const AUTO_TAP_SHARE := 0.5
+const AUTO_IDLE_S := 120.0
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const SUN_PER_DAY := 4                # never more than this a day
 # What a caught sun gives: chance of a cash prize, else a short buff (1.1).
@@ -374,4 +380,5 @@ const WHATS_NEW := [
 	"Rebirth for RBP and grow the RBP tree.",
 	"Tree unlocks: casino, Frontier, islands, relics.",
 	"Shares pay dividends every hour, on the hour.",
+	"Auto clicker on Earn; deals no longer pop up.",
 ]

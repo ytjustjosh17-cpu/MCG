@@ -2,7 +2,7 @@ class_name SettingsPage
 extends Page
 ## Settings, pushed from Profile: feel, pop-ups, updates, help, backup and reset.
 
-const POPUPS := [["all", "All"], ["deals", "Deals only"], ["none", "None"]]
+const POPUPS := [["news", "News on"], ["none", "None"]]   # deals never pop up (they wait on Business)
 const VOLUMES := [[0.0, "Off"], [0.25, "Low"], [0.5, "Medium"], [1.0, "High"]]
 const FORMATS := [["short", "Short (£1.2M)"], ["sci", "Scientific (£1.2e6)"]]
 
@@ -100,29 +100,20 @@ func refresh() -> void:
 
 
 static func _popup_mode() -> String:
-	var deals_off := bool(Game.ui.get("deals_quiet", false))
-	var news_off := bool(Game.ui.get("news_quiet", false))
-	if not deals_off and not news_off:
-		return "all"
-	if not deals_off:
-		return "deals"
-	if news_off:
-		return "none"
-	return "news"  # older saves: deals off, news on
+	return "none" if bool(Game.ui.get("news_quiet", false)) else "news"
 
 
 static func _popup_label(mode: String) -> String:
 	for o in POPUPS:
 		if o[0] == mode:
 			return o[1]
-	return "News only"
+	return "News on"
 
 
 func _on_popups() -> void:
 	Kit.tick()
 	Kit.pick("Pop-ups", POPUPS, _popup_mode(), func(v):
-		Game.ui["deals_quiet"] = v == "none"
-		Game.ui["news_quiet"] = v != "all"
+		Game.ui["news_quiet"] = v == "none"
 		Game.save_game()
 		refresh())
 

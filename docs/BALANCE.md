@@ -41,13 +41,14 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Converting coins | sell at the usual 0.5% spread, then buy the other coin; nothing gained, so no loop | `convert_coin()` |
 | Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), with no cap tied to income; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
 | Head office | ten one-off upgrades: taps ×1.5, deals 25% sooner, away cap 10 h then 12 h, expansions 15% quicker (twice), +1 golden sun a day, locked coins +25%, miners +25%, managers take 6% | `UPGRADES` |
+| Auto clicker | 5 levels (£25K, £400K, £8M, £250M, £10B): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
 | Goals | daily: 1.5 h of income each; weekly: 3 h each; waits to be claimed, amount fixed when earned | `daily_reward()`, `weekly_reward()`, `claim()` |
 | Achievements | 1 h of income each | `_check_achievements()` |
 | Daily streak | 0.15 h of income × days in a row (max 7) on the first open each day | `_check_streak()` |
-| Deals | small, every 12 to 25 minutes of play (time away counts up to 30 min); no buyer deal at a milestone count | `roll_deal()`, `DEAL_EVERY_MIN` |
+| Deals | small, every 12 to 25 minutes of play (time away doesn't count); never pop up, they wait on the Business tab; no buyer deal at a milestone count | `roll_deal()`, `DEAL_EVERY_MIN` |
 | Collections, homes, mergers | permanent multipliers | `bonus`, `HOME_BONUS`, `mult` |
 | Unit milestones | 5, 25, 50 units of one company: ×1.1, ×1.15, ×1.25 | `MILESTONES` |
 | Synergies | one-off buys: a company at stage N lifts another by 20 to 30% | `SYNERGIES` |

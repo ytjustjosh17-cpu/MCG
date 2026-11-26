@@ -138,6 +138,11 @@ func _session(active_s: float) -> void:
 	var taps := int(active_s * 3.0)
 	for i in taps:
 		g.tap()
+	for k in int(active_s):
+		g.auto_tick(1.0)   # the auto clicker runs while the robot plays
+	# Buy the next auto clicker level when it costs under a tenth of cash.
+	if g.auto_cost() > 0.0 and g.auto_cost() < g.cash * 0.1:
+		g.buy_auto()
 	g.ibost_ready() and g.start_ibost()
 	g._check_achievements()
 	g.claim_all()   # claims every waiting reward before spending, like a player would
