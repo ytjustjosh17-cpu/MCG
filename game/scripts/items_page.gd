@@ -63,8 +63,9 @@ func build() -> void:
 		if i > 0:
 			separator(list)
 		var col: Dictionary = Data.COLLECTIONS[i]
-		var r := Row.new("diamond")
+		var r := Row.new()
 		var cid: String = col["id"]
+		r.set_lead(ItemArt.new(cid, 5, 44.0))   # each set shows its top item
 		r.pressed.connect(func():
 			Kit.tick()
 			push_page.emit(CollectionPage.new(cid)))
@@ -150,6 +151,7 @@ class CollectionPage extends Page:
 				separator(list)
 			var r := Row.new("", "", false)
 			var idx := i
+			r.set_lead(ItemArt.new(cid, i, 48.0))   # each item has its own picture
 			r.pressed.connect(func(): _tap(idx))
 			list.add_child(r)
 			_rows.append(r)
@@ -167,6 +169,7 @@ class CollectionPage extends Page:
 		for i in range(_rows.size()):
 			var it: Array = col["items"][i]
 			var r: Row = _rows[i]
+			(r.lead as ItemArt).set_owned(Game.item_owned(cid, i))
 			var price := float(it[1])
 			if Game.item_owned(cid, i):
 				r.set_texts(it[0], "", "Sell " + Game.money_short(price * Data.ITEM_RESALE))

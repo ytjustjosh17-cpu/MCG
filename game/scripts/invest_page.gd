@@ -146,8 +146,8 @@ func build() -> void:
 	for i in range(Data.PROPERTIES.size()):
 		if i > 0:
 			separator(props_v, 50)
-		var r := Row.new("home")
-		(r.lead as Icon).set_style(UI.SUB)
+		var r := Row.new("", String(Data.PROPERTIES[i][3]))   # its own little scene
+		(r.lead as Art.Scene).seed_id = String(Data.PROPERTIES[i][0])
 		var idx := i
 		r.pressed.connect(func(): _property(idx))
 		props_v.add_child(r)
