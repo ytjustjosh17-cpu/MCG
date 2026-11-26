@@ -113,10 +113,18 @@ func _spend() -> void:
 		for m in Data.MERGERS:
 			if not g.mergers.has(m["id"]) and g.merger_ready(m) and g.cash >= m["cost"]:
 				g.merge(m["id"]); bought = true
-		# Mining rigs while mining isn't capped and a rig costs under a tenth of cash.
+		# Mining rigs when one pays back within 3 days and costs under a tenth of cash.
 		# Mined coins are kept (they count for the Coin Exchange merger).
-		if trader not in ["news", "dip", "hold", "nomine"] and g.rigs_total() < Data.RIG_MAX and not g.mining_capped() and g.rig_price() < g.cash * 0.1 and g.companies() >= 5:
-			g.buy_rig(Data.COINS[g.rigs_total() % Data.COINS.size()][0]); bought = true
+		var rsym := ""
+		var rbest := 0.0
+		if g.rigs_total() < Data.RIG_MAX and g.rig_price() < g.cash * 0.1:
+			for rc in Data.COINS:
+				var rgain: float = g.rig_gain(rc[0])
+				if rgain > rbest:
+					rbest = rgain
+					rsym = rc[0]
+		if trader not in ["news", "dip", "hold", "nomine"] and g.rigs_total() < Data.RIG_MAX and rsym != "" and rbest * 72.0 >= g.rig_price():
+			g.buy_rig(rsym); bought = true
 		# Synergies when they pay back within about a day.
 		for sy in Data.SYNERGIES:
 			if g.synergy_ready(sy[0]) and g.cash >= float(sy[6]) and g.biz_income(sy[4]) * (float(sy[5]) - 1.0) * 24.0 >= float(sy[6]):
@@ -202,7 +210,8 @@ func _run() -> void:
 		trader = args[1]
 	seed(int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234)
 	g._tap_rng.seed = int(OS.get_environment("SIM_SEED")) if OS.get_environment("SIM_SEED") != "" else 1234
-	g.reset_game()
+	g._news_rng.seed = g._tap_rng.seed + 1
+	g.reset_game(true)
 	g.sim_time = 1.7e9
 	g.started_at = g.sim_time
 	g.history = []
@@ -224,9 +233,10 @@ func _run() -> void:
 			g.advance(float(s[1]))
 			t_prev = g.sim_time
 			_milestones()
-		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%" % [
+		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%  rigs %2d mine %4.1f%%" % [
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
-			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0])
+			_stages(), g.props_owned(), g.items.size(), g.mergers.size(), g.completion() * 100.0,
+			g.rigs_total(), g.mining_value_per_hour() / maxf(1.0, g.income_per_hour) * 100.0])
 	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()

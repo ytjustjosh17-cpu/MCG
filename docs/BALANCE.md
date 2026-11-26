@@ -12,11 +12,11 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.9 |
-| 50% complete | 15 to 21 | 19.3 to 20.5 |
-| 75% complete | 28 to 38 | 32.5 to 32.8 |
-| 90% complete | 33 to 46 | 40.3 to 40.8 |
-| All 6 mergers | 35 to 50 | 40.3 to 40.8 |
+| 25% complete | 7 to 10 | 8.8 to 9.8 |
+| 50% complete | 15 to 21 | 18.9 to 20.9 |
+| 75% complete | 28 to 38 | 32.5 to 32.9 |
+| 90% complete | 33 to 46 | 40.3 |
+| All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
@@ -38,7 +38,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
 | Shares | dividends; prices drift slowly back to a fair value; news moves them at once | `STOCK_DIV_SCALE`, `_market_tick()` |
 | Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
-| Mining | rigs mine a coin all the time; rig price ×1.3 per rig across all coins, 40 max; 1.8% of rig price an hour at base price; all mining capped at 8% of income; news can speed it up or slow it down for a couple of days | `RIG_*`, `MINE_*` |
+| Mining | rigs mine a coin all the time; rig price ×1.45 per rig across all coins, 60 max (robot: 5 to 8% of income from day 10 to 50); 1.8% of rig price an hour at base price; all mining capped at 8% of income; news can speed it up or slow it down for a couple of days | `RIG_*`, `MINE_*` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
@@ -80,7 +80,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
    SIM_SEED=99 $G --headless --path . -s res://tests/pacing_sim.gd -- 45
    ```
 2. Make the change and run both again.
-3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real.
+3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real. The robot starts from a fresh market (`reset_game(true)`), so the same seed gives the same result every time.
 4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes), `nodeals` (skip deals and managers) or `nomine` (no mining rigs). `news`, `dip` and `hold` run trading bots that try to profit from news.
 
 ## Open questions for the owner

@@ -40,7 +40,7 @@ func _run() -> void:
 	for sd in [11, 22, 33]:
 		seed(sd)
 		g.sim_time = 1.7e9
-		g.reset_game()
+		g.reset_game(true)
 		g._quiet = true
 		var hist := {}
 		for s in syms:
@@ -77,7 +77,7 @@ func _run() -> void:
 			if int(e[0]) + HORIZONS[2] < minutes:
 				_add(sums[e[2]], hist[e[1]], int(e[0]))
 	g.sim_time = -1.0
-	g.reset_game()
+	g.reset_game(true)
 	var plain: Array = sums["plain"]
 	for kind in ["crash", "pump", "dip"]:
 		var k: Array = sums[kind]

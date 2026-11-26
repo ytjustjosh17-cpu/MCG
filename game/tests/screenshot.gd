@@ -192,5 +192,51 @@ func _run() -> void:
 	main._pages[2]._seg.select(0, true)
 	main._pages[2]._paint_sort()
 	await _shot("24_sorted")
+	# 1.1 screens: What's new, pickers, synergies, crit and buffs, mining.
+	main.show_page(4)
+	await create_timer(0.5).timeout
+	ProfilePage._show_whats_new()
+	await _shot("25_whats_new")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	main.push(SettingsPage.new())
+	await create_timer(0.6).timeout
+	main._stack[-1]._on_sound()
+	await _shot("26_sound_pick")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	main._stack[-1]._on_numbers()
+	await _shot("27_numbers_pick")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	main.show_page(1)
+	await create_timer(0.4).timeout
+	g.cash = 5.0e7
+	g.open_business("food", "Hatch & Ladle")
+	g.biz["taxi"]["stage"] = 3
+	main.push(load("res://scripts/business_detail.gd").new("food"))
+	await create_timer(0.8).timeout
+	main._stack[-1].scroll.scroll_vertical = 600
+	await _shot("28_synergies")
+	main.show_page(0)
+	await create_timer(0.5).timeout
+	g.frenzy_until = g.now() + 18.0
+	g.rush_until = g.now() + 500.0
+	var tcard = main._pages[0].find_child("TowerCard", true, false)
+	tcard._spawn_crit(Vector2(200, 300), 1680.0)
+	await create_timer(0.15).timeout
+	await _shot("29_crit_buffs")
+	g.frenzy_until = 0.0
+	g.rush_until = 0.0
+	g.cash = 1.0e8
+	for k in 3:
+		g.buy_rig("VLT")
+	g.sim_time = g.now()
+	g.advance(3 * 3600.0)
+	g.sim_time = -1.0
+	main.push(AssetDetail.new("coin", "VLT"))
+	await create_timer(0.8).timeout
+	main._stack[-1].scroll.scroll_vertical = 420
+	await _shot("30_mining")
 	g.reset_game()
 	quit()

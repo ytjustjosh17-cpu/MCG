@@ -339,8 +339,11 @@ func _spawn_crit(pos: Vector2, v: float) -> void:
 		Input.vibrate_handheld(28)
 	if Motion.reduced():
 		return
-	var l := UI.label("CRIT +" + Game.money_short(v), 26, UI.FLASH, true)
+	var l := UI.label("CRIT +" + Game.money_short(v), 28, UI.TEXT, true)
 	l.add_theme_font_override("font", UI.DISPLAY)
+	# Dark outline so it reads on the red sun as well as the dark sky.
+	l.add_theme_color_override("font_outline_color", UI.INK)
+	l.add_theme_constant_override("outline_size", 8)
 	add_child(l)
 	l.position = pos + Vector2(-50, -52)
 	l.pivot_offset = Vector2(50, 16)

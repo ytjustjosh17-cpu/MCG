@@ -210,6 +210,9 @@ func _run() -> void:
 	game.deal = {"kind": "order", "id": game.biz.keys()[0], "value": 1.0, "title": "T", "text": "x", "yes": "Y"}
 	main._show_deal()
 	await create_timer(0.3).timeout
+	if root.get_node("Kit").has_open():
+		for it in root.get_node("Kit")._stack:
+			print("OPEN POP-UP: ", it["root"].find_children("*", "Label", true, false).map(func(l): return l.text))
 	_check(not root.get_node("Kit").has_open(), "quiet deals don't pop up")
 	main.open_waiting_deal()
 	await create_timer(0.3).timeout

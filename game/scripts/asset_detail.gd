@@ -224,7 +224,10 @@ func refresh() -> void:
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
 	_profit.text = "%s%s (%.1f%%) · avg %s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct), price_text(avg)]
 	_profit.add_theme_color_override("font_color", UI.change_color(gain))
-	if absf(pct) < 0.05:
+	if paid <= 0.0 and worth > 0.0:
+		_profit.text = "All mined or earned · ▲ +" + Game.money_short(worth)
+		_profit.add_theme_color_override("font_color", UI.UP)
+	elif absf(pct) < 0.05:
 		_profit.text = "No change · avg " + price_text(avg)
 		_profit.add_theme_color_override("font_color", UI.SUB)
 	if kind == "share":
@@ -258,7 +261,7 @@ func refresh() -> void:
 			_rig_btn.text = "All rigs bought"
 			Page.set_enabled(_rig_btn, false)
 		else:
-			_rig_btn.text = "Buy rig · " + Game.money_short(Game.rig_price())
+			_rig_btn.text = "Buy rig · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(Game.rig_gain(sym))]
 			Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price())
 	Page.set_enabled(_sell, free > 0.0, false)
 	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
