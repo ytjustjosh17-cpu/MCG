@@ -65,7 +65,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 3. Time away is worked out without the ×2 boost, then only the boosted hours are added back.
 4. Selling a unit to a buyer pays a little under what rebuying costs.
 5. Staking pays at most 5% of hourly income across all coins together.
-10. Taps: at most 7 paid a second. Invest goals need a real amount (10 minutes of income or $100).
+10. Taps: at most 7 paid a second, and tap heat (+1 per paid tap, cools 2 a second) above 1,200 makes taps pay a quarter, so a tapping app can't farm for hours (about 4 minutes non-stop at 7 a second to reach it; the robot's 3 a second never does). Invest goals need a real amount (10 minutes of income or $100).
 11. The clock going backwards never re-rolls goals or the streak. Restoring a backup keeps the live market and deal.
 12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income or a short buff. Buffs end when the app closes and never pay while away.
 13. Mining has no income cap; its limit is price (×1.7 per miner, 40 max). It, counts at most 8 hours while away, and a restore mines nothing.

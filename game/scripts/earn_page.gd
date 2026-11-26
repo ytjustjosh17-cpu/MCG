@@ -155,7 +155,7 @@ func _refresh() -> void:
 	for i in 5:
 		_meter[i].color = UI.RED if prog >= (i + 1) / 5.0 - 0.001 else UI.TRACK
 	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
-	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if Game.tap_tired() else 1.0)) + " /tap" + (" · tired, rest a bit" if Game.tap_tired() else "")
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
 	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, false, "MAX" if maxed else Game.money_short(Game.level_cost()))
@@ -180,7 +180,7 @@ func _tick() -> void:
 		buffs.append("Income ×2 · %s" % Game.clock(Game.rush_until - Game.now()))
 	_buff.text = "     ".join(buffs)
 	_buff.visible = not buffs.is_empty()
-	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if Game.tap_tired() else 1.0)) + " /tap" + (" · tired, rest a bit" if Game.tap_tired() else "")
 	if Game.boost_active():
 		_boost_btn.set_state(UI.RED, Game.boost_left() / Game.BOOST_LEN_S, false, Game.clock(Game.boost_left()))
 	elif Game.boost_ready():
