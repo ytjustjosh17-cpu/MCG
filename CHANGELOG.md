@@ -1,5 +1,10 @@
 # Changelog
 
+## Legal notice
+
+- README and LICENSE now say plainly: made for the owner only, built with AI
+  help, not audited, use entirely at your own risk, no liability.
+
 ## Safety checks on every release
 
 - Each release now lists the APK's SHA-256, links its build log, carries a

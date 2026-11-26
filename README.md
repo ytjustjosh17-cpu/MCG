@@ -25,9 +25,11 @@ Latest changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Please read
 
-This is a personal project, not a product. There is no support, and no promise it works on your phone.
+**This game is made for me, on my phone. It is not for anyone else.**
 
-If you install it, you do so at your own risk (see [LICENSE](LICENSE)).
+- It was built mostly with AI help ("vibe coded") and has not been checked by security or safety experts. It may have bugs or lose data.
+- If you install or use it, that's entirely at your own risk. I take no responsibility for anything that happens. See [LICENSE](LICENSE).
+- There is no support and no promise it works on your phone.
 
 It's only a game. There's no real money, no real shares and no real crypto. Companies and places are made up. Coin names are used only to describe them; the game is not linked to or endorsed by any of them, and the prices are a simulation, not real market data. Nothing here is financial advice. No ads, no payments, no accounts.
 
