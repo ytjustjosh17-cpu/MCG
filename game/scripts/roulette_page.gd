@@ -119,6 +119,15 @@ func build() -> void:
 	_mat.mouse_filter = Control.MOUSE_FILTER_PASS
 	_mat_scroll.add_child(_mat)
 	_build_mat()
+	# Show there's more mat below (columns and the rest): a slim scroll bar.
+	var vb := _mat_scroll.get_v_scroll_bar()
+	vb.add_theme_stylebox_override("scroll", StyleBoxEmpty.new())
+	vb.add_theme_stylebox_override("grabber", UI.box(Color(UI.TEXT, 0.35), 3))
+	vb.add_theme_stylebox_override("grabber_highlight", UI.box(Color(UI.TEXT, 0.5), 3))
+	vb.add_theme_stylebox_override("grabber_pressed", UI.box(Color(UI.TEXT, 0.5), 3))
+	vb.custom_minimum_size.x = 5
+	_mat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+
 	# Chips to bet with.
 	_chip_row = HBoxContainer.new()
 	_chip_row.add_theme_constant_override("separation", 8)

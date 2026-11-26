@@ -37,7 +37,7 @@ func build() -> void:
 	_locked = VBoxContainer.new()
 	_locked.add_theme_constant_override("separation", 10)
 	body.add_child(_locked)
-	var l := UI.label("Slots, roulette and blackjack. Buy in with chips, cash out any time. The house always has a small edge.\n\nOpen it with the Sol Casino node in your Rebirth tree (next to the centre, between Empire and Hands).", 15, UI.SUB)
+	var l := UI.label("Unlocks with Sol Casino in the Rebirth tree.", 15, UI.SUB)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_locked.add_child(l)
 	_unlock = UI.pill("", UI.TEXT, UI.INK, 17, 24)
@@ -134,8 +134,8 @@ func refresh() -> void:
 	_open.visible = open
 	if not open:
 		var need := Game.path_cost("u_casino")
-		_unlock.text = "Open the tree · %d RBP needed" % need if Game.rebirths() > 0 else "Unlocks after your first rebirth"
-		Page.set_enabled(_unlock, Game.rebirths() > 0, false)
+		_unlock.text = ("Open the tree · %d RBP" % need) if Game.rebirths() > 0 else ("Rebirth first, then %d RBP" % need)
+		Page.set_enabled(_unlock, true)
 		return
 	for tr in _table_rows:
 		(tr as Row).modulate.a = 1.0 if Game.tables_open() else 0.55
@@ -149,8 +149,7 @@ func refresh() -> void:
 
 func _on_unlock() -> void:
 	Kit.tick()
-	if Game.rebirths() > 0:
-		push_page.emit(RebirthPage.new())
+	push_page.emit(RebirthPage.new())
 
 
 class CasinoArt extends Control:
@@ -211,7 +210,7 @@ class CasinoArt extends Control:
 				# Lever.
 				draw_line(Vector2(r.end.x, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.5), UI.SUB, 2.0)
 				draw_line(Vector2(s.x * 0.9, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.18), UI.SUB, 2.0)
-				draw_circle(Vector2(s.x * 0.9, s.y * 0.16), 4.0, UI.RED)
+				draw_circle(Vector2(s.x * 0.9, s.y * 0.16), 4.0, UI.SUB)   # not red: red dots mean "claim"
 			"roulette":
 				var c := s * 0.5
 				var rad := minf(s.x, s.y) * 0.46

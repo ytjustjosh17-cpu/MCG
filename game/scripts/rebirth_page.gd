@@ -67,7 +67,10 @@ func refresh() -> void:
 	# Waiting pays: show what ten times the net worth would give.
 	var nw := maxf(Game.net_worth(), Data.REBIRTH_MIN)
 	var later := int(floor(10.0 * pow(nw * 10.0 / Data.REBIRTH_MIN, 1.0 / 3.0) * (1.0 + minf(0.5, Game.rb("rbp")))))
-	_sub.text += "\nAt %s net worth you'd get +%s RBP." % [Game.money_short(nw * 10.0), Game.group(later)]
+	if pend > 0:
+		_sub.text += "\nNow +%s RBP · at %s: +%s" % [Game.group(pend), Game.money_short(nw * 10.0), Game.group(later)]
+	else:
+		_sub.text += "\nFirst RBP at %s net worth" % Game.money_short(Data.REBIRTH_MIN)
 	if pend > 0:
 		_go.text = "Rebirth · +%s RBP" % Game.group(pend)
 		Page.set_enabled(_go, true)
@@ -158,8 +161,9 @@ class TreeView extends Control:
 		custom_minimum_size = Vector2(0, 420)
 		clip_contents = true
 		mouse_filter = Control.MOUSE_FILTER_STOP
-		# Zoom and centre buttons, 48 px, bottom right (thumb side).
-		var col := VBoxContainer.new()
+		# Zoom and centre buttons, 48 px, in a low row at the bottom right
+		# (thumb side), see-through so nodes behind them still show.
+		var col := HBoxContainer.new()
 		col.add_theme_constant_override("separation", 8)
 		col.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 		col.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -168,7 +172,7 @@ class TreeView extends Control:
 		col.offset_bottom = -10
 		add_child(col)
 		for spec in [["+", 1.25], ["-", 0.8], ["o", 0.0]]:
-			var b := UI.pill("" if spec[0] == "o" else String(spec[0]), UI.RAISED, UI.TEXT, 20, 0)
+			var b := UI.pill("" if spec[0] == "o" else String(spec[0]), Color(UI.RAISED, 0.72), UI.TEXT, 20, 0)
 			b.custom_minimum_size = Vector2(48, 48)
 			var f: float = spec[1]
 			if spec[0] == "o":
