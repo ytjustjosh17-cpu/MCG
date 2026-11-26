@@ -248,21 +248,34 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 			# A double tap on whatever opened the sheet mustn't close it at once.
 			if e is InputEventMouseButton and e.pressed and Time.get_ticks_msec() - opened_ms > 400:
 				close.call())
-		var drag := {"on": false, "y0": 0.0}
+		# Apple-style drag: follows the finger down, resists going up (rubber
+		# band), and a quick flick down closes it even if it moved only a little.
+		var drag := {"on": false, "y0": 0.0, "last_y": 0.0, "last_t": 0, "vel": 0.0}
 		panel.gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 				if e.pressed:
 					drag["on"] = true
 					drag["y0"] = e.global_position.y
+					drag["last_y"] = e.global_position.y
+					drag["last_t"] = Time.get_ticks_msec()
+					drag["vel"] = 0.0
 				elif drag["on"]:
 					drag["on"] = false
-					if panel.position.y - geo["rest"] > 90.0:
+					var moved: float = panel.position.y - float(geo["rest"])
+					if moved > 90.0 or (float(drag["vel"]) > 900.0 and moved > 12.0):
 						close.call()
 					else:
 						var back := root.create_tween()
 						back.tween_property(panel, "position:y", geo["rest"], Motion.d(0.3)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			elif e is InputEventMouseMotion and drag["on"]:
-				panel.position.y = geo["rest"] + maxf(0.0, e.global_position.y - drag["y0"]))
+				var t_ms := Time.get_ticks_msec()
+				var dt := maxf(1.0, float(t_ms - int(drag["last_t"]))) / 1000.0
+				drag["vel"] = lerpf(float(drag["vel"]), (e.global_position.y - float(drag["last_y"])) / dt, 0.5)
+				drag["last_y"] = e.global_position.y
+				drag["last_t"] = t_ms
+				var dy: float = e.global_position.y - float(drag["y0"])
+				# Downwards follows the finger; upwards moves a little and pushes back.
+				panel.position.y = float(geo["rest"]) + (dy if dy >= 0.0 else -sqrt(-dy) * 2.5))
 	_stack.append({"root": root, "close": func(): close.call() if dismissable else null})
 	return root
 

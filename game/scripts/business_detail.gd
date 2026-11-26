@@ -189,11 +189,13 @@ func refresh() -> void:
 	if units >= cap:
 		_units_value.text = "%d / %d · Full" % [units, cap]
 		_buy_row.visible = false
+		_mult_seg.visible = false
 		_unit_note.visible = false
 	else:
 		var p := Game.unit_price(id)
 		_units_value.text = "%d / %d" % [units, cap]
 		_buy_row.visible = true
+		_mult_seg.visible = true
 		_unit_note.visible = true
 		_unit_note.text = "+%s /h each" % Game.money_short(per_unit)
 		var n := _buy_n()

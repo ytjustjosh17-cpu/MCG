@@ -227,6 +227,7 @@ class BizCard extends Button:
 	var _mark: ColorRect
 	var _track: ColorRect
 	var _fill: ColorRect
+	var _bar_tw: Tween
 
 	func _init(biz_id: String) -> void:
 		id = biz_id
@@ -297,7 +298,16 @@ class BizCard extends Button:
 		else:
 			_status.text = "Stage %d · %d/%d %s" % [s["stage"], units, cap, unit_word]
 			_mark.visible = Game.cash >= Game.unit_price(id)
-		_fill.size = Vector2(_track.size.x * clampf(frac, 0.0, 1.0), 3)
+		# The bar glides to its new length instead of jumping.
+		var want := _track.size.x * clampf(frac, 0.0, 1.0)
+		_fill.size.y = 3
+		if absf(_fill.size.x - want) > 1.5 and is_visible_in_tree():
+			if _bar_tw != null and _bar_tw.is_valid():
+				_bar_tw.kill()
+			_bar_tw = create_tween()
+			_bar_tw.tween_property(_fill, "size:x", want, Motion.d(0.35)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		else:
+			_fill.size.x = want
 		# Name gets all the room the income doesn't need.
 		var iw := _income.get_theme_font("font").get_string_size(_income.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
 		_name.size.x = maxf(40.0, size.x - 16.0 - iw - 12.0 - _name.position.x)

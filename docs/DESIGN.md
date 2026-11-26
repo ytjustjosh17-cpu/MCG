@@ -101,6 +101,9 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - Every art kind has its own setting in `Art.SCENES`: where the sun sits and how big, the skyline (city, dense, cranes, hills, none) and the ground (street, water with the sun's reflection, runway, field). Only some get a pylon. A new kind needs its own entry, so no two pictures look alike.
 - Company rows on the Business tab are compact: picture, name, stage and units, income, a thin bar, and a red dot only when something can be bought.
 - Art scenes share one backdrop (`Art.backdrop`): sun with a soft glow, far skyline, low mist, and a pylon with hanging cables on big pictures.
+- The Earn tower grows in five wealth tiers (net worth £1M, £100M, £10B, £1T, £100T): a second block, roof lights, searchlights, a sky bridge, a red crown.
+- Sounds come from `Kit.sound()` (made in code in `sfx.gd`); `Kit.tick()` and `Kit.haptic()` already play the right one.
+- Sheets: glass, follow the finger down, rubber-band when dragged up, close on a quick flick.
 - Profile shows the next achievement. The nav bar names only the active tab.
 
 ## Words and terms

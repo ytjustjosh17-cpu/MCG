@@ -48,8 +48,8 @@ jobs:
           sed -i "s|keystore/release_user=\".*\"|keystore/release_user=\"$KEYSTORE_ALIAS\"|" export_presets.cfg
           sed -i "s|keystore/release_password=\".*\"|keystore/release_password=\"$KEYSTORE_PASSWORD\"|" export_presets.cfg
           sed -i "s|^version/code=.*|version/code=$BUILD_NUMBER|" export_presets.cfg
-          sed -i "s|^version/name=.*|version/name=\"1.0.$BUILD_NUMBER\"|" export_presets.cfg
-          sed -i "s|^config/version=.*|config/version=\"1.0.$BUILD_NUMBER\"|" project.godot
+          sed -i "s|^version/name=.*|version/name=\"1.1.$BUILD_NUMBER\"|" export_presets.cfg
+          sed -i "s|^config/version=.*|config/version=\"1.1.$BUILD_NUMBER\"|" project.godot
           grep -E "^config/version" project.godot
 
       - name: Get fonts from Fontshare (not stored in this public repo)
@@ -134,8 +134,8 @@ jobs:
         continue-on-error: true  # GitHub sometimes errors here; the next step retries
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Sol 1.0.${{ github.run_number }}
+          tag_name: v1.1.${{ github.run_number }}
+          name: Sol 1.1.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           files: |
             game/build/Sol.apk
@@ -152,8 +152,8 @@ jobs:
         if: steps.publish.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Sol 1.0.${{ github.run_number }}
+          tag_name: v1.1.${{ github.run_number }}
+          name: Sol 1.1.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           files: |
             game/build/Sol.apk

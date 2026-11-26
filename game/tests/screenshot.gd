@@ -51,6 +51,21 @@ func _run() -> void:
 	g.streak_day = g._today()  # no daily-gift pop-up either
 	g.streak_unseen = []
 	g.cash = 2.4e5
+	# SHOT_RICH=1: a very late game with huge numbers, to check nothing spills.
+	if OS.get_environment("SHOT_RICH") == "1":
+		g.cash = 1.0e16
+		for b in Data.BUSINESSES:
+			g.open_business(b["id"], b["names"][0])
+			g.biz[b["id"]]["stage"] = 10
+			g.biz[b["id"]]["units"] = 50
+		g.cash = 9.87654e14
+		g.buy_asset("coin", "HLO", 3.0e14)
+		g.cash = 9.87654e14
+		for k in 12:
+			g.buy_rig("VLT")
+		g.cash = 9.87654e14
+	if OS.get_environment("SHOT_SCI") == "1":
+		g.sci = true
 	g.recalc()
 	for i in 8:
 		g._record_history()

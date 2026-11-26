@@ -74,7 +74,7 @@ Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 
 1. All checks above pass.
 2. Commit with a short summary, then push to the working branch.
-3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.0.<run number>`.
+3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.1.<run number>` (1.1 from the v1.1 release on; the updater compares only the last number).
 4. The owner taps Update in Profile.
 
 The signing key lives in `game/android/release.keystore` (owner's choice). A move to a private key in GitHub Secrets is planned; the new key is not active yet.
