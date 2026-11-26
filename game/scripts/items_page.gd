@@ -24,11 +24,31 @@ func _init() -> void:
 func build() -> void:
 	# Home: where you live, and the next step up.
 	var hc := card()
+	# The home picture is a button: tap it to look inside (1.2).
+	var hb := Button.new()
+	hb.focus_mode = Control.FOCUS_NONE
+	hb.flat = true
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		hb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	hb.custom_minimum_size = Vector2(0, 88)
+	hb.clip_contents = true
+	hb.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(HomePage.new()))
+	Kit.press_fx(hb)
+	hc.add_child(hb)
 	_home_art = Control.new()
-	_home_art.custom_minimum_size = Vector2(0, 88)
 	_home_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_home_art.clip_contents = true
-	hc.add_child(_home_art)
+	_home_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hb.add_child(_home_art)
+	var inside := UI.label("Look inside ›", 13, UI.TEXT, true)
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	inside.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	inside.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	inside.offset_right = -12
+	inside.offset_bottom = -8
+	hb.add_child(inside)
 	var hp := padded(hc, 16, 4)
 	_home_name = UI.label("", 22, UI.TEXT, true)
 	hp.add_child(_home_name)

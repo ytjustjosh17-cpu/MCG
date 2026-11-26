@@ -23,6 +23,8 @@ const TIERS := [1.0e6, 1.0e8, 1.0e10, 1.0e12, 1.0e14]
 
 var _sky: Control
 var _sky_boost := false
+var _sky_t := 0.0
+var _sky_key := ""
 
 
 func _ready() -> void:
@@ -32,6 +34,7 @@ func _ready() -> void:
 	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_sky)
+	add_child(SkyTime.Layer.new())   # rain or fog on top, when the weather turns
 	tier = _tier_now()
 	Game.changed.connect(queue_redraw)
 	resized.connect(_reshape)
@@ -64,7 +67,8 @@ func _geo() -> Dictionary:
 
 func lit_count() -> int:
 	var total := COLS * _rows
-	return clampi((Game.level - 1) * 3 + Game.companies() * 2 + 2 + int(Game.level_progress() * 3.0), 1, total)
+	# More windows lit after dark.
+	return clampi((Game.level - 1) * 3 + Game.companies() * 2 + 2 + int(Game.level_progress() * 3.0) + int(SkyTime.night() * COLS * 3), 1, total)
 
 
 func _window_rect(i: int, g: Dictionary) -> Rect2:
@@ -106,14 +110,14 @@ func _draw() -> void:
 			# A sky bridge joins it to the tower.
 			_fill_clipped(UI.rect_poly(Rect2(bx + tw * 0.55, bt + h * 0.12, tw * 0.07 + 4.0, 10.0)), clip, UI.INK)
 			draw_rect(Rect2(bx + tw * 0.55, bt + h * 0.12 + 4.0, tw * 0.07 + 4.0, 2.0), Color(UI.RED, 0.8), true)
-	if tier >= 3:
-		# Searchlights sweeping up from the roof (faint).
+	if tier >= 3 or SkyTime.night() > 0.5:
+		# Searchlights sweeping up from the roof (faint; always on at night).
 		for k in 2:
 			var o := Vector2(tx + tw * (0.2 + k * 0.6), top)
 			var ang := -PI / 2.0 + (0.28 if k == 1 else -0.28)
 			var d := Vector2(cos(ang), sin(ang)) * h
 			var side := Vector2(-d.y, d.x).normalized() * h * 0.09
-			_fill_clipped(PackedVector2Array([o, o + d + side, o + d - side]), clip, Color(UI.TEXT, 0.09))
+			_fill_clipped(PackedVector2Array([o, o + d + side, o + d - side]), clip, Color(UI.TEXT, 0.09 + 0.05 * SkyTime.night()))
 	# Roof: plant room, water tank on legs, antenna with a red light.
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw * 0.15, top - tw * 0.12, tw * 0.3, tw * 0.12)), clip, UI.INK)
 	var tank := Rect2(tx + tw * 0.62, top - tw * 0.16, tw * 0.18, tw * 0.1)
@@ -214,6 +218,15 @@ func _process(delta: float) -> void:
 	if Game.boost_active() != _sky_boost:
 		_sky_boost = Game.boost_active()
 		_sky.queue_redraw()
+	_sky_t -= delta
+	if _sky_t <= 0.0:
+		# Time of day, weather and the skyline of owned companies: check twice a minute.
+		_sky_t = 30.0
+		var k := "%s|%d" % [SkyTime.key(), Game.companies()]
+		if k != _sky_key:
+			_sky_key = k
+			_sky.queue_redraw()
+			queue_redraw()
 	_tier_t -= delta
 	if _tier_t <= 0.0:
 		_tier_t = 2.0
@@ -395,5 +408,35 @@ class TowerSky extends Control:
 		if w < 100.0 or h < 100.0:
 			return
 		var clip := UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), TowerCard.RADIUS)
-		var sun_col := UI.RED.lightened(0.12) if Game.boost_active() else UI.RED
-		Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, Vector2(w * 0.78, h * 0.24), minf(w * 0.42, h * 0.34), sun_col, 4401)
+		var sun_col := SkyTime.sun_colour()
+		if Game.boost_active():
+			sun_col = sun_col.lightened(0.12)
+		var sun_c := SkyTime.sun_center(w, h, Vector2(w * 0.78, h * 0.24))
+		Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, sun_c, minf(w * 0.42, h * 0.34), sun_col, 4401)
+		_skyline(w, h)
+		SkyTime.shade(self, Rect2(Vector2.ZERO, size), clip)
+
+	func _skyline(w: float, h: float) -> void:
+		## The companies you own stand on the far side of town, left of the
+		## tower and just above the buttons: a back row and a front row, more as
+		## you open more, softened by haze so the tower stays the hero.
+		var kinds: Array = []
+		for b in Game.businesses():
+			if Game.owns(String(b["id"])):
+				kinds.append(String(b["kind"]))
+		if kinds.is_empty():
+			return
+		var lit := 2 if SkyTime.night() > 0.5 else 1
+		var base := h - 126.0
+		var area := w * 0.36
+		var front: Array = kinds.slice(0, 5)
+		var back: Array = kinds.slice(5, 11)
+		var sb := 0.27
+		for i in range(back.size()):
+			var x := 10.0 + area * (float(i) + 0.5) / 6.0
+			Art.draw(self, String(back[i]), Vector2(x, base - 14.0 - 70.0 * sb), sb, lit)
+		var sf := 0.36
+		for i in range(front.size()):
+			var x := 8.0 + area * float(i) / 5.0
+			Art.draw(self, String(front[i]), Vector2(x, base - 70.0 * sf), sf, lit)
+		draw_rect(Rect2(0, base - 70.0 * sf - 18.0, w * 0.45, 70.0 * sf + 22.0), Color(UI.HAZE, 0.08), true)
