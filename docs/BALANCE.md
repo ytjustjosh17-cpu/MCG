@@ -42,6 +42,8 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), with no cap tied to income; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
 | Head office | ten one-off upgrades: taps ×1.5, deals 25% sooner, away cap 10 h then 12 h, expansions 15% quicker (twice), +1 golden sun a day, locked coins +25%, miners +25%, managers take 6% | `UPGRADES` |
 | Auto clicker | 5 levels (£25K, £400K, £8M, £250M, £10B): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
+| Selling a company | half its value (value = 60% of what was spent), so always a loss; not while expanding | `sell_business()` |
+| Managers | can be switched off (no expanding, no cut) and on again | `set_manager_on()` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |

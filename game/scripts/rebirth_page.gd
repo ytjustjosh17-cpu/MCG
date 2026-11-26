@@ -84,7 +84,7 @@ func refresh() -> void:
 func _explain() -> void:
 	Kit.tick()
 	Kit.sheet("How rebirth works",
-		"Reach %s net worth, then rebirth to start again with RBP. The richer you are, the more RBP (it grows more slowly the higher you go).\n\nSpend RBP on the tree. Start at Sol in the middle; you can buy any node linked to one you own. Tree nodes stay forever, through every rebirth.\n\nDrag to move around the map. Pinch, or use + and -, to zoom. Tap a node to see it." % Game.money_short(Data.REBIRTH_MIN),
+		"From %s net worth, rebirth to start again for RBP. Richer means more RBP.\n\nBuy nodes linked to ones you own. They stay forever.\n\nDrag to move, pinch or +/- to zoom, tap a node." % Game.money_short(Data.REBIRTH_MIN),
 		[{"text": "Got it", "style": "plain"}])
 
 
@@ -94,7 +94,7 @@ func _confirm() -> void:
 		return
 	Kit.tick()
 	Kit.sheet("Rebirth for %s RBP?" % Game.group(pend),
-		"You lose: cash, companies, property, shares, coins, miners, items, your home, level, Head office and rewards not yet claimed.\n\nYou keep: the tree and your RBP, achievements, stats and settings.",
+		"Lose: money, companies, property, shares, coins, miners, items, home, level, Head office, unclaimed rewards.\nKeep: the tree, RBP, achievements, stats, settings.",
 		[{"text": "Rebirth · +%s RBP" % Game.group(pend), "style": "primary", "call": _do_rebirth},
 		 {"text": "Not yet", "style": "plain"}])
 

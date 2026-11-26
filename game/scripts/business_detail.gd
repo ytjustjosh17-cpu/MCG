@@ -146,6 +146,11 @@ func build() -> void:
 			r.pressed.connect(func(): _on_synergy(sid, r))
 			sc.add_child(r)
 			_syn_rows[sid] = r
+	# Sell the whole company: quiet, at the very bottom.
+	var sell := UI.pill("Sell company", UI.RAISED, UI.SUB, 15, 16)
+	sell.custom_minimum_size = Vector2(0, 48)
+	sell.pressed.connect(_on_sell)
+	body.add_child(sell)
 	var t := Timer.new()
 	t.wait_time = 0.5
 	t.autostart = true
@@ -186,7 +191,7 @@ func refresh() -> void:
 	# A fully expanded company has nothing left for a manager to do.
 	_mgr.get_parent().get_parent().visible = stage < Data.MAX_STAGE
 	if Game.has_manager(id):
-		_mgr.set_texts("Manager hired", "Auto-expands · takes %d%%" % cut, "Info")
+		_mgr.set_texts("Manager", ("Auto-expands · takes %d%%" % cut) if Game.manager_on(id) else "Switched off", "On" if Game.manager_on(id) else "Off")
 		if not _mgr.has_meta("hired"):
 			_mgr.set_meta("hired", true)
 			_mgr.set_lead(Icon.new("check", UI.TEXT, 22.0))
@@ -253,19 +258,44 @@ static func _span(sec: float) -> String:
 
 func _manager_text() -> String:
 	var cut := int(round(Game.manager_cut() * 100.0))
-	var t := "Starts each expansion for you when the company is full and you have the cash. Works while you're away."
-	t += "\nYou still buy the units."
-	t += ("\nPay: %d%% of this company's income until it's fully expanded." % cut) if cut > 0 else "\nPay: nothing (Loyal staff in your tree)."
+	var t := "Starts expansions for you, even while away. You still buy units."
+	t += ("\nTakes %d%% of this company's income until fully expanded." % cut) if cut > 0 else "\nWorks for free (Loyal staff)."
 	return t
+
+
+func _on_sell() -> void:
+	Kit.tick()
+	if Game.expanding(id):
+		Kit.toast("Wait for the expansion to finish")
+		return
+	var p := Game.sell_price(id)
+	Kit.sheet("Sell %s?" % String(Game.biz[id]["name"]), "You get %s (half its value). Units, stage and manager go." % Game.money_short(p), [
+		{"text": "Not now", "style": "plain"},
+		{"text": "Sell · " + Game.money_short(p), "style": "secondary", "call": func():
+			var got := Game.sell_business(id)
+			if got > 0.0:
+				Kit.haptic("success")
+				Kit.toast("Sold · +" + Game.money_short(got), true)
+				Game.flush_changes()
+				pop_page.emit()},
+	])
 
 
 func _on_hire() -> void:
 	Kit.tick()
 	if Game.has_manager(id):
-		Kit.sheet("Your manager", _manager_text(), [{"text": "Close", "style": "plain"}])
+		var on := Game.manager_on(id)
+		Kit.sheet("Manager", _manager_text() + ("" if on else "\nNow switched off."), [
+			{"text": "Switch off" if on else "Switch on", "style": "primary", "call": func():
+				Game.set_manager_on(id, not on)
+				Kit.toast("Manager " + ("off" if on else "on"))
+				Game.flush_changes()
+				refresh()},
+			{"text": "Close", "style": "plain"},
+		])
 		return
 	var mc := Game.manager_cost(id)
-	Kit.sheet("Hire a manager?", _manager_text() + "\nCost: %s, once." % Game.money_short(mc), [
+	Kit.sheet("Hire a manager?", _manager_text(), [
 		{"text": "Hire · " + Game.money_short(mc), "style": "primary", "call": _hire_now},
 		{"text": "Not now", "style": "plain"},
 	])

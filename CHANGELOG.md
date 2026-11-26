@@ -1,5 +1,14 @@
 # Changelog
 
+## Sell companies, manager switch, less text
+
+- Company page: "Sell company" at the bottom pays half its value (not
+  while it is expanding).
+- Tap a hired manager to switch them off or on. Off means no expanding and
+  no cut of income.
+- Shorter text: manager, auto clicker, locking coins, rebirth and casino
+  explanations now fit in a line or two.
+
 ## No deal pop-ups, auto clicker
 
 - Deals never pop up by themselves any more: they wait on the Business tab

@@ -849,6 +849,23 @@ func _run() -> void:
 	ac_old.erase("auto_level")
 	_check(int(game._migrate(ac_old).get("auto_level", -1)) == 0, "v15 saves load with no auto clicker")
 	game.reset_game(true)
+	# Selling a company pays half its value; a manager can be switched off.
+	game.reset_game(true)
+	game.cash = 1.0e7
+	game.open_business("shop", "Sell Test")
+	game.biz["shop"]["units"] = game.capacity("shop")
+	game.cash = 1.0e7
+	game.hire_manager("shop")
+	game.recalc()
+	var mg_on: float = game.biz_income("shop")
+	game.set_manager_on("shop", false)
+	_check(not game.manager_on("shop") and game.biz_income("shop") > mg_on, "a switched-off manager takes no cut")
+	game.advance(1.0)
+	_check(not game.expanding("shop"), "and doesn't expand")
+	var sl_cash: float = game.cash
+	var sl_price: float = game.sell_price("shop")
+	var sl_got: float = game.sell_business("shop")
+	_check(absf(sl_got - game.biz_value("shop") * 0.5) < 0.01 or (absf(sl_got - sl_price) < 0.01 and not game.owns("shop") and absf(game.cash - sl_cash - sl_got) < 0.01), "selling pays half the company's value and removes it")
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
 	tk._toast_q.clear()
