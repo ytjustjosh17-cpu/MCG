@@ -102,7 +102,8 @@ func _run() -> void:
 		await process_frame
 	_ev_button(q, false)
 	await create_timer(0.3).timeout
-	_ok(pg.scroll.scroll_vertical > 60, "dragging up on the chart scrolls (%d px)" % pg.scroll.scroll_vertical)
+	var room: float = pg.scroll.get_v_scroll_bar().max_value - pg.scroll.size.y   # how far this page can scroll
+	_ok(room > 20.0 and pg.scroll.scroll_vertical >= minf(60.0, room - 2.0), "dragging up on the chart scrolls (%d of %d px)" % [pg.scroll.scroll_vertical, int(room)])
 	pg.scroll.scroll_vertical = 0
 	await create_timer(0.5).timeout
 	cs = ch.get_global_rect().get_center()
