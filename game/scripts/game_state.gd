@@ -12,11 +12,12 @@ signal streak_gift(days: int, amount: float)
 signal golden_sun
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
+signal dividends_paid(amount: float)
 
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 14
+const SAVE_VERSION := 15
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -73,6 +74,9 @@ var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]
 var weekly := {}       # {week, tasks: [...]}, same shape as daily
 var deal := {}         # the offer waiting for an answer, if any
 var deal_wait := 1500.0  # seconds of play until the next deal
+var div_hour := -1         # last whole clock hour dividends were paid for (v15)
+var last_dividend := 0.0
+var _in_offline := false   # dividends paid while away go in the welcome-back note, not a toast
 var payouts: Array = []  # [{amount, at}] money owed later by a deal
 var history: Array = []
 var vibrate := true
@@ -1040,13 +1044,46 @@ func book_cost(book: Dictionary) -> float:
 	return v
 
 
+func dividend_rate(sym: String) -> float:
+	## Set pay per share per hour for one company (it doesn't move with the
+	## price). Each company has its own rate. Bonuses apply on top.
+	var s := _stock(sym)
+	if s.is_empty():
+		return 0.0
+	return float(s[2]) * float(s[3]) * Data.STOCK_DIV_SCALE * global_mult() * (1.0 + rb("div") + rb("all"))
+
+
 func dividends_per_hour() -> float:
 	var v := 0.0
 	for sym in shares.keys():
-		var s := _stock(sym)
-		if not s.is_empty():
-			v += float(shares[sym]["qty"]) * price(sym) * float(s[3]) * Data.STOCK_DIV_SCALE
-	return v * global_mult() * (1.0 + rb("div") + rb("all"))
+		v += float(shares[sym]["qty"]) * dividend_rate(sym)
+	return v
+
+
+func next_dividend_in() -> float:
+	## Seconds until the next payout (on the hour).
+	return 3600.0 - fmod(now(), 3600.0)
+
+
+func _pay_dividends() -> void:
+	## Shares pay once an hour, on the hour, for the shares you hold then.
+	## Time away pays the hours missed, up to the away cap.
+	var h := int(floor(now() / 3600.0))
+	if div_hour < 0 or h < div_hour:
+		div_hour = h   # first run, or the clock went back: start counting from now
+		return
+	if h == div_hour:
+		return
+	var hours := mini(h - div_hour, int(ceil(offline_cap_h())))
+	div_hour = h
+	var v := dividends_per_hour() * float(hours)
+	if v <= 0.0:
+		return
+	_earn(v)
+	last_dividend = v
+	counters["dividends_earned"] = float(counters.get("dividends_earned", 0.0)) + v
+	if not _in_offline:
+		dividends_paid.emit(v)
 
 
 func _market_tick(minutes := 1) -> void:
@@ -2036,9 +2073,11 @@ func advance(dt: float, earn_income := true) -> void:
 	_pay_out()
 	if earn_income:
 		_managers_work()
-		if income_per_hour > 0.0:
-			_earn(income_per_hour * dt / 3600.0)
+		var flow := income_per_hour - float(_income_parts.get("div", 0.0))   # dividends come on the hour
+		if flow > 0.0:
+			_earn(flow * dt / 3600.0)
 		_accrue(dt)
+	_pay_dividends()
 	_market_timer += dt
 	var minutes := int(_market_timer / MARKET_TICK_S)
 	_market_timer = fmod(_market_timer, MARKET_TICK_S)
@@ -2088,7 +2127,7 @@ func _process(delta: float) -> void:
 	if rush_active():
 		# Rush: one more lot of income while open, at most 1 s per frame
 		# (a long first frame after a pause must not pay twice).
-		_earn(income_per_hour * minf(delta, 1.0) / 3600.0)
+		_earn((income_per_hour - float(_income_parts.get("div", 0.0))) * minf(delta, 1.0) / 3600.0)
 	tick_deals(delta)
 	tick_sun(delta)
 	if was_boosting != ibost_active():
@@ -2153,12 +2192,15 @@ func apply_offline(seconds: float) -> void:
 	var base := income_per_hour
 	var biz_base := business_per_hour()
 	ibost_until = keep_ib
-	var gained := base * capped / 3600.0 + biz_base * ib_part / 3600.0
+	var gained := (base - dividends_per_hour()) * capped / 3600.0 + biz_base * ib_part / 3600.0   # dividends: paid by the hour
 	var exp0 := int(counters.get("expansions", 0))
 	var mined0 := float(counters.get("mined_value", 0.0))
 	var staked0 := float(counters.get("stake_earned", 0.0))
 	var pay0 := payouts.size()
+	var div0 := float(counters.get("dividends_earned", 0.0))
+	_in_offline = true
 	advance(s, false)
+	_in_offline = false
 	recalc()
 	_earn(gained)
 	_accrue(capped)
@@ -2170,6 +2212,9 @@ func apply_offline(seconds: float) -> void:
 		away_notes.append("%d expansion%s done" % [done, "" if done == 1 else "s"])
 	if pay0 > payouts.size():
 		away_notes.append("Quick deals paid")
+	var div_got := float(counters.get("dividends_earned", 0.0)) - div0
+	if div_got >= 0.01:
+		away_notes.append("Dividends paid %s" % money_short(div_got))
 	var mined := float(counters.get("mined_value", 0.0)) - mined0
 	if mined >= 1.0:
 		away_notes.append("Mined %s of crypto" % money_short(mined))
@@ -2207,7 +2252,6 @@ func _accrue(dt: float) -> void:
 				coins[sym] = {"qty": 0.0, "cost": 0.0}
 			coins[sym]["qty"] = holding(coins, sym) + got
 			counters["mined_value"] = float(counters.get("mined_value", 0.0)) + got * price(sym)
-	counters["dividends_earned"] = float(counters.get("dividends_earned", 0.0)) + dividends_per_hour() * dt / 3600.0
 	for sym in coins.keys():
 		var st := staked(sym)
 		if st > 0.0:
@@ -2246,7 +2290,7 @@ func to_dict() -> Dictionary:
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
-		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
+		"deal_wait": deal_wait, "div_hour": div_hour, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
 		"sun_wait": sun_wait, "sun_day": sun_day, "sun_count": sun_count,
 		"vibrate": vibrate, "reduce_motion": reduce_motion, "started_at": started_at,
@@ -2453,6 +2497,11 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v14: the casino (locked, no chips).
 		d["casino"] = d.get("casino", {"open": false, "chips": 0.0})
 		v = 14
+	if v < 15:
+		# v15: dividends pay on the hour. Older saves earned them all along,
+		# so counting starts from the save time (nothing paid twice).
+		d["div_hour"] = int(floor(float(d.get("saved_at", 0.0)) / 3600.0)) if float(d.get("saved_at", 0.0)) > 0.0 else -1
+		v = 15
 	d["version"] = v
 	return d
 
@@ -2560,6 +2609,7 @@ func _reset_state() -> void:
 	sun_day = -1
 	sun_count = 0
 	deal_wait = 1500.0
+	div_hour = -1
 	payouts = []
 	history = []
 	away_earned = 0.0
@@ -2622,6 +2672,7 @@ func load_game() -> void:
 	daily = d.get("daily", {})
 	weekly = d.get("weekly", {})
 	deal_wait = float(d.get("deal_wait", 1500.0))
+	div_hour = int(d.get("div_hour", -1))
 	deal = d.get("deal", {})
 	ui = d.get("ui", {})
 	streak = int(d.get("streak", 0))
@@ -2806,7 +2857,7 @@ const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost
 	"upgrades", "rewards", "home", "deal", "payouts", "history"]
 const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
 	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
-	"weekly", "deal_wait", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
+	"weekly", "deal_wait", "div_hour", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
 	"reduce_motion", "started_at", "rebirth", "casino"]   # casino: the unlock stays, chips are cleared
 
 
@@ -2908,6 +2959,7 @@ func do_rebirth() -> int:
 	daily = keep["daily"]
 	weekly = keep["weekly"]
 	deal_wait = float(keep["deal_wait"])
+	div_hour = int(keep["div_hour"])
 	ui = keep["ui"]
 	streak = int(keep["streak"])
 	streak_day = int(keep["streak_day"])

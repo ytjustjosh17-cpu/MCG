@@ -318,7 +318,7 @@ func refresh() -> void:
 			var gain := v - Game.book_cost(Game.shares)
 			_sum_sub.text = "My shares"
 			_sum_value.text = Game.money(v)
-			_sum_right_sub.text = "Dividends"
+			_sum_right_sub.text = "Dividends · next in %d min" % int(ceil(Game.next_dividend_in() / 60.0))
 			_sum_right.text = Game.money_short(Game.dividends_per_hour()) + " /h"
 			_sum_right.add_theme_color_override("font_color", UI.TEXT)
 			var paid_out := float(Game.counters.get("dividends_earned", 0.0))
