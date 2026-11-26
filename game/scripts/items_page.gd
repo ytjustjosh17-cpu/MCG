@@ -58,6 +58,7 @@ func build() -> void:
 
 	# The casino lives with your lifestyle.
 	var cc := card()
+	cc.get_parent().visible = ResourceLoader.exists("res://scripts/slots_page.gd")   # shown once the games are in
 	_casino_row = Row.new()
 	_casino_row.set_lead(CasinoPage.CasinoArt.new("roulette", 44.0))
 	_casino_row.pressed.connect(func():

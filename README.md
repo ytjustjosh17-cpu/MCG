@@ -19,6 +19,7 @@ Tap to earn, start companies, trade made-up shares and well-known crypto coins, 
 - 17 companies to open, fill and expand, with milestones, partners and head office upgrades
 - Shares, property and real crypto coins (with miners and locking)
 - Daily and weekly goals, golden suns, rivals, achievements
+- Rebirth for RBP and a 152-node tree that stays forever
 - Built to take weeks, not days
 
 Latest changes: [CHANGELOG.md](CHANGELOG.md).
@@ -66,6 +67,7 @@ Only install `Sol.apk` from this repo's Releases page.
 - [Inter](https://github.com/rsms/inter) font as a backup (SIL Open Font License 1.1), see `game/assets/fonts/LICENSE.txt`
 - [Phosphor](https://github.com/phosphor-icons/core) icons (MIT), see `game/assets/icons/LICENSE-phosphor.txt`
 - Coin logos from [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons) (CC0), see `game/assets/coins/LICENSE.txt`
+- Playing cards from Kenney's Boardgame Pack (CC0), see `game/assets/cards/LICENSE-kenney.txt`
 
 ## For developers
 

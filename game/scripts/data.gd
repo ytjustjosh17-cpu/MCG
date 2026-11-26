@@ -344,4 +344,5 @@ const WHATS_NEW := [
 	"Buy, sell or lock any amount: slide or type.",
 	"Convert coins, and watch your miners work.",
 	"Rebirth for RBP and grow the 152-node tree.",
+	"Casino: three slot machines, roulette, blackjack.",
 ]

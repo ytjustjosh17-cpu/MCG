@@ -276,6 +276,25 @@ func _run() -> void:
 	await _shot("32_mine_pick")
 	root.get_node("Kit").close_top()
 	await create_timer(0.4).timeout
+	# Casino lobby: locked, then open with chips.
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
+	main.show_page(3)
+	await create_timer(0.5).timeout
+	main.push(CasinoPage.new())
+	await create_timer(0.9).timeout
+	await _shot("35_casino_locked")
+	g.cash = 5.0e9
+	g.unlock_casino()
+	g.buy_chips(2.5e5)
+	g.counters["casino_bet"] = 1.8e5
+	g.counters["casino_won"] = 1.62e5
+	g.flush_changes()
+	await create_timer(0.4).timeout
+	await _shot("36_casino")
+	main.pop()
+	await create_timer(0.5).timeout
 	# Rebirth and the tree: a second run with part of the tree bought.
 	g.streak_unseen = []
 	while root.get_node("Kit").close_top():
