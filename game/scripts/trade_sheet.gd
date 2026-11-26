@@ -31,7 +31,7 @@ static func open(k: String, s: String, m: String) -> void:
 	ts.kind = k
 	ts.sym = s
 	ts.mode = m
-	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock ", "chips_in": "Buy chips", "chips_out": "Cash out"}[m] + s
+	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock ", "chips_in": "Buy chips", "chips_out": "Cash out", "bank_in": "Deposit", "bank_out": "Withdraw", "loan": "Borrow"}[m] + s
 	Kit.sheet(title, "", [{"text": "Close", "style": "plain"}], true, ts)
 
 
@@ -127,7 +127,7 @@ func _ready() -> void:
 	_go.pressed.connect(_confirm)
 	Kit.press_fx(_go)
 	add_child(_go)
-	frac = {"buy": 0.1, "lock": 1.0, "chips_in": 0.1, "chips_out": 1.0}.get(mode, 0.5)
+	frac = {"buy": 0.1, "lock": 1.0, "chips_in": 0.1, "chips_out": 1.0, "bank_in": 0.5, "bank_out": 1.0, "loan": 0.5}.get(mode, 0.5)
 	_slider.set_value(frac)
 	_update()
 	Game.changed.connect(_update)   # cash and prices move while it is open
@@ -152,6 +152,12 @@ func _max_value() -> float:
 		return Game.cash
 	if mode == "chips_out":
 		return Game.chips()
+	if mode == "bank_in":
+		return maxf(0.0, Game.cash)
+	if mode == "bank_out":
+		return Game.savings()
+	if mode == "loan":
+		return Game.loan_limit()
 	return Game.holding(_book(), sym) * Game.price(sym)
 
 
@@ -186,7 +192,21 @@ func _update() -> void:
 	var amount := mx * frac
 	_amount = amount
 	var units := amount / p if p > 0.0 else 0.0
-	if mode == "chips_in" or mode == "chips_out":
+	if mode == "bank_in" or mode == "bank_out":
+		var dep := mode == "bank_in"
+		_have.text = "Cash %s · saved %s" % [Game.money(Game.cash), Game.money(Game.savings())]
+		_big.text = Game.money_short(amount)
+		_sub.text = "Earns 0.2% an hour" if dep else "Back to your cash"
+		_after.text = "After: %s saved · %s cash" % [Game.money_short(Game.savings() + (amount if dep else -amount)), Game.money_short(Game.cash + (-amount if dep else amount))]
+		_go.text = ("Deposit · " if dep else "Withdraw · ") + Game.money_short(amount)
+	elif mode == "loan":
+		var pay := amount * (1.0 + Data.LOAN_FEE) / float(Data.LOAN_PAYMENTS)
+		_have.text = "You can borrow up to %s" % Game.money_short(Game.loan_limit())
+		_big.text = Game.money_short(amount)
+		_sub.text = "Pay back %d × %s, one every %d h" % [Data.LOAN_PAYMENTS, Game.money_short(pay), int(Data.LOAN_EVERY_H)]
+		_after.text = "Total %s (25%% fee). Short on a payment? Your cash goes into the minus." % Game.money_short(amount * (1.0 + Data.LOAN_FEE))
+		_go.text = "Borrow · " + Game.money_short(amount)
+	elif mode == "chips_in" or mode == "chips_out":
 		var inn := mode == "chips_in"
 		_have.text = "Cash %s · chips %s" % [Game.money(Game.cash), Game.money(Game.chips())]
 		_big.text = Game.money_short(amount)
@@ -269,6 +289,15 @@ func _confirm() -> void:
 		"lock":
 			ok = Game.stake(sym, frac)
 			msg = "Locked for 24 h"
+		"bank_in":
+			ok = Game.deposit(_amount)
+			msg = "Saved " + Game.money_short(_amount)
+		"bank_out":
+			ok = Game.withdraw(_amount)
+			msg = "Withdrew " + Game.money_short(_amount)
+		"loan":
+			ok = Game.take_loan(_amount)
+			msg = "Borrowed " + Game.money_short(_amount)
 		"chips_in":
 			ok = Game.buy_chips(_amount)
 			msg = "Chips · " + Game.money_short(_amount)

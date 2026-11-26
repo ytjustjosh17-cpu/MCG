@@ -18,7 +18,7 @@ signal auto_tapped(count: int, amount: float)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 16
+const SAVE_VERSION := 17
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -65,6 +65,7 @@ var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for th
 var mine_target := ""  # the one coin every miner digs up (v10); change it any time
 var upgrades := {}     # head office upgrades bought: id -> true (v11)
 var auto_level := 0    # auto clicker level, 0 = none (v16)
+var bank := {"saved": 0.0, "loan": {}}   # savings, and the loan if any (v17)
 var _auto_acc := 0.0
 var rewards: Array = []  # earned but not yet claimed: {key, kind, title, amount} (v12)
 var rebirth := {"count": 0, "earned": 0, "nodes": {}}   # RBP earned in total, tree nodes owned (v13)
@@ -1761,7 +1762,7 @@ func business_value() -> float:
 
 
 func net_worth() -> float:
-	return cash + chips() + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
+	return cash + chips() + savings() - loan_owed() + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
 
 
 func business_per_hour() -> float:
@@ -2337,7 +2338,104 @@ func apply_offline(seconds: float) -> void:
 	_check_achievements()
 
 
+# ==== bank =================================================================
+
+func savings() -> float:
+	return float(bank.get("saved", 0.0))
+
+
+func savings_per_hour() -> float:
+	## Interest an hour on savings, capped against base income.
+	var cap := maxf(base_income(), Data.BANK_CAP_FLOOR) * Data.BANK_CAP
+	return minf(savings() * Data.BANK_RATE_H, cap)
+
+
+func deposit(amount: float) -> bool:
+	amount = minf(amount, cash)
+	if amount < 0.01:
+		return false
+	cash -= amount
+	bank["saved"] = savings() + amount
+	recalc()
+	save_game()
+	return true
+
+
+func withdraw(amount: float) -> bool:
+	amount = minf(amount, savings())
+	if amount < 0.01:
+		return false
+	bank["saved"] = savings() - amount
+	cash += amount
+	recalc()
+	save_game()
+	return true
+
+
+func loan() -> Dictionary:
+	return bank.get("loan", {})
+
+
+func loan_limit() -> float:
+	return maxf(Data.LOAN_MIN, base_income() * Data.LOAN_MAX_H)
+
+
+func loan_owed() -> float:
+	var l := loan()
+	return 0.0 if l.is_empty() else float(l["payment"]) * float(l["left"])
+
+
+func take_loan(amount: float) -> bool:
+	## One loan at a time; paid back in set payments, the first after 4 h.
+	if not loan().is_empty() or amount < 1.0 or amount > loan_limit() + 0.01:
+		return false
+	var total := amount * (1.0 + Data.LOAN_FEE)
+	bank["loan"] = {"amount": amount, "payment": total / float(Data.LOAN_PAYMENTS),
+		"left": Data.LOAN_PAYMENTS, "next": now() + Data.LOAN_EVERY_H * 3600.0}
+	cash += amount
+	_bump("loans")
+	GameLog.info("bank", "Loan %s, %d payments of %s" % [money(amount), Data.LOAN_PAYMENTS, money(total / float(Data.LOAN_PAYMENTS))])
+	recalc()
+	save_game()
+	return true
+
+
+func repay_loan() -> bool:
+	## Pay off everything left now (no discount).
+	var owed := loan_owed()
+	if owed <= 0.0 or cash < owed:
+		return false
+	cash -= owed
+	bank["loan"] = {}
+	recalc()
+	save_game()
+	return true
+
+
+func _bank_tick(dt: float) -> void:
+	## Interest into savings, and loan payments when they fall due (cash may
+	## go into the minus; income then pays that off first).
+	if savings() > 0.0 and dt > 0.0:
+		var got := savings_per_hour() * dt / 3600.0
+		bank["saved"] = savings() + got
+		counters["interest_earned"] = float(counters.get("interest_earned", 0.0)) + got
+	var l := loan()
+	while not l.is_empty() and now() >= float(l["next"]):
+		cash -= float(l["payment"])
+		l["left"] = int(l["left"]) - 1
+		l["next"] = float(l["next"]) + Data.LOAN_EVERY_H * 3600.0
+		GameLog.info("bank", "Loan payment %s, %d left" % [money(float(l["payment"])), int(l["left"])])
+		if int(l["left"]) <= 0:
+			bank["loan"] = {}
+			l = {}
+
+
+func in_minus() -> bool:
+	return cash < 0.0
+
+
 func _accrue(dt: float) -> void:
+	_bank_tick(dt)
 	## Dividends earned so far, staking rewards and mining (both paid in coins).
 	for sym in ([mine_target] if mine_target != "" else []):
 		var got := mine_per_hour(sym) * dt / 3600.0
@@ -2382,7 +2480,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "auto_level": auto_level, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "auto_level": auto_level, "bank": bank, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "div_hour": div_hour, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2600,6 +2698,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v16: the auto clicker (none yet).
 		d["auto_level"] = int(d.get("auto_level", 0))
 		v = 16
+	if v < 17:
+		# v17: the bank (nothing saved, no loan).
+		d["bank"] = d.get("bank", {"saved": 0.0, "loan": {}})
+		v = 17
 	d["version"] = v
 	return d
 
@@ -2691,6 +2793,7 @@ func _reset_state() -> void:
 	mine_target = ""
 	upgrades = {}
 	auto_level = 0
+	bank = {"saved": 0.0, "loan": {}}
 	rewards = []
 	rebirth = {"count": 0, "earned": 0, "nodes": {}}
 	_rb_cache = {}
@@ -2761,6 +2864,7 @@ func load_game() -> void:
 	upgrades = d.get("upgrades", {})
 	rewards = d.get("rewards", [])
 	auto_level = int(d.get("auto_level", 0))
+	bank = d.get("bank", {"saved": 0.0, "loan": {}})
 	rebirth = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
 	_rb_cache = {}
 	casino = d.get("casino", {"open": false, "chips": 0.0})
@@ -2988,7 +3092,7 @@ func casino_pay(amount: float) -> float:
 # every saved key is in exactly one of these lists.
 const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost_until", "ibost_ready_at",
 	"biz", "shares", "coins", "props", "items", "mergers", "synergies", "miners", "mine_target",
-	"upgrades", "auto_level", "rewards", "home", "deal", "payouts", "history"]
+	"upgrades", "auto_level", "bank", "rewards", "home", "deal", "payouts", "history"]
 const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
 	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
 	"weekly", "deal_wait", "div_hour", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",

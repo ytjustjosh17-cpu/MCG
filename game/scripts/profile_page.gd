@@ -10,6 +10,7 @@ var _rows := {}
 var _mbar: MoneyBar
 const PARTS := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items"], ["cash", "Cash"]]
 var _reb_row: Row
+var _bank_row: Row
 var _ach_row: Row
 var _rival_row: Row
 var _upd_card: PanelContainer
@@ -93,6 +94,12 @@ func build() -> void:
 		Kit.tick()
 		push_page.emit(RebirthPage.new()))
 	ac.add_child(_reb_row)
+	separator(ac, 50)
+	_bank_row = Row.new("home")
+	_bank_row.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(BankPage.new()))
+	ac.add_child(_bank_row)
 	separator(ac, 50)
 	_ach_row = Row.new("trophy")
 	_ach_row.pressed.connect(func():
@@ -179,6 +186,12 @@ func refresh() -> void:
 	var pend := Game.rebirth_pending()
 	var free := Game.rbp_free()
 	var sub := ("Ready: +%s RBP" % Game.group(pend)) if pend > 0 else ("Unlocks at %s net worth" % Game.money_short(Data.REBIRTH_MIN) if Game.rebirths() == 0 else "Next at %s net worth" % Game.money_short(Data.REBIRTH_MIN))
+	var bank_sub := "Save and borrow"
+	if not Game.loan().is_empty():
+		bank_sub = "Loan · %s left" % Game.money_short(Game.loan_owed())
+	elif Game.savings() > 0.0:
+		bank_sub = "+%s an hour" % Game.money_short(Game.savings_per_hour())
+	_bank_row.set_texts("Bank", bank_sub, Game.money_short(Game.savings()) if Game.savings() > 0.0 else "")
 	_reb_row.set_texts("Rebirth", sub, ("%s RBP" % Game.group(free)) if free > 0 else "")
 	_rival_row.set_texts("Rivals", "", "%d/%d" % [Game.rivals_beaten(), Data.RIVALS.size()])
 
