@@ -77,6 +77,10 @@ func _run() -> void:
 	await _shot("02_business")
 	main.push(BusinessDetail.new("taxi"))
 	await _shot("03_taxi")
+	main._stack[-1]._on_hire()
+	await _shot("03b_manager")
+	root.get_node("Kit").close_top()
+	await create_timer(0.4).timeout
 	main.pop()
 	await create_timer(0.4).timeout
 	main.push(StartBusinessPage.new())

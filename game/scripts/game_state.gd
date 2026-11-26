@@ -2254,6 +2254,16 @@ func _guard_load() -> void:
 		_guard = g if typeof(g) == TYPE_DICTIONARY else {}
 
 
+func _guard_strict() -> void:
+	## Marks this game: nothing saved before now may be restored into it.
+	_guard_load()
+	_guard[str(int(started_at)) + "!"] = now()
+	var f := FileAccess.open(GUARD_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(_guard))
+		f.close()
+
+
 func _guard_note() -> void:
 	## Remembers how far each game on this phone has got (newest save time).
 	_guard_load()
@@ -2317,6 +2327,12 @@ func restore_code(text: String) -> bool:
 	if restore_guard and sim_time < 0.0:
 		_guard_load()
 		var gk := str(int(float(d.get("started_at", 0.0))))
+		# After a casino bet, no older backup of this game may come back, with
+		# no 10-minute allowance (else: back up, gamble, restore if down).
+		if _guard.has(gk + "!") and float(d.get("saved_at", 0.0)) <= float(_guard[gk + "!"]):
+			restore_error = "This backup is from before a casino bet in this game. Use it on a new phone or after reinstalling."
+			GameLog.info("save", "Restore refused: older than a casino bet")
+			return false
 		if _guard.has(gk) and float(d.get("saved_at", 0.0)) < float(_guard[gk]) - 600.0:
 			restore_error = "This backup is older than your game here. Use it on a new phone or after reinstalling."
 			GameLog.info("save", "Restore refused: older backup of this same game")
@@ -2709,6 +2725,7 @@ func casino_stake(amount: float, limit_mult := 1.0) -> bool:
 	casino["chips"] = chips() - amount
 	counters["casino_bet"] = float(counters.get("casino_bet", 0.0)) + amount
 	counters["casino_rounds"] = int(counters.get("casino_rounds", 0)) + 1
+	_guard_strict()
 	save_game()
 	flush_changes()
 	return true

@@ -187,13 +187,13 @@ func refresh() -> void:
 	# A fully expanded company has nothing left for a manager to do.
 	_mgr.get_parent().get_parent().visible = stage < Data.MAX_STAGE
 	if Game.has_manager(id):
-		_mgr.set_texts("Manager hired", "Expands for you · takes %d%%" % cut, "")
+		_mgr.set_texts("Manager hired", "Starts each expansion for you · takes %d%%" % cut, "What they do")
 		if not _mgr.has_meta("hired"):
 			_mgr.set_meta("hired", true)
 			_mgr.set_lead(Icon.new("check", UI.TEXT, 22.0))
 	else:
 		var mc := Game.manager_cost(id)
-		_mgr.set_texts("Manager", "Expands for you · takes %d%%" % cut, Game.money_short(mc))
+		_mgr.set_texts("Hire a manager", "Starts each expansion for you · takes %d%%" % cut, Game.money_short(mc))
 		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= mc else UI.SUB)
 	if units >= cap:
 		_units_value.text = "%d / %d · Full" % [units, cap]
@@ -251,10 +251,27 @@ static func _span(sec: float) -> String:
 	return "%d h %d min" % [m / 60, m % 60]
 
 
+func _manager_text() -> String:
+	var cut := int(round(Game.manager_cut() * 100.0))
+	var t := "Starts each expansion for you when the company is full and you have the cash. Works while you're away."
+	t += "\nYou still buy the units."
+	t += ("\nPay: %d%% of this company's income until it's fully expanded." % cut) if cut > 0 else "\nPay: nothing (Loyal staff in your tree)."
+	return t
+
+
 func _on_hire() -> void:
-	if Game.has_manager(id):
-		return
 	Kit.tick()
+	if Game.has_manager(id):
+		Kit.sheet("Your manager", _manager_text(), [{"text": "Close", "style": "plain"}])
+		return
+	var mc := Game.manager_cost(id)
+	Kit.sheet("Hire a manager?", _manager_text() + "\nCost: %s, once." % Game.money_short(mc), [
+		{"text": "Hire · " + Game.money_short(mc), "style": "primary", "call": _hire_now},
+		{"text": "Not now", "style": "plain"},
+	])
+
+
+func _hire_now() -> void:
 	if Game.hire_manager(id):
 		Kit.haptic("success")
 		Kit.toast("Manager hired", true)
