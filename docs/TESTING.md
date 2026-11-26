@@ -9,6 +9,10 @@ Run them yourself first. A release with a failing test is never pushed.
 - The Godot project is `game/`. Import it once: `cd game && $G --headless --import --path .`
 - Optional, for the real fonts in screenshots: download Switzer and Tanker from Fontshare into `game/assets/fonts/ext/` (the CI step in `.github/workflows/android.yml` shows how). Never commit them.
 
+## One command
+
+`tools/check_all.sh` runs the rules and every suite in 4 parallel lanes (each in its own copy of the game and user folder), about 2 minutes. `--quick` runs rules, smoke and the touch test. `tools/shots.sh` renders the screenshots. `tools/release.sh` checks, pushes and waits for the build.
+
 ## The checks
 
 | Check | Command (from `game/` unless noted) | What it covers | Time |
