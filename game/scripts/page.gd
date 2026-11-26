@@ -61,9 +61,26 @@ func set_title(t: String) -> void:
 		_title_label.text = t
 
 
+const REFRESH_MS := 250   # pages redraw at most 4 times a second (battery)
+var _last_refresh_ms := -100000
+var _refresh_queued := false
+
+
 func _on_changed() -> void:
-	if is_visible_in_tree():
+	if not is_visible_in_tree():
+		return
+	var t := Time.get_ticks_msec()
+	if t - _last_refresh_ms >= REFRESH_MS:
+		_last_refresh_ms = t
 		refresh()
+	elif not _refresh_queued:
+		# Catch the last change too, a moment later.
+		_refresh_queued = true
+		get_tree().create_timer(float(REFRESH_MS - (t - _last_refresh_ms)) / 1000.0).timeout.connect(func():
+			_refresh_queued = false
+			if is_instance_valid(self) and is_visible_in_tree():
+				_last_refresh_ms = Time.get_ticks_msec()
+				refresh())
 
 
 func build() -> void:

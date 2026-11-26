@@ -42,8 +42,8 @@ Rules:
 | Captions, sub-lines | Switzer Regular | 13 |
 
 - Tanker and Switzer come from Fontshare at build time (licence: allowed in the app, not in the repo). Inter is the fallback if the download fails.
-- Tanker is all caps, so keep display text short. Money suffixes like "Qi" read as "QI" in Tanker; avoid display type for values above $1e18.
-- Money: `Game.money()` for exact amounts, `Game.money_short()` for everything else ($32K, $1.2M, $12.27M). No trailing zeros.
+- Tanker is all caps, so keep display text short. Money suffixes like "Qi" read as "QI" in Tanker; avoid display type for values above £1e18.
+- Money: `Game.money()` for exact amounts, `Game.money_short()` for everything else (£32K, £1.2M, £12.27M). No trailing zeros.
 
 ## Layout
 
@@ -87,6 +87,8 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 
 ## Battery
 
+- Pages refresh at most 4 times a second (`Page.REFRESH_MS`), with a final refresh after the last change. Avoid measuring text or making styleboxes in `refresh()`; cache them.
+
 - The game draws at most 60 frames a second (`run/max_fps`), and 5 while it is out of focus (notification shade, a call). It saves when it loses focus.
 
 ## Haptics
@@ -109,7 +111,7 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - Tap combo counter on the tower ("25 COMBO") is just for fun and pays nothing extra.
 - A golden sun sometimes drifts across the tower (max 4 a day, only while playing). Tap it for a small prize.
 - Filters and sorts are drop-downs (`Kit.drop_pill()` + `Kit.pick()`), never rows of chips. Lists don't jump while you look at them.
-- Earn shows cash to the penny ($1,385.62) as the big number; net worth sits below it.
+- Earn shows cash to the penny (£1,385.62) as the big number; income and net worth sit below it. No next-goal card (owner removed it).
 - Every art kind has its own setting in `Art.SCENES`: where the sun sits and how big, the skyline (city, dense, cranes, hills, none) and the ground (street, water with the sun's reflection, runway, field). Only some get a pylon. A new kind needs its own entry, so no two pictures look alike.
 - Company rows on the Business tab are compact: picture, name, stage and units, income, a thin bar, and a red dot only when something can be bought.
 - Art scenes share one backdrop (`Art.backdrop`): sun with a soft glow, far skyline, low mist, and a pylon with hanging cables on big pictures.
@@ -128,7 +130,7 @@ One word per idea, everywhere: "units" (not outlets/spaces), "Stage", "Expand", 
 ## Words
 
 - British English, short, plain. One line beats two. Numbers beat adjectives.
-- Say what happens: "Expand · $272K", "Tap the tower to earn", "Ready again in 3:12".
+- Say what happens: "Expand · £272K", "Tap the tower to earn", "Ready again in 3:12".
 - No jargon without a hint. Staking, dividends and mergers each have a short explanation where they appear.
 - No em dashes, no "seamless", "elevate", "unlock your potential" or similar filler (rule R4 checks the dashes).
 

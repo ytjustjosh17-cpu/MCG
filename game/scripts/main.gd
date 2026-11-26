@@ -41,8 +41,7 @@ func _ready() -> void:
 			p.push_page.connect(push)
 	earn.open_tab.connect(show_page)
 	(_pages[1] as BusinessPage).deal_open.connect(open_waiting_deal)
-	Game.achievement.connect(func(title: String, reward: float):
-		Kit.toast("%s · claim %s in Profile" % [title, Game.money_short(reward)], true))
+	# Achievements are quiet: the round dot on Profile says one is waiting.
 	Game.goal_done.connect(func(scope: String, text: String, reward: float):
 		Kit.celebrate("Goal done" if scope == "daily" else "Week goal done", text + " · claim it in Goals", Game.money_short(reward)))
 	Game.rival_beaten.connect(func(i: int):
@@ -432,15 +431,32 @@ func open_waiting_deal() -> void:
 	_show_deal()
 
 
+func _claim_gift() -> void:
+	var got := Game.claim_all("streak")
+	if got > 0.0:
+		Kit.haptic("success")
+		Kit.sound("fanfare")
+		Kit.toast("+" + Game.money_short(got), true)
+		Game.flush_changes()
+
+
 func _show_deal() -> void:
 	## Shows the waiting deal when nothing else is open. One line, two choices.
 	## Also shows the welcome-back card after time away.
 	if Game.away_unseen and Game.away_earned >= 1.0 and not Kit.has_open():
 		Game.away_unseen = false
 		var lines: Array = ["Away for %s" % Game.clock(Game.away_seconds), "Earned %s" % Game.money_short(Game.away_earned)] + Game.away_notes
-		Kit.sheet("Welcome back", "\n".join(lines), [
-			{"text": "Continue", "style": "primary"},
-		])
+		var actions: Array = [{"text": "Continue", "style": "primary"}]
+		# One sheet, not two: today's gift goes on the welcome-back card.
+		if not Game.streak_unseen.is_empty():
+			var st: Array = Game.streak_unseen
+			Game.streak_unseen = []
+			lines.append(("Daily gift" if st[0] <= 1 else "Day %d streak" % st[0]) + " · +" + Game.money_short(st[1]))
+			actions = [
+				{"text": "Claim " + Game.money_short(st[1]), "style": "primary", "call": _claim_gift},
+				{"text": "Later", "style": "plain"},
+			]
+		Kit.sheet("Welcome back", "\n".join(lines), actions)
 		return
 	# The daily gift waits until a new player has tapped a little, so it never
 	# covers the first "Tap the tower" hint.
@@ -454,13 +470,7 @@ func _show_deal() -> void:
 			Game.streak_lost = 0
 		# The gift waits for a tap on Claim (it also waits in Goals if closed).
 		Kit.sheet(title, line, [
-			{"text": "Claim " + Game.money_short(st[1]), "style": "primary", "call": func():
-				var got := Game.claim_all("streak")
-				if got > 0.0:
-					Kit.haptic("success")
-					Kit.sound("fanfare")
-					Kit.toast("+" + Game.money_short(got), true)
-					Game.flush_changes()},
+			{"text": "Claim " + Game.money_short(st[1]), "style": "primary", "call": _claim_gift},
 			{"text": "Later", "style": "plain"},
 		], true, UI.display("+" + Game.money_short(st[1]), 40))
 		return
