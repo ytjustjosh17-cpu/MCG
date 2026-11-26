@@ -14,7 +14,8 @@ var _chart: PriceChart
 var _own_card: Control
 var _own: Label
 var _profit: Label
-var _extra: Label
+var _tail := ""
+var _news_title: Control
 var _sell: Button
 var _convert: Button
 var _lock_row: Row
@@ -53,12 +54,14 @@ func build() -> void:
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 0)
 	head.add_child(hv)
-	var tag_text := "%s · %s · %s a share each hour" % [sym, a[4], price_text(Game.dividend_rate(sym))] if kind == "share" else "%s · Crypto" % sym
-	var tag := UI.label(tag_text, 13, UI.asset_color(sym))
-	hv.add_child(tag)
+	# The title already names it: ticker and sector ride on the change line.
+	_tail = (" · %s · %s · pays %s a share /h" % [sym, a[4], price_text(Game.dividend_rate(sym))]) if kind == "share" else " · %s" % sym
 	_price = UI.display("", 40)
 	hv.add_child(_price)
 	_change = UI.label("", 13)
+	_change.clip_text = true
+	_change.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hv.add_child(_change)
 	_chart = PriceChart.new(sym, "1H", true)
 	_chart.line_col = UI.asset_color(sym)
@@ -102,8 +105,6 @@ func build() -> void:
 	_profit.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var pl: Label = _profit.get_parent().get_child(0)
 	pl.size_flags_horizontal = Control.SIZE_FILL
-	separator(c)
-	_extra = _line(c, "Pays" if kind == "share" else "Earns")
 	if kind == "coin":
 		separator(c)
 		_mine_l = _line(c, "Mining")
@@ -115,7 +116,7 @@ func build() -> void:
 		_lock_row.pressed.connect(_on_stake)
 		lc.add_child(_lock_row)
 
-	section("News")
+	_news_title = section("News")
 	_news_box = card()
 
 
@@ -181,7 +182,7 @@ func refresh() -> void:
 	if not _scrubbing:
 		_price.text = price_text(Game.price(sym))
 		var move := Game.change_pct(sym, RANGE_MIN[_seg.index])
-		_change.text = "%s · %s" % [change_text(move), RANGES[_seg.index]]
+		_change.text = "%s · %s%s" % [change_text(move), RANGES[_seg.index], _tail]
 		_change.add_theme_color_override("font_color", UI.change_color(move))
 		_chart.queue_redraw()
 	var book := _book()
@@ -193,7 +194,11 @@ func refresh() -> void:
 	var avg := Game.avg_price(book, sym) if total > 0.0 else 0.0
 	_chart.avg_price = avg
 	_own_card.visible = total > 0.0
+	# What it earns sits on the same line as what you own.
+	var earn := free * Game.dividend_rate(sym) if kind == "share" else Game.stake_earn_per_hour(sym) + Game.mine_per_hour(sym) * Game.price(sym)
 	_own.text = "%s · %s" % [qty_text(total), Game.money_short(worth)]
+	if earn > 0.0:
+		_own.text += " · +%s/h" % Game.money_short(earn)
 	var gain := worth - paid
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
 	_profit.text = "%s%s (%.1f%%) · avg %s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct), price_text(avg)]
@@ -204,11 +209,7 @@ func refresh() -> void:
 	elif absf(pct) < 0.05:
 		_profit.text = "No change · avg " + price_text(avg)
 		_profit.add_theme_color_override("font_color", UI.SUB)
-	if kind == "share":
-		_extra.text = price_text(free * Game.dividend_rate(sym)) + " /h · paid on the hour"
-	else:
-		var earn := Game.stake_earn_per_hour(sym) + Game.mine_per_hour(sym) * Game.price(sym)
-		_extra.text = ("+" + Game.money_short(earn) + " /h") if earn > 0.0 else "Nothing yet"
+	if kind == "coin":
 		var nr := Game.rig_count(sym)
 		_mine_line.visible = nr > 0
 		if nr > 0:
@@ -236,14 +237,10 @@ func _fill_news() -> void:
 	for ch in _news_box.get_children():
 		ch.queue_free()
 	var items := Game.news_for(sym)
+	# No news: no empty section at all.
+	_news_title.get_parent().visible = not items.is_empty()
+	_news_box.get_parent().visible = not items.is_empty()
 	if items.is_empty():
-		var m := MarginContainer.new()
-		m.add_theme_constant_override("margin_left", 16)
-		m.custom_minimum_size = Vector2(0, 48)
-		_news_box.add_child(m)
-		var l := UI.label("No news yet", 15, UI.SUB)
-		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		m.add_child(l)
 		return
 	for i in range(mini(items.size(), 3)):
 		if i > 0:

@@ -51,7 +51,10 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	th.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left.add_child(th)
 	title_l = UI.label("", 17)
-	title_l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	# A long name ends in "..." instead of pushing the value off the card.
+	title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# A long one-line name trims with "..." (set in set_texts, so titles a
+	# page makes wrap, like headlines, are left alone).
 	th.add_child(title_l)
 	mark = ColorRect.new()
 	mark.color = UI.TEXT  # "owned"; red stays for the sun and lit windows
@@ -61,6 +64,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	mark.visible = false
 	th.add_child(mark)
 	sub_l = UI.label("", 13, UI.SUB)
+	sub_l.clip_text = true
 	sub_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	left.add_child(sub_l)
 	var right := VBoxContainer.new()
@@ -81,6 +85,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 
 
 func set_texts(t: String, s := "", v := "", n := "") -> void:
+	title_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if title_l.autowrap_mode == TextServer.AUTOWRAP_OFF else TextServer.OVERRUN_NO_TRIMMING
 	title_l.text = t
 	sub_l.text = s
 	sub_l.visible = s != ""

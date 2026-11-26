@@ -277,7 +277,8 @@ func _run() -> void:
 	var spent := 0.0
 	if tb:
 		_ok(tb._field.select_all_on_focus, "the amount box selects its old amount on tap")
-		tb._field.grab_focus()
+		await _wobble_tap(tb._type_btn.get_global_rect().get_center())
+		_ok(tb._field.visible and tb._field.has_focus(), "tapping Type an amount opens the box")
 		tb._field.text = "500"
 		tb._field.text_changed.emit("500")
 		g.cash += 2000.0
