@@ -189,19 +189,19 @@ func _spend() -> void:
 			if g.synergy_ready(sy[0]) and g.cash >= float(sy[6]) and g.biz_income(sy[4]) * (float(sy[5]) - 1.0) * 24.0 >= float(sy[6]):
 				g.buy_synergy(sy[0]); bought = true
 		# Open the next business.
-		for b in Data.BUSINESSES:
+		for b in g.businesses():
 			if not g.owns(b["id"]) and g.cash >= b["cost"]:
 				g.open_business(b["id"], b["names"][0]); bought = true
 				break
 		# Expand full companies.
-		for b in Data.BUSINESSES:
+		for b in g.businesses():
 			var id: String = b["id"]
 			if g.owns(id) and g.biz[id]["units"] >= g.capacity(id) and g.can_expand(id):
 				g.start_expansion(id); bought = true
 		# Best value unit.
 		var best := ""
 		var best_roi := 0.0
-		for b in Data.BUSINESSES:
+		for b in g.businesses():
 			var id: String = b["id"]
 			if g.owns(id) and g.biz[id]["units"] < g.capacity(id):
 				var p: float = g.unit_price(id)
@@ -221,7 +221,7 @@ func _spend() -> void:
 		if trader != "nohome" and g.next_home_cost() > 0.0 and g.next_home_cost() <= g.cash * 0.4:
 			g.move_home(); bought = true
 		# Property: cheapest one not owned, if it is a small part of cash.
-		for i in range(Data.PROPERTIES.size()):
+		for i in range(g.property_count()):
 			if not g.prop_owned(i) and g.prop_price(i) <= g.cash * 0.6:
 				g.buy_property(i); bought = true
 				break
@@ -231,7 +231,7 @@ func _spend() -> void:
 					bought = true
 		# Collections: cheapest missing item if affordable.
 		var cheapest := ["", -1, INF]
-		for c in Data.COLLECTIONS:
+		for c in g.collections():
 			for i in range(c["items"].size()):
 				if not g.item_owned(c["id"], i) and float(c["items"][i][1]) < cheapest[2]:
 					cheapest = [c["id"], i, float(c["items"][i][1])]

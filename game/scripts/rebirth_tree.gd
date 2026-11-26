@@ -48,6 +48,9 @@ const BRANCHES := [
 const UNLOCKS := [
 	["u_casino", "Sol Casino", 0, 6, "u_casino", "coins"],
 	["u_tables", "High tables", 4, 20, "u_tables", "diamond"],
+	["u_frontier", "Frontier", 7, 60, "u_frontier", "gauge"],
+	["u_isles", "Island estates", 2, 45, "u_isles", "home"],
+	["u_relics", "Relic hunters", 5, 50, "u_relics", "crown"],
 ]
 
 # "start" amounts: each step of `start` is worth more than the last, so the
@@ -191,4 +194,7 @@ static func describe(fx: Dictionary) -> String:
 			"casino": parts.append("Casino limits doubled")
 			"u_casino": parts.append("Opens Sol Casino: three slot machines, with chips you buy and cash out")
 			"u_tables": parts.append("Opens the casino tables: roulette and blackjack (needs Sol Casino)")
+			"u_frontier": parts.append("Two new top companies: Fusion plant and Orbital yards")
+			"u_isles": parts.append("Three new properties: a lighthouse, an observatory and a skyport")
+			"u_relics": parts.append("A new collection: six relics, +8% income when complete")
 	return ", ".join(parts)

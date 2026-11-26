@@ -35,6 +35,7 @@ func _draw() -> void:
 		"jets": _jet(o, s, k, ink, acc)
 		"yachts": _yacht(o, s, k, ink, acc)
 		"islands": _island(o, s, k, ink, acc)
+		"relics": _relic(o, s, k, ink, acc)
 
 
 func _p(o: Vector2, s: float, x: float, y: float) -> Vector2:
@@ -164,3 +165,37 @@ func _island(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 		draw_rect(Rect2(_p(o, s, hx, 0.72 - hgt - 0.1), Vector2(0.16, 0.1) * s), ink)
 		if k == 5:   # Crown Isle: a red roof light
 			draw_circle(_p(o, s, hx + 0.08, 0.72 - hgt - 0.13), s * 0.025, UI.RED if owned else UI.DIM)
+
+
+func _relic(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
+	# Six finds from the old coast, each its own shape.
+	var c := _p(o, s, 0.5, 0.5)
+	match k:
+		0:  # Iron Compass: a ring with a needle
+			draw_circle(c, s * 0.36, ink)
+			draw_circle(c, s * 0.29, UI.INK)
+			_poly(o, s, [[0.5, 0.2], [0.55, 0.5], [0.5, 0.8], [0.45, 0.5]], acc)
+			draw_circle(c, s * 0.04, ink)
+		1:  # Salt Crown: five points on a band
+			_poly(o, s, [[0.18, 0.7], [0.18, 0.38], [0.32, 0.55], [0.42, 0.3], [0.5, 0.52], [0.58, 0.3], [0.68, 0.55], [0.82, 0.38], [0.82, 0.7]], ink)
+			for x in [0.3, 0.5, 0.7]:
+				draw_circle(_p(o, s, x, 0.63), s * 0.04, acc)
+		2:  # Tern Idol: a standing bird figure
+			_poly(o, s, [[0.42, 0.85], [0.42, 0.45], [0.36, 0.3], [0.5, 0.15], [0.64, 0.3], [0.58, 0.45], [0.58, 0.85]], ink)
+			_poly(o, s, [[0.58, 0.45], [0.86, 0.38], [0.6, 0.55]], acc)
+			draw_circle(_p(o, s, 0.5, 0.27), s * 0.03, UI.INK)
+		3:  # Sun Lens: a glass disc catching a red sun
+			draw_circle(c, s * 0.34, ink)
+			draw_circle(c, s * 0.27, UI.SKY if owned else UI.PANEL)
+			draw_circle(c + Vector2(s * 0.06, s * 0.04), s * 0.12, UI.RED if owned else UI.DIM)
+			draw_line(_p(o, s, 0.74, 0.74), _p(o, s, 0.92, 0.92), ink, s * 0.07)
+		4:  # Drowned Bell: a bell with weed on its rim
+			_poly(o, s, [[0.3, 0.72], [0.34, 0.4], [0.42, 0.24], [0.58, 0.24], [0.66, 0.4], [0.7, 0.72]], ink)
+			draw_rect(Rect2(_p(o, s, 0.24, 0.72), Vector2(0.52, 0.06) * s), ink)
+			draw_circle(_p(o, s, 0.5, 0.84), s * 0.05, ink)
+			for x in [0.32, 0.46, 0.6]:
+				draw_line(_p(o, s, x, 0.72), _p(o, s, x + 0.03, 0.9), acc, 2.0, true)
+		_:  # First Ingot: a stepped bar with a stamp
+			_poly(o, s, [[0.14, 0.7], [0.24, 0.42], [0.76, 0.42], [0.86, 0.7]], ink)
+			_poly(o, s, [[0.24, 0.42], [0.3, 0.36], [0.82, 0.36], [0.76, 0.42]], acc)
+			draw_circle(_p(o, s, 0.5, 0.56), s * 0.07, UI.RED if owned else UI.DIM)

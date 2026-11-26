@@ -784,6 +784,27 @@ func _run() -> void:
 	game._guard.erase(str(int(game.started_at)))
 	game.restore_guard = false
 	game.reset_game(true)
+	# Tree unlock content: locked until its node, never part of completion %.
+	game.reset_game(true)
+	game.cash = 1.0e15
+	_check(not game.open_business("fusion", "Test Fusion"), "Frontier companies stay locked without the node")
+	_check(not game.buy_property(Data.PROPERTIES.size()), "island estates stay locked without the node")
+	_check(not game.buy_item("relics", 0), "relics stay locked without the node")
+	var uc_before: float = game.completion()
+	var uc_ach: int = game.achievements().size()
+	game.grant_node("u_frontier")
+	game.grant_node("u_isles")
+	game.grant_node("u_relics")
+	_check(game.open_business("fusion", "Test Fusion") and game.businesses().size() == Data.BUSINESSES.size() + 2, "the Frontier node opens two new companies")
+	_check(game.buy_property(Data.PROPERTIES.size() + 2) and game.property_count() == Data.PROPERTIES.size() + 3, "the Island estates node opens three properties")
+	_check(game.buy_item("relics", 0) and game.collections().size() == Data.COLLECTIONS.size() + 1, "the Relic hunters node opens a collection")
+	_check(absf(game.completion() - uc_before) < 0.0001 and game.achievements().size() == uc_ach, "unlock content changes neither completion % nor the achievements")
+	game.save_game()
+	game.load_game()
+	_check(game.prop_owned(Data.PROPERTIES.size() + 2) and game.owns("fusion") and game.item_owned("relics", 0), "unlock content survives save and load")
+	game.recalc()
+	_check(game.prop_rent(Data.PROPERTIES.size() + 2) > 0.0 and game.biz_income("fusion") > 0.0, "and earns")
+	game.reset_game(true)
 	# Rewards wait for a tap: achievements and goals add to the list, claiming
 	# pays exactly once, and the amount doesn't grow while it waits.
 	game.reset_game()

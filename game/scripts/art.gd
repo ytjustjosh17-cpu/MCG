@@ -194,6 +194,49 @@ static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2) -
 				_rect(ci, o, s, 66, yy, 14, 2, ink)
 			_rect(ci, o, s, 86, 6, 10, 3, ink)
 			_circle(ci, o, s, 83, 4, 2, red if lit > 1 else win)
+		"fusion":
+			# A domed reactor between two cooling towers.
+			for tx in [10, 82]:
+				_poly(ci, o, s, [[tx, 70], [tx + 4, 40], [tx + 2, 22], [tx + 22, 22], [tx + 20, 40], [tx + 24, 70]], ink)
+			_rect(ci, o, s, 34, 46, 48, 24, ink)
+			_circle(ci, o, s, 58, 46, 22, ink)
+			_rect(ci, o, s, 52, 54, 12, 8, red if lit > 0 else win)
+			_circle(ci, o, s, 58, 30, 3, red if lit > 1 else win)
+		"orbital":
+			# A ring dock high up, tethered to a base station.
+			_rect(ci, o, s, 56, 18, 3, 40, ink)
+			_rect(ci, o, s, 30, 58, 56, 12, ink)
+			_rect(ci, o, s, 40, 4, 36, 6, ink)
+			_rect(ci, o, s, 34, 10, 6, 10, ink)
+			_rect(ci, o, s, 76, 10, 6, 10, ink)
+			_rect(ci, o, s, 52, 6, 12, 2, red if lit > 0 else win)
+			_rect(ci, o, s, 44, 62, 10, 5, win)
+			_rect(ci, o, s, 62, 62, 10, 5, red if lit > 1 else win)
+		"lighthouse":
+			# A tall light on a rock, with a keeper's house.
+			_poly(ci, o, s, [[30, 70], [38, 60], [86, 60], [96, 70]], ink)
+			_poly(ci, o, s, [[46, 60], [50, 14], [62, 14], [66, 60]], ink)
+			_rect(ci, o, s, 48, 6, 16, 8, red if lit > 0 else win)
+			_poly(ci, o, s, [[46, 6], [56, 0], [66, 6]], ink)
+			_rect(ci, o, s, 70, 46, 18, 14, ink)
+			_rect(ci, o, s, 76, 50, 5, 5, win)
+		"observatory":
+			# A dome with its slit open, on a stepped base.
+			_rect(ci, o, s, 22, 52, 76, 18, ink)
+			_rect(ci, o, s, 32, 40, 56, 12, ink)
+			_circle(ci, o, s, 60, 40, 24, ink)
+			_poly(ci, o, s, [[56, 16], [64, 16], [64, 36], [56, 36]], red if lit > 0 else win)
+			_rect(ci, o, s, 30, 58, 8, 6, win)
+			_rect(ci, o, s, 82, 58, 8, 6, win)
+		"skyport":
+			# A tower with a landing pad on top and a craft arriving.
+			_rect(ci, o, s, 46, 22, 26, 48, ink)
+			_rect(ci, o, s, 34, 18, 50, 5, ink)
+			for yy in [30, 42, 54]:
+				_rect(ci, o, s, 52, yy, 6, 6, win)
+				_rect(ci, o, s, 62, yy, 6, 6, red if lit > 1 and yy == 42 else win)
+			_poly(ci, o, s, [[86, 8], [104, 8], [108, 12], [82, 12]], ink)
+			_circle(ci, o, s, 59, 16, 2, red if lit > 0 else win)
 		"terrace":
 			_poly(ci, o, s, [[8, 30], [112, 30], [104, 20], [16, 20]], ink)
 			_rect(ci, o, s, 8, 30, 104, 40, ink)
@@ -373,6 +416,11 @@ const SCENES := {
 	"sphere": {"sun": [0.7, 0.3, 0.7], "sky": "dense", "ground": "water", "pylon": false},
 	"resort": {"sun": [0.25, 0.55, 0.6], "sky": "none", "ground": "water", "pylon": false},
 	"island": {"sun": [0.5, 0.58, 0.7], "sky": "none", "ground": "water", "pylon": false},
+	"fusion": {"sun": [0.72, 0.32, 0.7], "sky": "hills", "ground": "field", "pylon": true},
+	"orbital": {"sun": [0.25, 0.5, 0.95], "sky": "flat", "ground": "field", "pylon": false},
+	"lighthouse": {"sun": [0.78, 0.5, 0.6], "sky": "none", "ground": "water", "pylon": false},
+	"observatory": {"sun": [0.3, 0.35, 0.6], "sky": "hills", "ground": "field", "pylon": false},
+	"skyport": {"sun": [0.65, 0.25, 0.5], "sky": "dense", "ground": "street", "pylon": false},
 }
 
 

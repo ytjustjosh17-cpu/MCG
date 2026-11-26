@@ -20,7 +20,7 @@ func build() -> void:
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	body.add_child(_grid)
-	for b in Data.BUSINESSES:
+	for b in Game.businesses():
 		var id: String = b["id"]
 		var t := Button.new()
 		t.focus_mode = Control.FOCUS_NONE
@@ -49,7 +49,7 @@ func refresh() -> void:
 	if _cash == null:
 		return
 	# Affordable first, then the rest by price, owned ones last.
-	var order: Array = Data.BUSINESSES.duplicate()
+	var order: Array = Game.businesses().duplicate()
 	order.sort_custom(func(a, b):
 		var ka := _rank(a)
 		var kb := _rank(b)
@@ -57,7 +57,7 @@ func refresh() -> void:
 	for i in range(order.size()):
 		_grid.move_child(_tiles[order[i]["id"]][0], i)
 	_cash.text = "Cash " + Game.money_short(Game.cash)
-	for b in Data.BUSINESSES:
+	for b in Game.businesses():
 		var id: String = b["id"]
 		var parts: Array = _tiles[id]
 		var t: Button = parts[0]

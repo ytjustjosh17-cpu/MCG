@@ -70,6 +70,32 @@ const BUSINESSES := [
 		"names": ["Red Sun Orbital", "Farline Launch", "Kestrel Space"]},
 ]
 
+# ---- tree unlocks: extra content after a rebirth (never in completion %) ----
+# Frontier companies (the Frontier node in the RBP tree).
+const FRONTIER := [
+	{"id": "fusion", "name": "Fusion plant", "kind": "fusion", "cost": 1.5e12, "unit": "reactor", "units": "reactors",
+		"unit_cost": 5.0e11, "unit_income": 1.0e10, "stage_mult": 1.45, "exp_cost": 5.0e12, "exp_growth": 2.5, "exp_min": 100.0,
+		"names": ["Red Sun Fusion", "Coldharbour Fusion", "Ironmere Power"]},
+	{"id": "orbital", "name": "Orbital yards", "kind": "orbital", "cost": 2.0e13, "unit": "dock", "units": "docks",
+		"unit_cost": 6.0e12, "unit_income": 1.15e11, "stage_mult": 1.45, "exp_cost": 6.0e13, "exp_growth": 2.5, "exp_min": 110.0,
+		"names": ["Farline Yards", "Red Sun Orbital Works", "Halo Docks"]},
+]
+# Island estates (the Island estates node). Saved by index after PROPERTIES.
+const ISLES := [
+	["Lantern Rock Light", "Tern Islands", 5.0e10, "lighthouse"],
+	["Coldharbour Observatory", "Coldharbour", 9.0e10, "observatory"],
+	["Skyport Redmoor", "Redmoor", 1.6e11, "skyport"],
+]
+# Relics (the Relic hunters node): a seventh collection.
+const RELICS := {"id": "relics", "name": "Relics", "bonus": 0.08, "items": [
+	["Iron Compass", 2.0e9], ["Salt Crown", 8.0e9], ["Tern Idol", 3.0e10],
+	["Sun Lens", 1.2e11], ["Drowned Bell", 5.0e11], ["First Ingot", 2.0e12]]}
+
+
+static func property(i: int) -> Array:
+	## Base properties first, then the island estates.
+	return PROPERTIES[i] if i < PROPERTIES.size() else ISLES[i - PROPERTIES.size()]
+
 # ---- shares -------------------------------------------------------------
 # price, yearly-ish dividend shown as %; div_h is the share of price paid per hour.
 const STOCKS := [
@@ -328,6 +354,9 @@ static func business(id: String) -> Dictionary:
 	for b in BUSINESSES:
 		if b["id"] == id:
 			return b
+	for b in FRONTIER:
+		if b["id"] == id:
+			return b
 	return {}
 
 
@@ -343,5 +372,5 @@ const WHATS_NEW := [
 	"Buy, sell or lock any amount: slide or type.",
 	"Convert coins, and watch your miners work.",
 	"Rebirth for RBP and grow the RBP tree.",
-	"Tree unlocks: the casino, with slots and tables.",
+	"Tree unlocks: casino, Frontier, islands, relics.",
 ]

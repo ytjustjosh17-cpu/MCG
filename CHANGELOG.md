@@ -1,5 +1,15 @@
 # Changelog
 
+## More tree unlocks
+
+- Three new gold unlock nodes in the RBP tree, each adding new things to buy:
+  - Frontier (60 RBP): two new top companies, Fusion plant and Orbital yards.
+  - Island estates (45 RBP): a lighthouse, an observatory and a skyport.
+  - Relic hunters (50 RBP): a seventh collection of six relics, +8% income.
+- Each has its own drawings. They don't change completion %, so a later run
+  is measured the same as the first. Three more slots are kept for future
+  unlocks.
+
 ## Sol Casino (an RBP unlock)
 
 - New tree nodes that unlock parts of the game (gold stars near the centre).

@@ -100,7 +100,8 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 
 - Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000.
 - Rebirth clears money and assets (`REBIRTH_RESET`), including rewards not yet claimed, the waiting deal and the daily gift, so nothing is carried into a new run. It keeps the market, achievements, stats, settings, goal and streak timers and the tree (`REBIRTH_KEEP`).
-- The tree: 154 nodes plus Sol (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones, 2 unlocks), 7,354 RBP in all. Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
+- The tree: 157 nodes plus Sol (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones, 5 unlocks), 7,509 RBP in all.
+- Unlock nodes (gold stars, 3 slots still free for future unlocks): Sol Casino 6, High tables 20, Island estates 45 (3 properties £50B to £160B), Relic hunters 50 (a 7th collection, £2B to £2T, +8% when complete), Frontier 60 (Fusion plant £1.5T and Orbital yards £20T, about 2% of price an hour per unit like Space launch). Their content is never counted in completion % or achievements (`businesses()`, `property_count()`, `collections()` are the lists in play; completion uses the base lists). Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
 - Guard rails it moves: away cap up to +7.25 h, one more golden sun a day (so 6 at most with Head office), big taps ×10 with Thunder taps, managers' cut 0 with Loyal staff.
 - Robot (`SIM_REBIRTH=never|asap|patient|rate`, 240 days, seed 1234):
 
@@ -111,6 +112,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 | rate (rebirth when RBP per day stops rising) | 1st rebirth day 70 (+921), runs then 44, 28, 21, 17, 16, 12 days; whole tree day 163 |
 
 - The rebirth card shows what ten times the net worth would give, so waiting is visible.
+- With the unlock nodes (Frontier raises late net worth a lot): never-rebirth run unchanged; rate robot rebirths on days 70, 115, 136, 159, whole tree day 158.5 (was 163). Gambler + rate: whole tree day 169.8, so the casino slows the tree, never speeds it.
 
 ## Open questions for the owner
 

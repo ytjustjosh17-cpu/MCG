@@ -11,11 +11,11 @@ var _imps: Array = []
 
 func _init(i := 0) -> void:
 	index = i
-	super(Data.PROPERTIES[i][0], true)
+	super(Data.property(i)[0], true)
 
 
 func build() -> void:
-	var p: Array = Data.PROPERTIES[index]
+	var p: Array = Data.property(index)
 	_place = UI.label(p[1], 15, UI.SUB)
 	body.add_child(_place)
 	var sc := Art.Scene.new(p[3], 22.0)
@@ -66,7 +66,7 @@ func refresh() -> void:
 func _on_sell() -> void:
 	var v := Game.prop_value(index)
 	var you_get := Game.money_short(v - v * Data.SELL_TAX)
-	Kit.alert("Sell %s?" % Data.PROPERTIES[index][0],
+	Kit.alert("Sell %s?" % Data.property(index)[0],
 		"You get %s. Tax %d%%." % [you_get, int(round(Data.SELL_TAX * 100.0))],
 		[
 			{"text": "Keep", "style": "primary"},
