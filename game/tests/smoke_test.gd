@@ -807,6 +807,10 @@ func _run() -> void:
 	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
+	tk._toast_q.clear()
+	if tk._toast != null and is_instance_valid(tk._toast):
+		tk._toast.queue_free()
+	tk._toast = null
 	tk.toast("First toast")
 	tk.toast("Second toast")
 	tk.toast("Second toast")
