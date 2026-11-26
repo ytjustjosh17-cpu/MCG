@@ -384,7 +384,7 @@ func ach_bonus() -> float:
 
 func global_mult() -> float:
 	var m := 1.0 + ach_bonus()
-	for c in Data.COLLECTIONS:
+	for c in collections():
 		if collection_done(c["id"]):
 			m += float(c["bonus"])
 	m += Data.HOME_BONUS * float(home)
@@ -602,6 +602,8 @@ func open_business(id: String, name: String) -> bool:
 	var b := Data.business(id)
 	if b.is_empty() or biz.has(id) or cash < float(b["cost"]):
 		return false
+	if b in Data.FRONTIER and rb("u_frontier") <= 0.0:
+		return false   # Frontier companies open with the tree unlock
 	cash -= float(b["cost"])
 	biz[id] = {"name": name, "stage": 1, "units": 1, "exp_until": 0.0, "invested": float(b["cost"])}
 	GameLog.info("biz", "Opened %s (%s) for %s" % [name, id, money(b["cost"])])
@@ -1272,7 +1274,21 @@ func prop_owned(i: int) -> bool:
 
 
 func prop_price(i: int) -> float:
-	return float(Data.PROPERTIES[i][2])
+	return float(Data.property(i)[2])
+
+
+# ---- tree unlock content: the lists the player can use right now ----------
+
+func businesses() -> Array:
+	return Data.BUSINESSES + Data.FRONTIER if rb("u_frontier") > 0.0 else Data.BUSINESSES
+
+
+func property_count() -> int:
+	return Data.PROPERTIES.size() + (Data.ISLES.size() if rb("u_isles") > 0.0 else 0)
+
+
+func collections() -> Array:
+	return Data.COLLECTIONS + [Data.RELICS] if rb("u_relics") > 0.0 else Data.COLLECTIONS
 
 
 func prop_rent(i: int) -> float:
@@ -1298,11 +1314,11 @@ func prop_value(i: int) -> float:
 
 
 func buy_property(i: int) -> bool:
-	if prop_owned(i) or cash < prop_price(i):
+	if i < 0 or i >= property_count() or prop_owned(i) or cash < prop_price(i):
 		return false
 	cash -= prop_price(i)
 	props[str(i)] = {"imps": [false, false, false, false, false]}
-	GameLog.info("invest", "Bought property %d (%s)" % [i, Data.PROPERTIES[i][0]])
+	GameLog.info("invest", "Bought property %d (%s)" % [i, Data.property(i)[0]])
 	_task_progress("invest", 1)
 	recalc()
 	return true
@@ -1364,7 +1380,7 @@ func collection(col: String) -> Dictionary:
 	for c in Data.COLLECTIONS:
 		if c["id"] == col:
 			return c
-	return {}
+	return Data.RELICS if col == "relics" else {}
 
 
 func collection_count(col: String) -> int:
@@ -1380,6 +1396,8 @@ func collection_done(col: String) -> bool:
 
 
 func buy_item(col: String, i: int) -> bool:
+	if col == "relics" and rb("u_relics") <= 0.0:
+		return false
 	var p: float = collection(col)["items"][i][1]
 	if item_owned(col, i) or cash < p:
 		return false
@@ -1486,7 +1504,7 @@ func next_goal() -> Dictionary:
 	## The cheapest next big step, shown on the Earn screen so there's always
 	## something to save for. tab: which tab opens when tapped.
 	var c: Array = []
-	for b in Data.BUSINESSES:
+	for b in businesses():
 		if not biz.has(b["id"]):
 			c.append({"icon": "business", "text": String(b["name"]), "cost": float(b["cost"]), "tab": 1})
 			break
@@ -1495,9 +1513,9 @@ func next_goal() -> Dictionary:
 			c.append({"icon": "business", "text": "+1 %s · %s" % [Data.business(id).get("unit", "unit"), biz[id]["name"]], "cost": unit_price(id), "tab": 1})
 	if next_home_cost() > 0.0:
 		c.append({"icon": "home", "text": String(Data.HOMES[home + 1][0]), "cost": next_home_cost(), "tab": 3})
-	for i in range(Data.PROPERTIES.size()):
+	for i in range(property_count()):
 		if not prop_owned(i):
-			c.append({"icon": "invest", "text": String(Data.PROPERTIES[i][0]), "cost": prop_price(i), "tab": 2})
+			c.append({"icon": "invest", "text": String(Data.property(i)[0]), "cost": prop_price(i), "tab": 2})
 	for m in Data.MERGERS:
 		if mergers.has(m["id"]):
 			continue
@@ -1642,11 +1660,21 @@ func completion() -> float:
 			bz += 0.5 * float(s["stage"]) / Data.MAX_STAGE + 0.5 * float(s["units"]) / float(Data.MAX_STAGE * Data.UNITS_PER_STAGE)
 	bz /= Data.BUSINESSES.size()
 	var mg := float(mergers.size()) / Data.MERGERS.size()
-	var pr := float(props.size()) / Data.PROPERTIES.size()
+	# Tree unlock content (island estates, relics, frontier) is a bonus: only
+	# the base game counts, so a later run's % means the same as the first.
+	var base_props := 0
+	for k in props.keys():
+		if int(k) < Data.PROPERTIES.size():
+			base_props += 1
+	var pr := float(base_props) / Data.PROPERTIES.size()
 	var total_items := 0
 	for c in Data.COLLECTIONS:
 		total_items += c["items"].size()
-	var it := float(items.size()) / float(total_items)
+	var base_items := 0
+	for k in items.keys():
+		if not String(k).begins_with("relics:"):
+			base_items += 1
+	var it := float(base_items) / float(total_items)
 	var ac := float(achieved.size()) / float(maxi(1, _achievements.size()))
 	var lv := float(level - 1) / float(Data.MAX_LEVEL - 1)
 	var hm := float(home) / float(Data.HOMES.size() - 1)

@@ -4,6 +4,7 @@ extends Page
 
 var _total: Label
 var _casino_row: Row
+var _relic_sep: Control
 var _hint: Label
 var _rows := {}
 var _home_art: Control
@@ -69,10 +70,13 @@ func build() -> void:
 	_hint = UI.label("Own a full set for bonus income", 13, UI.SUB)
 	body.add_child(_hint)
 	var list := card()
-	for i in range(Data.COLLECTIONS.size()):
+	var all_cols: Array = Data.COLLECTIONS + [Data.RELICS]   # relics show once unlocked in the tree
+	for i in range(all_cols.size()):
 		if i > 0:
 			separator(list)
-		var col: Dictionary = Data.COLLECTIONS[i]
+			if i == all_cols.size() - 1:
+				_relic_sep = list.get_child(list.get_child_count() - 1)
+		var col: Dictionary = all_cols[i]
 		var r := Row.new()
 		var cid: String = col["id"]
 		r.set_lead(ItemArt.new(cid, 5, 44.0))   # each set shows its top item
@@ -121,7 +125,11 @@ func refresh() -> void:
 	var done := 0
 	var started := false
 	var bonus := 0.0
-	for col in Data.COLLECTIONS:
+	var relics := Game.rb("u_relics") > 0.0
+	_rows["relics"].visible = relics
+	if _relic_sep:
+		_relic_sep.visible = relics
+	for col in Game.collections():
 		var cid: String = col["id"]
 		var n := Game.collection_count(cid)
 		var total: int = col["items"].size()
@@ -138,7 +146,7 @@ func refresh() -> void:
 					break
 		var r: Row = _rows[cid]
 		r.set_texts(col["name"], sub, "%d / %d" % [n, total])
-	_total.text = "%d / %d" % [done, Data.COLLECTIONS.size()]
+	_total.text = "%d / %d" % [done, Game.collections().size()]
 	if bonus > 0.0:
 		_total.text += " · +%d%%" % int(round(bonus * 100.0))
 	_hint.visible = not started

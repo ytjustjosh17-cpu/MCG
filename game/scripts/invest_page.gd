@@ -4,6 +4,8 @@ extends Page
 
 var _seg: Segmented
 var _views: Array = []
+var _isles_l: Label
+var _isles_card: Control
 var _sum_value: Label
 var _sum_sub: Label
 var _sum_right: Label
@@ -142,7 +144,10 @@ func build() -> void:
 		_share_rows[sym] = r
 
 	# ---- property ----
-	var props_v := card()
+	var props_box := VBoxContainer.new()
+	props_box.add_theme_constant_override("separation", 12)
+	body.add_child(props_box)
+	var props_v := card(props_box)
 	for i in range(Data.PROPERTIES.size()):
 		if i > 0:
 			separator(props_v, 50)
@@ -151,6 +156,21 @@ func build() -> void:
 		var idx := i
 		r.pressed.connect(func(): _property(idx))
 		props_v.add_child(r)
+		_prop_rows[i] = r
+	# Island estates: a tree unlock, shown once you own the node.
+	_isles_l = UI.label("Island estates", 17, UI.TEXT, true)
+	props_box.add_child(_isles_l)
+	var isles_v := card(props_box)
+	_isles_card = isles_v.get_parent()
+	for k in range(Data.ISLES.size()):
+		var i := Data.PROPERTIES.size() + k
+		if k > 0:
+			separator(isles_v, 50)
+		var r := Row.new("", String(Data.ISLES[k][3]))
+		(r.lead as Art.Scene).seed_id = String(Data.ISLES[k][0])
+		var idx := i
+		r.pressed.connect(func(): _property(idx))
+		isles_v.add_child(r)
 		_prop_rows[i] = r
 
 	# ---- crypto ----
@@ -182,7 +202,7 @@ func build() -> void:
 		r.set_lead(AssetTile.new(sym))
 		r.pressed.connect(func(): _open("coin", sym))
 		_coin_rows[sym] = r
-	_views = [shares_box, props_v.get_parent(), coins_box]
+	_views = [shares_box, props_box, coins_box]
 	refresh_view()
 
 
@@ -326,15 +346,18 @@ func refresh() -> void:
 				r.set_change(Game.change_pct(st[0], 1440))
 				r.mark.visible = false
 		1:
-			_sum_sub.text = "Property · %d / %d" % [Game.props_owned(), Data.PROPERTIES.size()]
+			_sum_sub.text = "Property · %d / %d" % [Game.props_owned(), Game.property_count()]
+			var isles := Game.rb("u_isles") > 0.0
+			_isles_l.visible = isles
+			_isles_card.visible = isles
 			_sum_value.text = Game.money(Game.props_value())
 			_sum_right_sub.text = "Rent"
 			_sum_right.text = Game.money_short(Game.rent_per_hour()) + " /h"
 			_sum_right.add_theme_color_override("font_color", UI.TEXT)
 			_sum_line2.visible = false
 			_mood_box.visible = false
-			for i in range(Data.PROPERTIES.size()):
-				var p: Array = Data.PROPERTIES[i]
+			for i in range(Game.property_count()):
+				var p: Array = Data.property(i)
 				var r: Row = _prop_rows[i]
 				if Game.prop_owned(i):
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
@@ -560,7 +583,7 @@ func _property(i: int) -> void:
 	if Game.prop_owned(i):
 		push_page.emit(PropertyDetail.new(i))
 		return
-	var p: Array = Data.PROPERTIES[i]
+	var p: Array = Data.property(i)
 	var price := Game.prop_price(i)
 	var rent := price * Data.RENT_PER_H * Game.global_mult()
 	var can := Game.cash >= price

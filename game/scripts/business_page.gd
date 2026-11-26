@@ -94,13 +94,13 @@ func refresh() -> void:
 	else:
 		_boost.set_texts("×2 income", "", "Ready in " + Game.clock(Game.ibost_cooldown_left()))
 	_boost.value_l.add_theme_color_override("font_color", UI.TEXT)
-	_count.text = "%d of %d" % [Game.companies(), Data.BUSINESSES.size()]
+	_count.text = "%d of %d" % [Game.companies(), Game.businesses().size()]
 	UI.paint(_more, UI.PANEL, UI.TEXT, 24)
 	_deal_card.visible = not Game.deal.is_empty() and bool(Game.ui.get("deals_quiet", false))
 	if _deal_card.visible:
 		_deal_row.set_texts(String(Game.deal.get("title", "Deal")), String(Game.deal.get("text", "")))
 	_empty.visible = not has
-	for b in Data.BUSINESSES:
+	for b in Game.businesses():
 		var id: String = b["id"]
 		if Game.owns(id) and not _cards.has(id):
 			var bc := BizCard.new(id)

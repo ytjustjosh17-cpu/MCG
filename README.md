@@ -19,7 +19,7 @@ Tap to earn, start companies, trade made-up shares and well-known crypto coins, 
 - 17 companies to open, fill and expand, with milestones, partners and head office upgrades
 - Shares, property and real crypto coins (with miners and locking)
 - Daily and weekly goals, golden suns, rivals, achievements
-- Rebirth for RBP and a 155-node tree that stays forever, with unlocks
+- Rebirth for RBP and a 158-node tree that stays forever, with unlocks for new content
 - A casino (unlocked in the tree): slots, roulette and blackjack, play money only
 - Built to take weeks, not days
 

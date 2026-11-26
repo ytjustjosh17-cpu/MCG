@@ -336,5 +336,32 @@ func _run() -> void:
 	await create_timer(0.4).timeout
 	main.pop()
 	await create_timer(0.4).timeout
+	# Tree unlock content: relics, island estates, frontier companies.
+	g.grant_node("u_frontier")
+	g.grant_node("u_isles")
+	g.grant_node("u_relics")
+	g.cash = 5.0e12
+	g.buy_item("relics", 0)
+	g.buy_item("relics", 3)
+	main.show_page(3)
+	await create_timer(0.5).timeout
+	main.push(ItemsPage.CollectionPage.new("relics"))
+	await create_timer(0.9).timeout
+	await _shot("40_relics")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.show_page(1)
+	await create_timer(0.4).timeout
+	main.push(StartBusinessPage.new())
+	await create_timer(0.9).timeout
+	main._stack[-1].scroll.scroll_vertical = 2000
+	await _shot("41_frontier")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.show_page(2)
+	main._pages[2]._seg.select(1, true)
+	await create_timer(0.5).timeout
+	main._pages[2].scroll.scroll_vertical = 5000
+	await _shot("42_isles")
 	g.reset_game()
 	quit()
