@@ -606,8 +606,12 @@ func _run() -> void:
 		game.cash = 1.0e15
 		game.buy_rig("LTC")
 	game.recalc()
-	_check(game.mining_capped() and game.mining_value_per_hour() <= game.income_per_hour * game.mine_cap() * 1.01 + 1.0, "all mining together is capped (2% + 0.15% per miner)")
-	_check(not game.buy_rig("SOL") or game.rigs_total() <= Data.RIG_MAX, "never more than %d rigs" % Data.RIG_MAX)
+	var hash_now: float = float(game.miners.get("hash", 0.0))
+	_check(absf(game.mining_value_per_hour() - hash_now * Data.MINE_YIELD * float(game.mine_eff.get(game.mine_target, 1.0))) < 1.0, "each miner earns 4% of its price an hour, no income cap")
+	for k in 20:
+		game.cash = 1.0e30
+		game.buy_miner()
+	_check(game.rigs_total() == Data.RIG_MAX and not game.buy_miner(), "never more than %d miners" % Data.RIG_MAX)
 	var mv0: float = float(game.counters.get("mined_value", 0.0))
 	game.sim_time = game.now()
 	game.apply_offline(48.0 * 3600.0)
@@ -626,6 +630,7 @@ func _run() -> void:
 	var conv_val: float = float(conv["coins"]["SHIB"]["qty"]) * game.price("SHIB")
 	_check(absf(conv_val - 4.2) < 0.01, "old backup coins keep their value at today's price (%.3f)" % conv_val)
 	# Switching the coin keeps the earnings the same, and moves new coins to it.
+	game.mine_eff = {}   # no mining news, so every coin earns the same
 	var mv1: float = game.mining_value_per_hour()
 	_check(game.set_mine_target("ETH") and absf(game.mining_value_per_hour() - mv1) <= mv1 * 0.001 + 1e-9 and game.mine_per_hour("SOL") == 0.0 and game.mine_per_hour("ETH") > 0.0, "switching miners to another coin keeps the same earnings")
 	# Reset then restore can't re-roll the market.
@@ -656,6 +661,24 @@ func _run() -> void:
 	_check(game.restore_code(gcode), "it works on a new phone (no record of that game)")
 	game.restore_guard = false
 	game.reset_game()
+	# Head office upgrades: each works once and changes its rule.
+	game.reset_game()
+	game.cash = 1.0e13
+	game.open_business("shop", "Office Test")
+	var tv0: float = game.tap_value()
+	var cap0: float = game.offline_cap_h()
+	var ex0: float = game.expansion_seconds("shop")
+	_check(game.buy_upgrade("tap") and absf(game.tap_value() / tv0 - 1.5) < 0.001, "Stronger taps: taps x1.5")
+	_check(not game.buy_upgrade("tap"), "an upgrade can only be bought once")
+	game.buy_upgrade("away1")
+	game.buy_upgrade("away2")
+	_check(is_equal_approx(game.offline_cap_h(), cap0 + 4.0), "Night shift and Weekend staff: away up to 12 h")
+	game.buy_upgrade("fast1")
+	_check(absf(game.expansion_seconds("shop") / ex0 - 0.85) < 0.001, "Fast builders: expansions 15% quicker")
+	game.buy_upgrade("mgr")
+	_check(is_equal_approx(game.manager_cut(), 0.06), "Better managers take 6%")
+	game.reset_game()
+	_check(game.upgrades.is_empty(), "a reset clears upgrades")
 	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
 	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")
 	var fd: Dictionary = JSON.parse_string(fx)

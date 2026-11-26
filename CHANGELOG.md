@@ -1,5 +1,21 @@
 # Changelog
 
+## Head office, fairer miners, real logos
+
+- New: Head office (Business > More). Ten one-off upgrades: stronger taps,
+  sooner deals, earn while away up to 10 then 12 h, quicker expansions, an
+  extra golden sun, better locked coins, better miners, cheaper managers.
+  Three new achievements.
+- Miners rebalanced: no more cap tied to your income (a £25K miner now
+  makes about £1K/h, not £17.50). Each miner earns 4% of its price an hour
+  and the button shows how long it takes to pay back. Miners cost ×1.7 more
+  each, 40 at most.
+- All company income ×0.80 (was ×0.84) so the game still takes weeks.
+  Robot: 50% day 19.5, 90% day 38 to 39.
+- Coins show their real logos (CC0 icon set); Shiba Inu and Pepe get drawn
+  badges. Each share gets its own logo: a sector shape with its initial.
+- Fixed: the welcome-back card could show "Earned £0.00".
+
 ## Legal notice
 
 - README and LICENSE now say plainly: made for the owner only, built with AI

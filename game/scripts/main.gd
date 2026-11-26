@@ -400,7 +400,7 @@ func open_waiting_deal() -> void:
 func _show_deal() -> void:
 	## Shows the waiting deal when nothing else is open. One line, two choices.
 	## Also shows the welcome-back card after time away.
-	if Game.away_unseen and not Kit.has_open():
+	if Game.away_unseen and Game.away_earned >= 1.0 and not Kit.has_open():
 		Game.away_unseen = false
 		var lines: Array = ["Away for %s" % Game.clock(Game.away_seconds), "Earned %s" % Game.money_short(Game.away_earned)] + Game.away_notes
 		Kit.sheet("Welcome back", "\n".join(lines), [

@@ -12,10 +12,10 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.5 to 11.3 (seed noise; 11.5 without mining) |
-| 50% complete | 15 to 21 | 18.8 to 19.5 |
+| 25% complete | 7 to 10 | 8.8 to 8.9 |
+| 50% complete | 15 to 21 | 19.5 |
 | 75% complete | 28 to 38 | 32.5 to 32.9 |
-| 90% complete | 33 to 46 | 40.3 to 40.5 |
+| 90% complete | 33 to 46 | 38.3 to 38.9 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
@@ -38,7 +38,8 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
 | Shares | dividends; prices drift slowly back to a fair value; news moves them at once | `STOCK_DIV_SCALE`, `_market_tick()` |
 | Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
-| Mining | one pool of miners that all mine one coin you choose (switch free, any time); a miner earns 3% of its price an hour in £ whichever coin it mines, so switching never changes earnings, only which coin you collect (mining news can speed a coin up for a few days); miner price ×1.45 each, 60 max; all mining capped at 2% of income plus 0.15% per miner | `RIG_*`, `MINE_*` |
+| Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), with no cap tied to income; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
+| Head office | ten one-off upgrades: taps ×1.5, deals 25% sooner, away cap 10 h then 12 h, expansions 15% quicker (twice), +1 golden sun a day, locked coins +25%, miners +25%, managers take 6% | `UPGRADES` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
@@ -50,7 +51,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Unit milestones | 5, 25, 50 units of one company: ×1.1, ×1.15, ×1.25 | `MILESTONES` |
 | Synergies | one-off buys: a company at stage N lifts another by 20 to 30% | `SYNERGIES` |
 | Achievements | +0.2% income each, capped at +15% (reached near the last ones) | `ACH_BONUS`, `ACH_BONUS_CAP` |
-| Overall dial | all company income × 0.84, set so the 1.1 bonuses keep the pace | `INCOME_SCALE` |
+| Overall dial | all company income × 0.80, set so the 1.1 bonuses keep the pace | `INCOME_SCALE` |
 
 ## Guard rails (keep these true)
 
@@ -62,7 +63,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 10. Taps: at most 7 paid a second. Invest goals need a real amount (10 minutes of income or $100).
 11. The clock going backwards never re-rolls goals or the streak. Restoring a backup keeps the live market and deal.
 12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income or a short buff. Buffs end when the app closes and never pay while away.
-13. Mining pays at most 2% of income plus 0.15% per miner, counts at most 8 hours while away, and a restore mines nothing.
+13. Mining has no income cap; its limit is price (×1.7 per miner, 40 max). It, counts at most 8 hours while away, and a restore mines nothing.
 14. A reset keeps the live market, so reset then restore can't re-roll prices.
 15. Setting the clock back pulls short buffs (Frenzy, Rush, x3 tap boost) back with it.
 6. Goals only ask for things that are still possible (no "buy units" when every company is full).

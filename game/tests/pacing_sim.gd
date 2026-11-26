@@ -133,6 +133,10 @@ func _spend() -> void:
 					rsym = rc[0]
 		if trader not in ["news", "dip", "hold", "nomine"] and g.rigs_total() < Data.RIG_MAX and rsym != "" and rbest * 72.0 >= g.rig_price():
 			g.buy_rig(rsym); bought = true
+		# Head office upgrades when they cost under a fifth of cash.
+		for up in Data.UPGRADES:
+			if not g.has_up(up[0]) and float(up[3]) <= g.cash * 0.2:
+				g.buy_upgrade(up[0]); bought = true
 		# Synergies when they pay back within about a day.
 		for sy in Data.SYNERGIES:
 			if g.synergy_ready(sy[0]) and g.cash >= float(sy[6]) and g.biz_income(sy[4]) * (float(sy[5]) - 1.0) * 24.0 >= float(sy[6]):

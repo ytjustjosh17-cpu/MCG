@@ -26,9 +26,11 @@ const SECTOR_COL := {
 	"Transport": Color("#82BDB2"), "Retail": Color("#E09C93"), "Food": Color("#A3C995"),
 	"Industry": Color("#AEB7B8"),
 }
-const COIN_COL := [Color("#D9A75E"), Color("#82BDB2"), Color("#B8A58E"), Color("#D6CCB2"), Color("#9DC3DF"),
-	Color("#E39573"), Color("#C9B6D9"), Color("#A9D3C6"), Color("#E3CB84"), Color("#A8D8E6"),
-	Color("#BFD99A"), Color("#D9B3A6"), Color("#9FB8D9")]
+const COIN_COL := [ # brand colours, lifted a little to read on the dark teal (same order as Data.COINS)
+	Color("#A974FF"), Color("#C8D0D8"), Color("#C2A633"), Color("#F7931A"), Color("#4F7BEA"),
+	Color("#FFA409"), Color("#5B86E0"), Color("#E05A6C"), Color("#8299EE"), Color("#62B23E"),
+	Color("#E8625D"), Color("#E6488F"), Color("#9FB3D6")]
+const SHIB_FACE := Color("#FFE3B3")
 
 # Type: Switzer for text, Tanker for big numbers and titles (both from
 # Fontshare, ITF Free Font License). They can't be stored in this public repo,
