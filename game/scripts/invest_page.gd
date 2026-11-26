@@ -4,6 +4,11 @@ extends Page
 
 var _seg: Segmented
 var _views: Array = []
+var _my_props_l: Label
+var _my_props: VBoxContainer
+var _all_props_l: Label
+var _all_props: VBoxContainer
+var _prop_rows_s := {}
 var _isles_l: Label
 var _isles_card: Control
 var _sum_value: Label
@@ -25,7 +30,6 @@ var _my_coins: VBoxContainer
 var _all_coins: VBoxContainer
 var _my_coins_l: Label
 var _all_coins_l: Label
-var _mine_sum: Row
 var _mine_note: Label
 var _mine_target: Row
 var _mine_target_sym := ""
@@ -147,16 +151,20 @@ func build() -> void:
 	var props_box := VBoxContainer.new()
 	props_box.add_theme_constant_override("separation", 12)
 	body.add_child(props_box)
-	var props_v := card(props_box)
+	# "Yours" and "Market", like Shares and Crypto.
+	_my_props_l = UI.label("Yours", 17, UI.TEXT, true)
+	props_box.add_child(_my_props_l)
+	_my_props = card(props_box)
+	_all_props_l = UI.label("Market", 17, UI.TEXT, true)
+	props_box.add_child(_all_props_l)
+	_all_props = card(props_box)
 	for i in range(Data.PROPERTIES.size()):
-		if i > 0:
-			separator(props_v, 50)
 		var r := Row.new("", String(Data.PROPERTIES[i][3]))   # its own little scene
 		(r.lead as Art.Scene).seed_id = String(Data.PROPERTIES[i][0])
 		var idx := i
 		r.pressed.connect(func(): _property(idx))
-		props_v.add_child(r)
 		_prop_rows[i] = r
+		_prop_rows_s[str(i)] = r
 	# Island estates: a tree unlock, shown once you own the node.
 	_isles_l = UI.label("Island estates", 17, UI.TEXT, true)
 	props_box.add_child(_isles_l)
@@ -180,16 +188,17 @@ func build() -> void:
 	coins_box.add_child(_news_card())
 	# One-line header: "Coins" on the left, the sort drop-down on the right.
 	var sort_row := HBoxContainer.new()
-	var cl := UI.label("", 15, UI.SUB)
-	cl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	sort_row.add_child(cl)
+	_my_coins_l = UI.label("Yours", 17, UI.TEXT, true)   # "Yours · N" and Sort share one line
+	_my_coins_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_my_coins_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sort_row.add_child(_my_coins_l)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sort_row.add_child(spacer)
 	var csp := _sort_pill()
 	csp.custom_minimum_size.x = 150
 	sort_row.add_child(csp)
 	coins_box.add_child(sort_row)
-	_my_coins_l = UI.label("Yours", 17, UI.TEXT, true)
-	coins_box.add_child(_my_coins_l)
 	_my_coins = card(coins_box)
 	# Mining has its own section: one place for all rigs.
 	coins_box.add_child(_mining_section())
@@ -292,9 +301,9 @@ func _latest_news(kind: String) -> Dictionary:
 
 func _set_news(r: Row, it: Dictionary) -> void:
 	## One line: the headline, then the move it caused.
+	r.get_parent().visible = not it.is_empty()   # no empty "No news" card
 	if it.is_empty():
-		r.set_texts("No news")
-		r.title_l.add_theme_color_override("font_color", UI.SUB)
+		return
 	else:
 		var pct := float(it["pct"])
 		var move := "%s%.1f%%" % ["▲ +" if pct >= 0.0 else "▼ −", absf(pct)]
@@ -356,6 +365,15 @@ func refresh() -> void:
 			_sum_right.add_theme_color_override("font_color", UI.TEXT)
 			_sum_line2.visible = false
 			_mood_box.visible = false
+			var pmine: Array = []
+			var prest: Array = []
+			var powned := _props_owned()
+			for i in range(Data.PROPERTIES.size()):
+				if powned.has(i):
+					pmine.append([str(i)])
+				else:
+					prest.append([str(i)])
+			_place("props", pmine, prest, _prop_rows_s, _my_props, _all_props, _my_props_l, _all_props_l)
 			for i in range(Game.property_count()):
 				var p: Array = Data.property(i)
 				var r: Row = _prop_rows[i]
@@ -363,7 +381,7 @@ func refresh() -> void:
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
 				else:
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
-				r.mark.visible = Game.prop_owned(i)
+				r.mark.visible = false   # owned ones sit under "Yours"
 				r.modulate.a = 1.0 if (Game.prop_owned(i) or Game.cash >= Game.prop_price(i)) else 0.6
 		2:
 			var v := Game.book_value(Game.coins)
@@ -444,6 +462,18 @@ func _ordered(list: Array, key: String) -> Array:
 	return out
 
 
+func _props_owned() -> Dictionary:
+	## Owned properties when the page was shown, so rows don't jump on a buy.
+	if _sorted.has("props_owned"):
+		return _sorted["props_owned"]
+	var out := {}
+	for i in range(Data.PROPERTIES.size()):
+		if Game.prop_owned(i):
+			out[i] = true
+	_sorted["props_owned"] = out
+	return out
+
+
 func _owned_set(key: String, book: Dictionary) -> Dictionary:
 	## What counts as "Yours", worked out when the page is shown or a choice is
 	## made, so a row never jumps between lists while you look (e.g. coins mined).
@@ -494,12 +524,7 @@ func _mining_section() -> Control:
 	box.add_child(UI.label("Crypto miners", 17, UI.TEXT, true))
 	var mc := card(box)
 	mc.add_child(MinerRack.new())   # the machines at work
-	_mine_sum = Row.new("cpu", "", false)
-	_mine_sum.disabled = true
-	_mine_sum.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())
-	mc.add_child(_mine_sum)
-	separator(mc, 50)
-	# Which coin every miner digs: tap to switch, free, any time.
+	# One row: how many, what they make, which coin. Tap to switch coin.
 	_mine_target = Row.new()
 	_mine_target.pressed.connect(_on_pick_target)
 	mc.add_child(_mine_target)
@@ -516,15 +541,17 @@ func _mining_section() -> Control:
 
 func _refresh_mining() -> void:
 	var n := Game.rigs_total()
-	_mine_sum.set_texts("Miners · %d of %d" % [n, Data.RIG_MAX], "" if n > 0 else "They dig up coins for you", (Game.money_short(Game.mining_value_per_hour()) + " /h") if n > 0 else "")
 	var tgt := Game.mine_target if Game.mine_target != "" else Game._first_coin_owned()
 	var c := Data.coin(tgt)
 	if _mine_target_sym != tgt:
 		_mine_target_sym = tgt
 		_mine_target.set_lead(AssetTile.new(tgt))
 	var mph := Game.mine_per_hour(tgt)
-	_mine_target.set_texts("Mining " + String(c[1]), ("%s %s /h" % [AssetDetail.qty_text(mph), tgt]) if n > 0 else "Tap to choose the coin", "Change")
-	var notes: Array = ["They keep mining while you're away (%d h max)." % int(Game.offline_cap_h())]
+	if n > 0:
+		_mine_target.set_texts("%d/%d · %s" % [n, Data.RIG_MAX, String(c[1])], "%s /h · %s %s /h" % [Game.money_short(Game.mining_value_per_hour()), AssetDetail.qty_text(mph), tgt], "Change")
+	else:
+		_mine_target.set_texts("No miners yet · %s" % String(c[1]), "They dig up coins for you", "Change")
+	var notes: Array = ["Mines while you're away (%d h max)." % int(Game.offline_cap_h())]
 	if Game.mining_capped():
 		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
 	_mine_note.text = " ".join(notes)
@@ -534,8 +561,7 @@ func _refresh_mining() -> void:
 	else:
 		var gain := Game.miner_gain()
 		var back_h := Game.rig_price() / maxf(gain, 0.001)
-		_rig_btn.text = "Buy miner · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(gain)]
-		_mine_note.text += "  Next miner pays for itself in about %s." % Game.clock(back_h * 3600.0)
+		_rig_btn.text = "Buy miner · %s · pays back ~%s" % [Game.money_short(Game.rig_price()), Game.clock(back_h * 3600.0)]
 		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price(), false)
 
 
@@ -558,15 +584,23 @@ func _on_pick_target() -> void:
 	## A compact grid of coins (3 across): tap one and every miner switches to it.
 	Kit.tick()
 	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
 	for c in Data.COINS:
 		var sym: String = c[0]
 		var on := sym == Game.mine_target
-		var b := UI.pill(sym, UI.TEXT if on else UI.RAISED, UI.INK if on else UI.TEXT, 15, 14)
+		# Logo and ticker, like the Convert grid.
+		var b := UI.pill("", UI.TEXT if on else UI.RAISED, UI.INK if on else UI.TEXT, 13, 12)
 		b.custom_minimum_size = Vector2(0, 48)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var tile := AssetTile.new(sym, 26.0)
+		tile.position = Vector2(6, 11)
+		b.add_child(tile)
+		var tl := UI.label(sym, 13, UI.INK if on else UI.TEXT, true)
+		tl.position = Vector2(34, 14)
+		tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(tl)
 		b.pressed.connect(func():
 			Kit.close_top()
 			if Game.set_mine_target(sym):

@@ -19,6 +19,7 @@ var _field: LineEdit
 var _go: Button
 var _targets: Dictionary = {}
 var _typing := false
+var _type_btn: Button
 var _typed := -1.0        # an amount typed in £ (-1 = use the slider)
 var _amount := 0.0        # what the button shows, in £
 var _panel: Control       # the sheet, lifted above the phone keyboard
@@ -110,7 +111,14 @@ func _ready() -> void:
 	_field.add_theme_stylebox_override("normal", UI.box(UI.RAISED, 12, 14, 10))
 	_field.add_theme_stylebox_override("focus", UI.box(UI.RAISED, 12, 14, 10))
 	_field.text_changed.connect(_on_typed)
+	_field.visible = false   # shown by "Type an amount", so the amount isn't on screen three times
 	add_child(_field)
+	_type_btn = UI.pill("Type an amount", UI.PANEL, UI.SUB, 15, 16)
+	_type_btn.custom_minimum_size = Vector2(0, 48)
+	_type_btn.pressed.connect(func():
+		Kit.haptic("selection")
+		show_field())
+	add_child(_type_btn)
 	_after = UI.label("", 13, UI.SUB)
 	_after.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_after)
@@ -124,6 +132,14 @@ func _ready() -> void:
 	_update()
 	Game.changed.connect(_update)   # cash and prices move while it is open
 	_field.focus_exited.connect(func(): _field.text = "" if _amount <= 0.0 else Game.money(_amount))
+
+
+func show_field() -> void:
+	## Swaps the "Type an amount" link for the amount box and focuses it.
+	_type_btn.visible = false
+	_field.visible = true
+	_field.text = "" if _amount <= 0.0 else Game.money(_amount)
+	_field.grab_focus()
 
 
 func _book() -> Dictionary:
@@ -195,13 +211,13 @@ func _update() -> void:
 			_after.text = "After: %s %s free · %s locked" % [AssetDetail.qty_text(free - units), sym, AssetDetail.qty_text(Game.staked(sym) + units)]
 			_go.text = "Lock · %s %s" % [AssetDetail.qty_text(units), sym]
 		elif mode == "sell":
-			_sub.text = "You get %s" % Game.money(got)
+			_sub.text = "You get %s (%s%% fee)" % [Game.money(got), str(snappedf(Data.SELL_SPREAD * 100.0, 0.1))]
 			_after.text = "After: %s %s left · %s cash" % [AssetDetail.qty_text(free - units), sym, Game.money_short(Game.cash + got)]
 			_go.text = "Sell · " + Game.money_short(got)
 		else:
 			var tp := Game.price(to_sym)
 			var to_units := got / tp if tp > 0.0 else 0.0
-			_sub.text = "Becomes %s %s" % [AssetDetail.qty_text(to_units), to_sym]
+			_sub.text = "Becomes %s %s (%s%% fee)" % [AssetDetail.qty_text(to_units), to_sym, str(snappedf(Data.SELL_SPREAD * 100.0, 0.1))]
 			_after.text = "After: %s %s left · %s %s" % [AssetDetail.qty_text(free - units), sym, AssetDetail.qty_text(Game.holding(Game.coins, to_sym) + to_units), to_sym]
 			_go.text = "Convert into %s" % String(Data.coin(to_sym)[1])
 		if Game.staked(sym) > 0.0:
