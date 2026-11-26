@@ -2453,7 +2453,7 @@ func _accrue(dt: float) -> void:
 
 
 func _record_history() -> void:
-	history.append([now(), net_worth()])
+	history.append([now(), net_worth(), income_per_hour])   # income for the Stats chart (1.2)
 	while history.size() > HISTORY_MAX:
 		history.pop_front()
 
