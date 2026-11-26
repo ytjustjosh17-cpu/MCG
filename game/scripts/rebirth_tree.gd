@@ -42,6 +42,14 @@ const BRANCHES := [
 		[["Reborn", {"rbp": 0.2}], ["High roller", {"casino": 1.0}]]],
 ]
 
+# Unlock nodes open new parts of the game. They sit between two branches,
+# linked to both gates, so even a first rebirth can reach one.
+# id, name, slot (between branch i and i+1), cost, stat, icon
+const UNLOCKS := [
+	["u_casino", "Sol Casino", 0, 6, "u_casino", "coins"],
+	["u_tables", "High tables", 4, 20, "u_tables", "diamond"],
+]
+
 # "start" amounts: each step of `start` is worth more than the last, so the
 # head start keeps mattering in later runs. start total -> cash.
 static func start_cash(total: float) -> float:
@@ -138,6 +146,14 @@ static func _build() -> void:
 		var a: String = BRANCHES[bi][0] + "_g"
 		var b: String = BRANCHES[(bi + 1) % n_b][0] + "_g"
 		_link(a, b)
+	# Unlocks: between two gates, a little further out.
+	for u in UNLOCKS:
+		var slot: int = u[2]
+		var ang := -PI / 2.0 + TAU * (float(slot) + 0.5) / float(n_b)
+		_add(String(u[0]), String(u[1]), "unlock", "unlock", _polar(STEP * 2.3, ang), {String(u[4]): 1.0}, 2, String(u[5]))
+		_by_id[u[0]]["cost"] = int(u[3])
+		_link(String(BRANCHES[slot][0]) + "_g", String(u[0]))
+		_link(String(u[0]), String(BRANCHES[(slot + 1) % n_b][0]) + "_g")
 	# Bridges between neighbouring trunks (+3% to companies, rent, dividends).
 	for bi in range(n_b):
 		var pa: String = BRANCHES[bi][0]
@@ -173,4 +189,6 @@ static func describe(fx: Dictionary) -> String:
 			"rbp": parts.append("RBP from rebirths +%d%%" % int(round(v * 100.0)))
 			"deals": parts.append("Deals come %d%% sooner" % int(round(v * 100.0)))
 			"casino": parts.append("Casino limits doubled")
+			"u_casino": parts.append("Opens Sol Casino: three slot machines, with chips you buy and cash out")
+			"u_tables": parts.append("Opens the casino tables: roulette and blackjack (needs Sol Casino)")
 	return ", ".join(parts)

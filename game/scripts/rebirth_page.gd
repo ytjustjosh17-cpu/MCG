@@ -118,7 +118,7 @@ func _on_node(id: String) -> void:
 		Kit.sheet("Sol", "The centre of your tree. Everything grows out from here.", [{"text": "Close", "style": "plain"}])
 		return
 	var cost := int(n["cost"])
-	var kinds := {"small": "", "notable": "Notable · ", "key": "Keystone · "}
+	var kinds := {"small": "", "notable": "Notable · ", "key": "Keystone · ", "unlock": "Unlock · "}
 	var body := String(kinds.get(n["kind"], "")) + RebirthTree.describe(n["fx"])
 	var actions: Array = []
 	if Game.node_owned(id):
@@ -294,7 +294,7 @@ class TreeView extends Control:
 			node_tapped.emit(best)
 
 	func _radius(n: Dictionary) -> float:
-		var r: float = {"core": 30.0, "key": 22.0, "notable": 17.0, "small": 12.0}.get(n["kind"], 12.0)
+		var r: float = {"core": 30.0, "key": 22.0, "unlock": 20.0, "notable": 17.0, "small": 12.0}.get(n["kind"], 12.0)
 		return r * clampf(zoom / 0.62, 0.7, 1.6)
 
 	func _state(id: String) -> int:
@@ -352,6 +352,8 @@ class TreeView extends Control:
 			var closed := pts.duplicate()
 			closed.append(pts[0])
 			draw_polyline(closed, ring, 2.0 if st >= 0 else 1.0, true)
+			if String(n["kind"]) == "unlock":
+				draw_arc(p, r + 5.0, 0.0, TAU, 40, UI.GOLD if st != 2 else UI.TEXT, 2.0, true)   # unlocks glow gold
 			var tex := Icon.texture(Icon.MAP.get(String(n["icon"]), String(n["icon"])), st == 2)
 			if tex and r >= 9.0:
 				var s := r * 1.1
@@ -370,8 +372,14 @@ class TreeView extends Control:
 			draw_string(f, lp - Vector2(60, 0), String(br[1]).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 11, Color(UI.SUB, 0.9))
 
 	func _shape(kind: String, p: Vector2, r: float) -> PackedVector2Array:
-		## Circle for small, diamond for notable, hexagon for keystones.
+		## Circle for small, diamond for notable, hexagon for keystones,
+		## an eight-point star for unlocks.
 		var pts := PackedVector2Array()
+		if kind == "unlock":
+			for i in 16:
+				var a := TAU * float(i) / 16.0 - PI / 2.0
+				pts.append(p + Vector2(cos(a), sin(a)) * r * (1.0 if i % 2 == 0 else 0.72))
+			return pts
 		var n := 20
 		var rot := 0.0
 		if kind == "notable":

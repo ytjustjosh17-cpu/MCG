@@ -83,9 +83,7 @@ func _gamble() -> void:
 	## Gambler persona (SIM_GAMBLE=1): 40 max-bet spins on the high-risk slot
 	## every session, playing out free spins, then cashing out.
 	if not g.casino_open():
-		if g.cash >= Data.CASINO_COST * 4.0:
-			g.unlock_casino()
-		return
+		return   # opens with the Sol Casino node after a rebirth
 	if _slot == null:
 		_slot = SlotMath.new("vault", 4242 + int(OS.get_environment("SIM_SEED")))
 	var line: float = g.casino_max_bet() / float(SlotMath.LINES)

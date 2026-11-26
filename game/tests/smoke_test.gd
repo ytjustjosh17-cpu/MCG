@@ -714,6 +714,13 @@ func _run() -> void:
 	for nd in RebirthTree.nodes():
 		rb_ids[nd["id"]] = true
 	_check(rb_ids.size() == RebirthTree.nodes().size(), "node rb_ids are unique")
+	var rb_min := 1.0e9
+	var rb_ns: Array = RebirthTree.nodes()
+	for i in rb_ns.size():
+		for j in range(i + 1, rb_ns.size()):
+			rb_min = minf(rb_min, Vector2(rb_ns[i]["x"], rb_ns[i]["y"]).distance_to(Vector2(rb_ns[j]["x"], rb_ns[j]["y"])))
+	_check(rb_min * 0.62 >= 48.0, "tree nodes sit at least 48 px apart at the starting zoom (%.0f px)" % (rb_min * 0.62))
+	_check(int(RebirthTree.node("u_casino")["cost"]) + int(RebirthTree.node("emp_g")["cost"]) <= 10, "a first rebirth (10 RBP) can reach the casino")
 	game.cash = 1.0e6
 	game.open_business("shop", "Tree Test")
 	game.recalc()
@@ -737,9 +744,13 @@ func _run() -> void:
 	# round saved at once, chips go on rebirth but the unlock stays.
 	game.reset_game(true)
 	game.cash = 1.0e6
-	_check(not game.buy_chips(100.0) and not game.unlock_casino(), "casino starts locked and costs %s" % game.money_short(Data.CASINO_COST))
-	game.cash = Data.CASINO_COST + 5.0e5
-	_check(game.unlock_casino() and absf(game.cash - 5.0e5) < 0.01, "opening the casino costs exactly its price")
+	_check(not game.casino_open() and not game.buy_chips(100.0), "casino starts locked")
+	game.rebirth["earned"] = 10
+	_check(game.path_cost("u_casino") <= 10 and game.buy_node("hand_g") and game.buy_node("u_casino") and game.casino_open(), "the Sol Casino node opens it (%d RBP from the centre)" % 9)
+	_check(not game.tables_open(), "roulette and blackjack need High tables too")
+	game.grant_node("u_tables")
+	_check(game.tables_open(), "High tables opens them")
+	game.cash = 5.0e5
 	var cs_nw: float = game.net_worth()
 	_check(game.buy_chips(2.0e5) and absf(game.chips() - 2.0e5) < 0.01 and absf(game.net_worth() - cs_nw) < 1.0, "chips count in net worth")
 	var cs_max: float = game.casino_max_bet()
@@ -752,7 +763,7 @@ func _run() -> void:
 	_check(absf(cs_paid - game.casino_max_win()) < 0.01, "one payout is capped at %s" % game.money_short(game.casino_max_win()))
 	game.cash = 2.0e10
 	game.do_rebirth()
-	_check(game.casino_open() and game.chips() == 0.0, "rebirth keeps the casino open and clears the chips")
+	_check(game.casino_open() and game.chips() == 0.0, "rebirth keeps the casino open (tree) and clears the chips")
 	var cs_old: Dictionary = game.to_dict()
 	cs_old["version"] = 13
 	cs_old.erase("casino")
@@ -761,7 +772,7 @@ func _run() -> void:
 	game.reset_game(true)
 	# Back up, gamble, restore if down: refused even a minute later.
 	game.reset_game(true)
-	game.casino = {"open": true, "chips": 0.0}
+	game.grant_node("u_casino")
 	game.cash = 1.0e6
 	game.buy_chips(1000.0)
 	game.restore_guard = true

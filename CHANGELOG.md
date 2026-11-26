@@ -1,5 +1,20 @@
 # Changelog
 
+## Sol Casino (an RBP unlock)
+
+- New tree nodes that unlock parts of the game (gold stars near the centre).
+  Sol Casino (6 RBP, next to the Empire and Hands gates; a first rebirth can
+  reach it) and High tables (20 RBP) for roulette and blackjack.
+- Casino (Items tab): buy chips at the cage and cash out any time.
+  Three slot machines (Red Sun Classic, Neon Reef, Iron Vault): 5 reels, 20
+  lines, wilds, scatters, 10 free spins at x2, bonus buy, autospin, paytable.
+- Roulette: European wheel, a phone-sized betting mat, chips, undo, rebet.
+- Blackjack: six decks, 3 to 2, double, split, a hint button.
+- Limits follow your income: a bet up to 6 minutes of income, a win up to a
+  day of income. Every bet is saved at once. The house keeps a small edge
+  (slots about 95.6%, roulette 97.3%, blackjack about 99.3%).
+- Cards: Kenney's Boardgame Pack (CC0).
+
 ## Managers explained
 
 - Tapping a company's manager row now explains what they do before you hire:

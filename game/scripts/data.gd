@@ -206,7 +206,6 @@ const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 
 # ---- golden sun (a small surprise while playing) -------------------------
 const SUN_EVERY_MIN := [15.0, 30.0]  # minutes of play between suns
-const CASINO_COST := 2.5e6           # one-off price to open the casino
 const CASINO_MAX_BET_H := 0.1         # a bet is at most 6 minutes of income
 const CASINO_MAX_WIN_H := 24.0        # one payout is at most a day of income
 const CASINO_MIN_BET_CAP := 500.0     # early on you can still bet a little
@@ -343,6 +342,6 @@ const WHATS_NEW := [
 	"Sound, a Stats page and a growing tower.",
 	"Buy, sell or lock any amount: slide or type.",
 	"Convert coins, and watch your miners work.",
-	"Rebirth for RBP and grow the 152-node tree.",
-	"Casino: three slot machines, roulette, blackjack.",
+	"Rebirth for RBP and grow the RBP tree.",
+	"Tree unlocks: the casino, with slots and tables.",
 ]
