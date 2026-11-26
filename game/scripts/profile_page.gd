@@ -116,6 +116,11 @@ func build() -> void:
 		push_page.emit(StatsPage.new()))
 	ac.add_child(stats_row)
 	separator(ac, 50)
+	var new_row := Row.new("info")
+	new_row.set_texts("What's new", "", "v" + Updater.current_version())
+	new_row.pressed.connect(_show_whats_new)
+	ac.add_child(new_row)
+	separator(ac, 50)
 	var set_row := Row.new("gear")
 	set_row.set_texts("Settings")
 	set_row.pressed.connect(func():
@@ -175,3 +180,12 @@ func _on_update_pressed() -> void:
 		Updater.state = Updater.State.AVAILABLE
 	Updater.start_update()
 	_refresh_update()
+
+
+static func _show_whats_new() -> void:
+	Kit.tick()
+	Game.ui["seen_new"] = Data.RELEASE
+	var lines: Array = []
+	for l in Data.WHATS_NEW:
+		lines.append("·  " + l)
+	Kit.sheet("What's new in %s" % Data.RELEASE, "\n".join(lines), [{"text": "Nice", "style": "primary"}])

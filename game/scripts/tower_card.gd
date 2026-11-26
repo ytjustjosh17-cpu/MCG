@@ -16,6 +16,9 @@ var _flicker_time := 0.0
 var _flicker_wait := 3.0
 var _wave := -1.0
 var _beacon_on := true
+var tier := 0          # wealth tier 0-5, from net worth (see _tier_now)
+var _tier_t := 0.0
+const TIERS := [1.0e6, 1.0e8, 1.0e10, 1.0e12, 1.0e14]
 
 
 var _sky: Control
@@ -29,6 +32,7 @@ func _ready() -> void:
 	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_sky)
+	tier = _tier_now()
 	Game.changed.connect(queue_redraw)
 	resized.connect(_reshape)
 
@@ -86,6 +90,30 @@ func _draw() -> void:
 	var tx: float = g["tx"]
 	var tw: float = g["tw"]
 	var top: float = g["top"]
+	# Wealth tiers: the skyline around the tower grows as net worth does.
+	if tier >= 1:
+		# A second, older block behind on the left.
+		var bx := tx - tw * 0.62
+		var bt := top + h * 0.12
+		_fill_clipped(UI.rect_poly(Rect2(bx, bt, tw * 0.55, h)), clip, UI.SIDE)
+		var wy := bt + 12.0
+		while wy < h - 20.0:
+			for c in 3:
+				var on := (int(wy) / 7 + c) % 5 == 0
+				draw_rect(Rect2(bx + 8.0 + c * tw * 0.15, wy, tw * 0.07, 4.0), Color(UI.RED, 0.55) if on else UI.WINDOW, true)
+			wy += 14.0
+		if tier >= 4:
+			# A sky bridge joins it to the tower.
+			_fill_clipped(UI.rect_poly(Rect2(bx + tw * 0.55, bt + h * 0.12, tw * 0.07 + 4.0, 10.0)), clip, UI.INK)
+			draw_rect(Rect2(bx + tw * 0.55, bt + h * 0.12 + 4.0, tw * 0.07 + 4.0, 2.0), Color(UI.RED, 0.8), true)
+	if tier >= 3:
+		# Searchlights sweeping up from the roof (faint).
+		for k in 2:
+			var o := Vector2(tx + tw * (0.2 + k * 0.6), top)
+			var ang := -PI / 2.0 + (0.28 if k == 1 else -0.28)
+			var d := Vector2(cos(ang), sin(ang)) * h
+			var side := Vector2(-d.y, d.x).normalized() * h * 0.09
+			_fill_clipped(PackedVector2Array([o, o + d + side, o + d - side]), clip, Color(UI.TEXT, 0.05))
 	# Roof: plant room, water tank on legs, antenna with a red light.
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw * 0.15, top - tw * 0.12, tw * 0.3, tw * 0.12)), clip, UI.INK)
 	var tank := Rect2(tx + tw * 0.62, top - tw * 0.16, tw * 0.18, tw * 0.1)
@@ -99,6 +127,13 @@ func _draw() -> void:
 	var beacon_on := Game.reduce_motion or fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
 	if beacon_on:
 		draw_circle(Vector2(mast_x + 0.25, mast_top), 3.0, UI.RED)
+	if tier >= 2:
+		# Red aircraft lights on the roof corners.
+		draw_rect(Rect2(tx - 2.0, top - 4.0, 4.0, 4.0), UI.RED, true)
+		draw_rect(Rect2(tx + tw - 2.0, top - 4.0, 4.0, 4.0), UI.RED, true)
+	if tier >= 5:
+		# A crown: the top floors lit red all round.
+		draw_rect(Rect2(tx, top + 6.0, tw, 3.0), UI.RED, true)
 	# Body with a ledge at the top and the shaded side.
 	_fill_clipped(UI.rect_poly(Rect2(tx - 4.0, top, tw + 8.0, 6.0)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx, top, tw, h)), clip, UI.INK)
@@ -179,6 +214,13 @@ func _process(delta: float) -> void:
 	if Game.boost_active() != _sky_boost:
 		_sky_boost = Game.boost_active()
 		_sky.queue_redraw()
+	_tier_t -= delta
+	if _tier_t <= 0.0:
+		_tier_t = 2.0
+		var tn := _tier_now()
+		if tn != tier:
+			tier = tn
+			queue_redraw()
 	# Roof light blinks: redraw only when it switches.
 	var on := fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
 	if on != _beacon_on and not Game.reduce_motion and is_visible_in_tree():
@@ -189,6 +231,15 @@ func _process(delta: float) -> void:
 		if _wave > 1.2:
 			_wave = -1.0
 		queue_redraw()
+
+
+func _tier_now() -> int:
+	var nw := Game.net_worth()
+	var t := 0
+	for v in TIERS:
+		if nw >= v:
+			t += 1
+	return t
 
 
 func celebrate() -> void:

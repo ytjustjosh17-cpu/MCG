@@ -123,6 +123,10 @@ func _ready() -> void:
 	_pages[0].visible = true
 	_nav.set_active(0)
 
+	# After updating to a new release, say once where to read what changed.
+	if String(Game.ui.get("seen_new", "")) != Data.RELEASE and Game.taps > 0:
+		Game.ui["seen_new"] = Data.RELEASE
+		get_tree().create_timer(2.5).timeout.connect(func(): Kit.toast("Updated to %s · see What's new in Profile" % Data.RELEASE, true))
 	Updater.update_available.connect(_on_update)
 	Updater.state_changed.connect(func(): _nav.set_badge(4, Updater.has_update()))
 	if OS.has_feature("android"):

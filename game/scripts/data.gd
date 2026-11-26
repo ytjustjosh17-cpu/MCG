@@ -298,3 +298,19 @@ static func business(id: String) -> Dictionary:
 		if b["id"] == id:
 			return b
 	return {}
+
+
+# ---- what's new (shown from Profile) -------------------------------------
+const RELEASE := "1.1"
+const WHATS_NEW := [
+	"Money is now in pounds, exact to the penny.",
+	"Buy ×1, ×10, ×100 or Max on every company.",
+	"Milestones at 5, 25 and 50 units lift income.",
+	"Synergies: one company can boost another.",
+	"Achievements now add a little income each.",
+	"Critical taps, plus Frenzy and Rush from golden suns.",
+	"Crypto mining with rigs, 3 new coins, mining news.",
+	"Sound effects, number format and a Stats page.",
+	"Your tower grows as you get richer.",
+	"Back button sits bottom right; bigger buttons.",
+]
