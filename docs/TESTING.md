@@ -16,7 +16,7 @@ Run them yourself first. A release with a failing test is never pushed.
 | Rules | `python3 tools/check_rules.py` (repo root) | R1 to R11 in CLAUDE.md | 1 s |
 | Smoke | `$G --headless --path . -s res://tests/smoke_test.gd` | Every system, every page builds, saves, migrations, exploits, update flow, storage limits | 15 s |
 | Stress | `$G --headless --path . -s res://tests/stress_test.gd` | Spam buying, odd input, clock going backwards, a year away, huge numbers | 10 s |
-| Touch | see below | Scrolling over buttons, wobbly taps, chart drags, sheets | 20 s |
+| Touch | see below | Scrolling over buttons, wobbly taps, chart drags, sheets, the trade slider, typing an amount, the Lock sheet | 20 s |
 | Pacing | see BALANCE.md | Days to each milestone | 5 min |
 | Screenshots | see below | How every page looks | 1 min |
 
@@ -37,6 +37,7 @@ Screenshots of a mid-game save, every tab, sheets and popups:
 xvfb-run -a -s "-screen 0 1280x1024x24" $G --path . --rendering-driver opengl3 \
   --resolution 390x844 -s res://tests/screenshot.gd -- /some/output/folder
 ```
+Trade pop-ups are shots 09e (sell), 09f (convert), 09g (buy) and 09h (lock); 31 shows the miner rack.
 README pictures live in `docs/screenshots/` and come from this run (01_earn, 03_taxi, 06_invest_shares, 31_crypto_mining, 09c_share, 13_profile). Copy fresh ones in when those screens change.
 
 Lines saying `Identifier not found: Game` at the start are harmless (scripts compiling before the autoloads load).

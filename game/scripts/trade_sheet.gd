@@ -2,7 +2,8 @@ class_name TradeSheet
 extends VBoxContainer
 ## The buy / sell / convert pop-up: a slider, quick 25/50/75/Max chips and an
 ## amount box, with live numbers for what you have, what you get and what's
-## left. mode: "buy", "sell" or "convert" (coins only).
+## left. mode: "buy", "sell", "convert" or "lock" (coins only). Numbers stay
+## live while it is open, and a typed amount stays fixed in pounds.
 
 var kind := "coin"
 var sym := ""
@@ -18,6 +19,10 @@ var _field: LineEdit
 var _go: Button
 var _targets: Dictionary = {}
 var _typing := false
+var _typed := -1.0        # an amount typed in £ (-1 = use the slider)
+var _amount := 0.0        # what the button shows, in £
+var _panel: Control       # the sheet, lifted above the phone keyboard
+var _rest_y := NAN
 
 
 static func open(k: String, s: String, m: String) -> void:
@@ -25,7 +30,7 @@ static func open(k: String, s: String, m: String) -> void:
 	ts.kind = k
 	ts.sym = s
 	ts.mode = m
-	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert "}[m] + s
+	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock "}[m] + s
 	Kit.sheet(title, "", [{"text": "Close", "style": "plain"}], true, ts)
 
 
@@ -56,6 +61,7 @@ func _ready() -> void:
 			var target: String = c[0]
 			b.pressed.connect(func():
 				Kit.haptic("selection")
+				_field.release_focus()
 				to_sym = target
 				_paint_targets()
 				_update())
@@ -69,6 +75,8 @@ func _ready() -> void:
 	add_child(_sub)
 	_slider = AmountSlider.new()
 	_slider.changed.connect(func(v: float):
+		_field.release_focus()
+		_typed = -1.0
 		frac = v
 		_update())
 	add_child(_slider)
@@ -82,6 +90,8 @@ func _ready() -> void:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func():
 			Kit.haptic("selection")
+			_field.release_focus()
+			_typed = -1.0
 			frac = pv
 			_slider.set_value(pv)
 			_update())
@@ -90,6 +100,7 @@ func _ready() -> void:
 	# Or type an amount in pounds.
 	_field = LineEdit.new()
 	_field.placeholder_text = "Type an amount in £"
+	_field.select_all_on_focus = true   # a tap replaces the amount, never mixes into it
 	_field.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER_DECIMAL
 	_field.custom_minimum_size = Vector2(0, 48)
 	_field.add_theme_font_override("font", UI.REG)
@@ -108,9 +119,11 @@ func _ready() -> void:
 	_go.pressed.connect(_confirm)
 	Kit.press_fx(_go)
 	add_child(_go)
-	frac = 0.5 if mode != "buy" else 0.1
+	frac = {"buy": 0.1, "lock": 1.0}.get(mode, 0.5)
 	_slider.set_value(frac)
 	_update()
+	Game.changed.connect(_update)   # cash and prices move while it is open
+	_field.focus_exited.connect(func(): _field.text = "" if _amount <= 0.0 else Game.money(_amount))
 
 
 func _book() -> Dictionary:
@@ -138,6 +151,7 @@ func _on_typed(t: String) -> void:
 	if mx <= 0.0:
 		return
 	_typing = true
+	_typed = maxf(0.0, v)
 	frac = clampf(v / mx, 0.0, 1.0)
 	_slider.set_value(frac)
 	_update()
@@ -148,7 +162,11 @@ func _update() -> void:
 	var p := Game.price(sym)
 	var free := Game.holding(_book(), sym)
 	var mx := _max_value()
+	if _typed >= 0.0:
+		frac = clampf(_typed / mx, 0.0, 1.0) if mx > 0.0 else 0.0
+		_slider.set_value(frac)
 	var amount := mx * frac
+	_amount = amount
 	var units := amount / p if p > 0.0 else 0.0
 	if mode == "buy":
 		_have.text = "Cash %s · you own %s %s" % [Game.money(Game.cash), AssetDetail.qty_text(free), sym]
@@ -160,7 +178,14 @@ func _update() -> void:
 		var got := amount * (1.0 - Data.SELL_SPREAD)
 		_have.text = "You own %s %s · %s" % [AssetDetail.qty_text(free), sym, Game.money_short(free * p)]
 		_big.text = "%s %s" % [AssetDetail.qty_text(units), sym]
-		if mode == "sell":
+		if mode == "lock":
+			var rate := Game.stake_rate(sym) * 2400.0
+			_sub.text = "Earns up to %.2f%% a day · can't sell for 24 h" % rate
+			if Game.staked(sym) > 0.0:
+				_sub.text = "Adds to your lock · the 24 h starts again"
+			_after.text = "After: %s %s free · %s locked" % [AssetDetail.qty_text(free - units), sym, AssetDetail.qty_text(Game.staked(sym) + units)]
+			_go.text = "Lock · %s %s" % [AssetDetail.qty_text(units), sym]
+		elif mode == "sell":
 			_sub.text = "You get %s" % Game.money(got)
 			_after.text = "After: %s %s left · %s cash" % [AssetDetail.qty_text(free - units), sym, Game.money_short(Game.cash + got)]
 			_go.text = "Sell · " + Game.money_short(got)
@@ -173,16 +198,39 @@ func _update() -> void:
 		if Game.staked(sym) > 0.0:
 			_have.text += " (%s locked)" % AssetDetail.qty_text(Game.staked(sym))
 	Page.set_enabled(_go, amount >= 0.01)
-	if not _typing:
+	if not _typing and not _field.has_focus():
 		_field.text = "" if frac <= 0.0 else Game.money(amount)
 
 
+func _process(_d: float) -> void:
+	# Lift the sheet so the amount box and button sit above the phone keyboard.
+	if _panel == null:
+		_panel = get_parent().get_parent() as Control
+		return
+	var kb := 0.0
+	if _field.has_focus() and DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		var win := float(DisplayServer.window_get_size().y)
+		kb = float(DisplayServer.virtual_keyboard_get_height()) * get_viewport_rect().size.y / maxf(1.0, win)
+	if kb > 0.0 and is_nan(_rest_y):
+		_rest_y = _panel.position.y
+	if is_nan(_rest_y):
+		return
+	var lift := 0.0
+	if kb > 0.0:
+		var bottom := _go.global_position.y + _go.size.y + 12.0 - (_panel.position.y - _rest_y)
+		lift = maxf(0.0, bottom - (get_viewport_rect().size.y - kb))
+	_panel.position.y = _rest_y - lift
+	if kb <= 0.0:
+		_rest_y = NAN
+
+
 func _confirm() -> void:
+	_update()   # trade exactly what the button shows right now
 	var ok := false
 	var msg := ""
 	match mode:
 		"buy":
-			var spend := Game.cash * frac
+			var spend := minf(_amount, Game.cash)
 			ok = Game.buy_asset(kind, sym, spend)
 			msg = "Bought %s · %s" % [sym, Game.money_short(spend)]
 		"sell":
@@ -193,6 +241,9 @@ func _confirm() -> void:
 			var n := Game.convert_coin(sym, to_sym, frac)
 			ok = n > 0.0
 			msg = "Now %s %s more" % [AssetDetail.qty_text(n), to_sym]
+		"lock":
+			ok = Game.stake(sym, frac)
+			msg = "Locked for 24 h"
 	if ok:
 		Kit.haptic("success")
 		Kit.toast(msg, true)

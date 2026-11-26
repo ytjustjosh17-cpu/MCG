@@ -335,4 +335,6 @@ const WHATS_NEW := [
 	"Big taps, and golden sun bonuses.",
 	"Real coins; miners dig the one you pick.",
 	"Sound, a Stats page and a growing tower.",
+	"Buy, sell or lock any amount: slide or type.",
+	"Convert coins, and watch your miners work.",
 ]

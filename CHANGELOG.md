@@ -9,6 +9,10 @@
   logos). Same small fee as selling.
 - Crypto miners: a little rack of machines with spinning fans, blinking
   lights and coins floating up.
+- Lock uses the same pop-up, so you can lock any amount, not just half or all.
+- The numbers stay live while the pop-up is open. A typed amount stays put,
+  and the button always trades exactly what it shows. Tapping the box
+  selects the old amount, and the pop-up moves up above the phone keyboard.
 
 ## Claim your rewards
 

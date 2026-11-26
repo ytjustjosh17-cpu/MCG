@@ -154,6 +154,8 @@ static func qty_text(q: float) -> String:
 		return Game.group(int(q))
 	if q >= 1.0:
 		return "%.2f" % q
+	if q < 1e-9:
+		return "0"
 	return "%.4f" % q
 
 
@@ -297,14 +299,10 @@ func _on_stake() -> void:
 	if locked > 0.0 and Game.stake_left(sym) <= 0.0:
 		actions.append({"text": "Unlock " + qty_text(locked), "style": "primary", "call": _on_unstake})
 	var matured := locked > 0.0 and Game.stake_left(sym) <= 0.0
-	for f in [1.0, 0.5]:
-		var ff: float = f
-		if free > 0.0 and not matured:   # unlock first, so ready coins are never re-locked by mistake
-			var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff) + " · 24 h"
-			actions.append({"text": label, "style": "secondary", "call": func():
-				if Game.stake(sym, ff):
-					Kit.haptic("success")
-					Kit.toast("Locked for 24 h", true)})
+	if free > 0.0 and not matured:   # unlock first, so ready coins are never re-locked by mistake
+		# Any amount: slider, chips or a typed amount.
+		TradeSheet.open(kind, sym, "lock")
+		return
 	actions.append({"text": "Close", "style": "plain"})
 	var body_t := "Locked coins earn up to %.2f%% a day (all locks together pay at most %d%% of your income). You can't sell them for 24 h." % [Game.stake_rate(sym) * 2400.0, int(Data.STAKE_CAP * 100.0)]
 	if free <= 0.0 and locked <= 0.0:
