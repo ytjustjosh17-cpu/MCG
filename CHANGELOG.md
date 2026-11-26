@@ -1,5 +1,13 @@
 # Changelog
 
+## Messages you can actually read
+
+- Catching a golden sun now shows a proper centred card (cash, Frenzy or
+  Rush) for about 3 seconds, with confetti. It never blocks your taps.
+- Small messages no longer cut each other off: they wait in line, each stays
+  at least 2.6 seconds (longer for longer text), and repeats are dropped.
+  Celebration cards stay 3.2 seconds (was 2.4).
+
 ## More tree unlocks
 
 - Three new gold unlock nodes in the RBP tree, each adding new things to buy:

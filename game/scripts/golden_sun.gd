@@ -65,13 +65,14 @@ func _catch() -> void:
 	_caught = true
 	var v := Game.catch_sun()
 	Kit.haptic("success")
+	# A proper moment, not a flash: the centred card (never blocks taps).
 	match Game.last_sun:
 		"frenzy":
-			Kit.toast("Frenzy! Taps ×%d for %d s" % [int(Data.FRENZY_MULT), int(Data.FRENZY_S)], true)
+			Kit.celebrate("Golden sun", "Frenzy: taps ×%d for %d s" % [int(Data.FRENZY_MULT), int(Data.FRENZY_S)], "×%d" % int(Data.FRENZY_MULT))
 		"rush":
-			Kit.toast("Rush! Income ×2 for %d min" % int(Data.RUSH_S / 60.0), true)
+			Kit.celebrate("Golden sun", "Rush: income ×2 for %d min" % int(Data.RUSH_S / 60.0), "×2")
 		_:
-			Kit.toast("Golden sun · +" + Game.money_short(v), true)
+			Kit.celebrate("Golden sun", "Cash bonus", "+" + Game.money_short(v))
 	var parent := get_parent()
 	if parent and not Motion.reduced():
 		parent.add_child(Confetti.new(position + size * 0.5, 50))

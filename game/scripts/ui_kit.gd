@@ -10,6 +10,7 @@ var top_inset := 0.0
 var bottom_inset := 0.0
 var _stack: Array = []  # [{"root": Control, "close": Callable}]
 var _toast: Control
+var _toast_q: Array = []     # waiting toasts: each gets its full time on screen
 # Drag-versus-tap handling, so lists scroll even when the finger starts on a button.
 const DRAG_PX := 14.0
 var dragged := false
@@ -382,8 +383,17 @@ func _present_alert(root: Control, card: Control, col: Control, dim: ColorRect) 
 # ---- toast ------------------------------------------------------------------
 
 func toast(text: String, red_mark := false) -> void:
+	## Toasts queue: a new one never cuts the last one short.
 	if _toast != null and is_instance_valid(_toast):
-		_toast.queue_free()
+		if String(_toast.get_meta("text", "")) == text:
+			return   # the same message is already showing
+		for q in _toast_q:
+			if String(q[0]) == text:
+				return
+		_toast_q.append([text, red_mark])
+		if _toast_q.size() > 3:
+			_toast_q.pop_front()   # keep the newest few
+		return
 	var pill := GlassPanel.new(22.0, Color(0.035, 0.133, 0.145, 0.88), 10.0)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pill.modulate.a = 0.0
@@ -399,6 +409,7 @@ func toast(text: String, red_mark := false) -> void:
 		m.position = Vector2(18, 18)
 		pill.add_child(m)
 	_toast = pill
+	pill.set_meta("text", text)
 	_present_toast(pill, l, red_mark)
 
 
@@ -415,11 +426,17 @@ func _present_toast(pill: Control, l: Label, red_mark: bool) -> void:
 	tw.set_parallel(true)
 	tw.tween_property(pill, "position:y", y, Motion.d(0.4)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	tw.tween_property(pill, "modulate:a", 1.0, 0.2)
-	tw.chain().tween_interval(2.2)
+	# Long enough to read: at least 2.6 s, longer for longer messages.
+	tw.chain().tween_interval(clampf(1.4 + 0.045 * float(l.text.length()), 2.6, 4.5))
 	tw.chain().set_parallel(true)
 	tw.tween_property(pill, "position:y", y - 40.0, Motion.d(0.3)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(pill, "modulate:a", 0.0, 0.3)
-	tw.chain().tween_callback(pill.queue_free)
+	tw.chain().tween_callback(func():
+		pill.queue_free()
+		_toast = null
+		if not _toast_q.is_empty():
+			var nx: Array = _toast_q.pop_front()
+			toast(String(nx[0]), bool(nx[1])))
 
 
 # ---- celebration ------------------------------------------------------------
@@ -507,7 +524,7 @@ func _next_celebration() -> void:
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for n in card.find_children("*", "Control", true, false):
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-	get_tree().create_timer(2.4).timeout.connect(close)
+	get_tree().create_timer(3.2).timeout.connect(close)
 
 
 # ---- drop-down picker -------------------------------------------------------
