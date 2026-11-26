@@ -618,6 +618,13 @@ func _run() -> void:
 	game.sim_time += 24.0 * 3600.0
 	game.restore_code(mcode)
 	_check(absf(game.holding(game.coins, "SOL") - mq) <= mq * 0.001 + 1e-9, "restoring a backup mines nothing")
+	# An old (v9) backup code converts its coins at today's price, so waiting
+	# for a coin to rise and then restoring gains nothing.
+	var oldd := {"version": 9, "cash": 1.0, "coins": {"EMB": {"qty": 1000.0, "cost": 4.2}}, "prices": {"EMB": 0.0042}}
+	game.prices["SHIB"] = 0.000015 * 10.0
+	var conv: Dictionary = game._migrate(oldd.duplicate(true), game.prices)
+	var conv_val: float = float(conv["coins"]["SHIB"]["qty"]) * game.price("SHIB")
+	_check(absf(conv_val - 4.2) < 0.01, "old backup coins keep their value at today's price (%.3f)" % conv_val)
 	# Switching the coin keeps the earnings the same, and moves new coins to it.
 	var mv1: float = game.mining_value_per_hour()
 	_check(game.set_mine_target("ETH") and absf(game.mining_value_per_hour() - mv1) <= mv1 * 0.001 + 1e-9 and game.mine_per_hour("SOL") == 0.0 and game.mine_per_hour("ETH") > 0.0, "switching miners to another coin keeps the same earnings")

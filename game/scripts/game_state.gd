@@ -1994,6 +1994,14 @@ func _notification(what: int) -> void:
 		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST:
 			_paused_at = now()
 			save_game()
+		NOTIFICATION_APPLICATION_FOCUS_OUT:
+			# Notification shade, a call, another app on top: save, and draw
+			# only a few frames a second to spare the battery.
+			if sim_time < 0.0:
+				save_game()
+				Engine.max_fps = 5
+		NOTIFICATION_APPLICATION_FOCUS_IN:
+			Engine.max_fps = 60
 		NOTIFICATION_APPLICATION_RESUMED:
 			if _paused_at > 0.0:
 				apply_offline(now() - _paused_at)
@@ -2223,7 +2231,7 @@ func restore_code(text: String) -> bool:
 	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
 	if f == null:
 		return false
-	d = _migrate(d)   # old codes: convert coins at their own saved prices first
+	d = _migrate(d, prices)   # old codes: convert coins from their saved prices to today's
 	d["saved_at"] = now()  # no time passes on restore, so it can't re-roll the market
 	# Keep today's market and deal, so a restore can't rewind prices or re-roll a deal.
 	var live := to_dict()
@@ -2254,7 +2262,7 @@ func _read_save(path: String) -> Dictionary:
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
 
-func _migrate(d: Dictionary) -> Dictionary:
+func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 	## Upgrades older saves step by step so updates never lose progress.
 	var v := int(d.get("version", 1))
 	if v < 2:
@@ -2290,13 +2298,13 @@ func _migrate(d: Dictionary) -> Dictionary:
 		d["mine_eff"] = d.get("mine_eff", {})
 		v = 9
 	if v < 10:
-		_migrate_v10(d)
+		_migrate_v10(d, live_prices)
 		v = 10
 	d["version"] = v
 	return d
 
 
-func _migrate_v10(d: Dictionary) -> void:
+func _migrate_v10(d: Dictionary, live_prices: Dictionary = {}) -> void:
 	## 1.1: made-up coins became real ones, and miners moved to one pool that
 	## mines one coin. Holdings keep their value in £ at the saved price.
 	var ren: Dictionary = Data.COIN_RENAME
@@ -2307,7 +2315,10 @@ func _migrate_v10(d: Dictionary) -> void:
 		var nsym: String = ren.get(old, old)
 		var nc := Data.coin(nsym)
 		var po := float(old_prices.get(old, 0.0))
-		var pn := float(nc[2]) if not nc.is_empty() else 0.0
+		# Convert at the price the coin will actually have: the live market on a
+		# restore (else an old code would gain whatever the coin has risen since),
+		# or the new coin's starting price on a plain load.
+		var pn := float(live_prices.get(nsym, nc[2] if not nc.is_empty() else 0.0))
 		var f := po / pn if po > 0.0 and pn > 0.0 else 0.0
 		var out := c.duplicate()
 		out["qty"] = float(c.get("qty", 0.0)) * f
