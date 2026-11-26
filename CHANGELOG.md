@@ -1,5 +1,13 @@
 # Changelog
 
+## Better Level up
+
+- Each level now nearly doubles your tap's base value (x1.9, was x1.64)
+  and costs x3.1 more than the last (was x3.4). Level 4 to 5: about £30K
+  for +£16 a tap (was £39K for +£7). Your level is kept; taps just get
+  stronger.
+- Robot: 90% done on day 35 to 37 (was 39), still inside the target.
+
 ## Fast tapping and tapping apps
 
 - Taps past the 7-a-second limit no longer show "+£0"; they just light the

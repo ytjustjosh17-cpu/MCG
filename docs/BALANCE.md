@@ -12,10 +12,10 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 9.5 to 10.5 |
-| 50% complete | 15 to 21 | 19.5 |
-| 75% complete | 28 to 38 | 32.5 to 32.9 |
-| 90% complete | 33 to 46 | 37.5 to 38.5 |
+| 25% complete | 7 to 10 | 8.5 to 8.9 |
+| 50% complete | 15 to 21 | 17.3 to 18.5 |
+| 75% complete | 28 to 38 | 28.8 to 29.8 |
+| 90% complete | 33 to 46 | 35.3 to 36.9 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
@@ -32,7 +32,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 
 | Source | Rule | Lever |
 |---|---|---|
-| Tapping | `tap_base(level) + 0.12% of income per hour` per tap; ×3 boost for 60 s every 10 min | `tap_value()` |
+| Tapping | `tap_base(level) + 0.12% of income per hour` per tap (base 2.5 x 1.9 per level, level cost 1,000 x 3.1 per level); ×3 boost for 60 s every 10 min | `tap_value()` |
 | Companies | units × unit income × stage multiplier × merger × global bonus | `BUSINESSES`, `stage_mult` |
 | Expansions | real-time timers, doubling each stage, max 48 h | `expansion_minutes()` |
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
