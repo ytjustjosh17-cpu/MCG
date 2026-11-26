@@ -147,7 +147,8 @@ func refresh() -> void:
 		var r: Row = _rows[k]
 		r.value_l.text = Game.money_short(vals[k])
 	var na := Game.next_achievement()
-	_ach_row.set_texts("Achievements", ("Next: %s · %d%%" % [na["title"], int(float(na["progress"]) * 100.0)]) if not na.is_empty() else "All done", "%d/%d" % [Game.achieved.size(), Game.achievements().size()])
+	var waiting := Game.unclaimed("ach")
+	_ach_row.set_texts("Achievements", ("%d to claim" % waiting) if waiting > 0 else (("Next: %s · %d%%" % [na["title"], int(float(na["progress"]) * 100.0)]) if not na.is_empty() else "All done"), "%d/%d" % [Game.achieved.size(), Game.achievements().size()])
 	_rival_row.set_texts("Rivals", "", "%d/%d" % [Game.rivals_beaten(), Data.RIVALS.size()])
 
 

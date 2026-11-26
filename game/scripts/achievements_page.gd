@@ -38,6 +38,7 @@ func build() -> void:
 			_sig = ""
 			refresh()))
 	Kit.press_fx(_pill)
+	body.add_child(ClaimList.new(["ach"]))   # earned achievements wait here for a tap
 	body.add_child(_pill)
 	_bonus = UI.label("", 15, UI.SUB)
 	body.add_child(_bonus)

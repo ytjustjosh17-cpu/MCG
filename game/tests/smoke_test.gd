@@ -661,6 +661,26 @@ func _run() -> void:
 	_check(game.restore_code(gcode), "it works on a new phone (no record of that game)")
 	game.restore_guard = false
 	game.reset_game()
+	# Rewards wait for a tap: achievements and goals add to the list, claiming
+	# pays exactly once, and the amount doesn't grow while it waits.
+	game.reset_game()
+	game.cash = 0.0
+	game.tap_cap = false
+	for k in 120:
+		game.tap()
+	game._check_achievements()
+	var waiting: int = game.unclaimed("ach")
+	var c_before: float = game.cash
+	_check(waiting >= 1 and game.reward_for("ach:taps_100").size() > 0, "a finished achievement waits to be claimed (%d waiting)" % waiting)
+	var amt: float = float(game.reward_for("ach:taps_100")["amount"])
+	game.income_per_hour = 1.0e9   # richer later: the reward must not grow
+	var got: float = game.claim("ach:taps_100")
+	_check(absf(got - amt) < 0.01 and absf(game.cash - c_before - amt) < 0.01, "claiming pays the amount fixed when it was earned")
+	_check(game.claim("ach:taps_100") == 0.0, "a reward can only be claimed once")
+	game.recalc()
+	game.claim_all()
+	_check(game.unclaimed() == 0, "Claim all clears the list")
+	game.reset_game()
 	# Head office upgrades: each works once and changes its rule.
 	game.reset_game()
 	game.cash = 1.0e13
