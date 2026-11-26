@@ -15,6 +15,7 @@ Read this file before changing anything. Then read the doc for the area you touc
 - Wants a premium, clean, Apple-meets-brutalist look on a dark teal background with one red sun.
 - Wants the game to take weeks, not days. It must never become easy by accident.
 - Installs updates with the Update button in Profile. Every push to the working branch makes a release.
+- **Ask the owner before every push.** Releases should be less common: commit locally, batch changes, and push only when the owner says so (they may want to add more first).
 
 ## Never do these
 
@@ -84,7 +85,7 @@ With every change the player can see, in the same commit:
 ## Releasing
 
 1. All checks above pass.
-2. Commit with a short summary, then push to the working branch.
+2. Commit with a short summary. Ask the owner, and push to the working branch only when they say yes.
 3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.1.<run number>` (1.1 from the v1.1 release on; the updater compares only the last number).
 4. The owner taps Update in Profile.
 
