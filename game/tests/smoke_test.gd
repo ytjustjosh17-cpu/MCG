@@ -805,6 +805,13 @@ func _run() -> void:
 	game.recalc()
 	_check(game.prop_rent(Data.PROPERTIES.size() + 2) > 0.0 and game.biz_income("fusion") > 0.0, "and earns")
 	game.reset_game(true)
+	# Toasts queue: a second message never cuts the first one short.
+	var tk = root.get_node("Kit")
+	tk.toast("First toast")
+	tk.toast("Second toast")
+	tk.toast("Second toast")
+	_check(String(tk._toast.get_meta("text", "")) == "First toast" and tk._toast_q.size() == 1, "a new toast waits for the one showing (no flash), duplicates dropped")
+	tk._toast_q.clear()
 	# Rewards wait for a tap: achievements and goals add to the list, claiming
 	# pays exactly once, and the amount doesn't grow while it waits.
 	game.reset_game()
