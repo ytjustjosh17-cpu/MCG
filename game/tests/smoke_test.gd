@@ -62,7 +62,8 @@ func _run() -> void:
 	_check(game.start_boost(), "boost starts")
 	var c0: float = game.cash
 	card._do_tap(Vector2(250, 100))
-	_check(is_equal_approx(game.cash - c0, game.tap_value() * 3.0), "boosted tap is x3")
+	var want_x := 3.0 * (Data.CRIT_MULT if game.last_tap_crit else 1.0)   # 1 in 25 taps crits
+	_check(is_equal_approx(game.cash - c0, game.tap_value() * want_x), "boosted tap is x3 (x15 on a crit)")
 	_check(not game.start_boost(), "boost on cooldown")
 
 	# Businesses, using the simulator clock.
@@ -406,6 +407,7 @@ func _run() -> void:
 	_check(not game.restore_code(code.substr(0, code.length() - 40)), "cut-off code refused")
 	_check(not game.restore_code("SOL1:999999999:AAAA"), "fake size refused")
 	_check(game.cash == 1.0, "failed restore changes nothing")
+	game.restore_guard = false   # these tests restore into the same game on purpose
 	_check(game.restore_code(code), "backup restores")
 	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("LMN") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("LMN"), keep_staked])
 	_check(game.hist_h["NRV"].size() >= 160, "charts rebuilt after restore")
@@ -617,6 +619,22 @@ func _run() -> void:
 		if game.price(c[0]) <= 0.0:
 			_check(false, "coin %s has a price" % c[0])
 	game.sim_time = -1.0
+	game.reset_game()
+	# Restore guard: a backup can't rewind the game it came from, even after a reset.
+	game.restore_guard = true
+	game.sim_time = -1.0
+	game.reset_game()
+	game.cash = 5000.0
+	game.save_game()
+	var gcode: String = game.backup_code()
+	var gk := str(int(game.started_at))
+	game._guard[gk] = game.now() + 3600.0   # the game has moved on an hour
+	_check(not game.restore_code(gcode) and game.restore_error != "", "an older backup can't rewind the same game")
+	game.reset_game()
+	_check(not game.restore_code(gcode), "nor after a reset")
+	game._guard.erase(gk)
+	_check(game.restore_code(gcode), "it works on a new phone (no record of that game)")
+	game.restore_guard = false
 	game.reset_game()
 	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
 	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")

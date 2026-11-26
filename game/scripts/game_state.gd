@@ -91,6 +91,7 @@ var sun_count := 0
 # Short buffs from golden suns. Not saved: they end if the app closes.
 var frenzy_until := 0.0
 var rush_until := 0.0
+var _last_now := 0.0
 var last_sun := ""        # "cash", "frenzy" or "rush"
 var last_tap_crit := false
 var _tap_rng := RandomNumberGenerator.new()   # own stream, so markets stay on their seed
@@ -827,7 +828,7 @@ func _mine_scale() -> float:
 		raw += _mine_raw(k) * price(k)
 	if raw <= 0.0:
 		return 1.0
-	return minf(1.0, maxf(income_per_hour, 1000.0) * Data.MINE_CAP / raw)
+	return minf(1.0, maxf(income_per_hour, 0.0) * Data.MINE_CAP / raw)
 
 
 func mine_per_hour(sym: String) -> float:
@@ -1926,9 +1927,19 @@ func _process(delta: float) -> void:
 	if _change_pending and _change_timer >= CHANGE_EVERY_S:
 		flush_changes()
 	var was_boosting := ibost_active()
+	var tnow := now()
+	if _last_now > 0.0 and tnow < _last_now - 1.0:
+		# Clock set back: pull short buffs back too, so they can't run longer.
+		var back := _last_now - tnow
+		for k in ["frenzy_until", "rush_until", "boost_until"]:
+			if float(get(k)) > tnow:
+				set(k, float(get(k)) - back)
+	_last_now = tnow
 	advance(delta)
 	if rush_active():
-		_earn(income_per_hour * delta / 3600.0)   # Rush: one more lot of income, only while open
+		# Rush: one more lot of income while open, at most 1 s per frame
+		# (a long first frame after a pause must not pay twice).
+		_earn(income_per_hour * minf(delta, 1.0) / 3600.0)
 	tick_deals(delta)
 	tick_sun(delta)
 	if was_boosting != ibost_active():
@@ -2101,6 +2112,27 @@ func save_game() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
 		GameLog.error("save", "Save file missing after write")
 	_dirty = false
+	_guard_note()
+
+
+func _guard_load() -> void:
+	if _guard.is_empty() and FileAccess.file_exists(GUARD_PATH):
+		var g = JSON.parse_string(FileAccess.get_file_as_string(GUARD_PATH))
+		_guard = g if typeof(g) == TYPE_DICTIONARY else {}
+
+
+func _guard_note() -> void:
+	## Remembers how far each game on this phone has got (newest save time).
+	_guard_load()
+	var key := str(int(started_at))
+	var t := now()
+	if float(_guard.get(key, 0.0)) >= t - 30.0:
+		return
+	_guard[key] = t
+	var f := FileAccess.open(GUARD_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(_guard))
+		f.close()
 
 
 # ==== backup code ===========================================================
@@ -2108,6 +2140,13 @@ func save_game() -> void:
 # Price charts and news are left out; they rebuild on restore.
 
 const BACKUP_PREFIX := "SOL1:"
+# Restore guard: a backup can't rewind the game it came from (that would be a
+# free "undo" on trades and golden suns). It works on a new phone, after a
+# reinstall, or for a different game. Kept in its own file so a reset keeps it.
+const GUARD_PATH := "user://restore_guard.json"
+var restore_guard := true    # tests switch this off to restore freely
+var restore_error := ""
+var _guard := {}
 
 
 func backup_code() -> String:
@@ -2121,6 +2160,7 @@ func backup_code() -> String:
 
 func restore_code(text: String) -> bool:
 	## Checks the code fully before touching the current save.
+	restore_error = ""
 	text = text.strip_edges().replace("\n", "").replace(" ", "")
 	if not text.begins_with(BACKUP_PREFIX):
 		return false
@@ -2141,6 +2181,13 @@ func restore_code(text: String) -> bool:
 		return false
 	if int(d["version"]) > SAVE_VERSION:
 		return false  # made by a newer version of the game
+	if restore_guard and sim_time < 0.0:
+		_guard_load()
+		var gk := str(int(float(d.get("started_at", 0.0))))
+		if _guard.has(gk) and float(d.get("saved_at", 0.0)) < float(_guard[gk]) - 600.0:
+			restore_error = "This backup is older than your game here. Use it on a new phone or after reinstalling."
+			GameLog.info("save", "Restore refused: older backup of this same game")
+			return false
 	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
 	if f == null:
 		return false
