@@ -257,7 +257,7 @@ func _run() -> void:
 		main.pop()
 		await create_timer(0.5).timeout
 	_check_targets(main.back_btn, small)
-	_ok(small.is_empty(), "every button is at least 44 px (%d checked) %s" % [checked_n, ", ".join(small.slice(0, 8))])
+	_ok(small.is_empty(), "every button is at least 48 px (%d checked) %s" % [checked_n, ", ".join(small.slice(0, 8))])
 	_ok(checked_n > 40, "the size check saw the buttons")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
@@ -278,7 +278,7 @@ func _check_targets(root_c: Control, out: Array) -> void:
 		if not view.intersects(r):
 			continue
 		checked_n += 1
-		if r.size.x < 43.5 or r.size.y < 43.5:
+		if r.size.x < 47.5 or r.size.y < 47.5:
 			var lbl := ""
 			for l in bb.find_children("*", "Label", true, false):
 				lbl += (l as Label).text + " "

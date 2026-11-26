@@ -525,6 +525,6 @@ func pick(title: String, options: Array, current, on_pick: Callable, body := "")
 
 static func drop_pill(text: String) -> Button:
 	## The button that opens a drop-down: label plus a small down arrow.
-	var b := UI.pill(text + "  ▾", UI.PANEL, UI.TEXT, 15, 22)
-	b.custom_minimum_size = Vector2(0, 44)
+	var b := UI.pill(text + "  ▾", UI.PANEL, UI.TEXT, 15, 24)
+	b.custom_minimum_size = Vector2(0, 48)
 	return b

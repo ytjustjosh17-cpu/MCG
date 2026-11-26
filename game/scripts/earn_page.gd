@@ -27,8 +27,8 @@ var _boost_cap: Label
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	_tasks = IconButton.new("list", 44.0)
-	_tasks.custom_minimum_size = Vector2(44, 44)
+	_tasks = IconButton.new("list", 48.0)
+	_tasks.custom_minimum_size = Vector2(48, 48)
 	_tasks.fill = UI.PANEL
 	_tasks.pressed.connect(_show_tasks)
 	add_child(_tasks)
@@ -106,11 +106,11 @@ func _layout() -> void:
 	var w := size.x
 	var h := size.y
 	_tasks.position = Vector2(16, 4)
-	_tasks.size = Vector2(44, 44)
-	_pill.size = Vector2(112, 44)
+	_tasks.size = Vector2(48, 48)
+	_pill.size = Vector2(112, 48)
 	_pill.position = Vector2(w - 16 - 112, 4)
 	for i in 5:
-		_meter[i].position = Vector2(66 + i * 8, 16)
+		_meter[i].position = Vector2(66 + i * 8, 18)
 	_worth.position = Vector2(20, 58)
 	_rate.position = Vector2(22, 112)
 	_goal.position = Vector2(16, 140)

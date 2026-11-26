@@ -49,10 +49,10 @@ Rules:
 
 - Portrait, designed at 390 × 844. 16 px side gutter everywhere.
 - Cards: `PANEL`, radius 16, 12 px between cards. Rows 56 to 72 px tall, dividers inset to the text.
-- Buttons and controls are at least 44 px tall (primary and secondary 48, segmented 44, chips 40 with padding).
+- Buttons and controls are at least 48 px each way (Android's 48 dp touch target): primary and secondary 48, segmented 48, drop-downs 48.
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
 - Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
-- Every pressable thing is at least 44 x 44 px. The touch test measures what is on screen on each tab and the main detail pages.
+- Every pressable thing is at least 48 x 48 px. The touch test measures what is on screen on each tab and the main detail pages.
 
 ## Components (use these, don't rebuild them)
 
@@ -77,6 +77,10 @@ No icon or logo inside a coloured tile or circle. Icons are Phosphor, drawn bare
 - Press feedback starts on finger-down (`Kit.press_fx`). Buttons never jump on hover.
 - Animations never hide content. If an animation fails, the content must still be visible.
 - Glass panels can't be scaled cleanly. Move or fade them instead.
+
+## Battery
+
+- The game draws at most 60 frames a second (`run/max_fps`), and 5 while it is out of focus (notification shade, a call). It saves when it loses focus.
 
 ## Haptics
 

@@ -11,6 +11,12 @@
   switch coin, free, any time. Each coin earns the same, unless mining
   news speeds one up. Miners earn a bit more (3% of their price an hour).
 - Very small prices (Shiba Inu, Pepe) show properly.
+- Fixed: an old backup code converted coins at their starting price but
+  then valued them at today's price, so a risen coin gave free money.
+  Conversion now uses today's price.
+- Battery: 60 frames a second at most, 5 while the game is out of focus
+  (it also saves then). Tips from Godot mobile guides found online.
+- Every button is now at least 48 px (Android's standard), up from 44.
 
 ## 1.1 update: tester feedback
 
