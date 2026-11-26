@@ -89,7 +89,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 
 ## Casino
 
-- Opens once for £2.5M (about day 4 for the robot). Stays open through rebirth; chips do not (they are money).
+- Opens with tree unlock nodes: Sol Casino (6 RBP, linked to the Empire and Hands gates, so a first rebirth reaches it) for slots, High tables (20 RBP) for roulette and blackjack. Tree nodes last forever; chips do not (they are money). So the casino never touches the first run.
 - Chips: bought with cash at the cage, cashed out any time, counted in net worth.
 - Limits follow base income (without the x2 boost): a bet is at most 6 minutes of income (`CASINO_MAX_BET_H`, at least £500), one payout at most 24 hours (`CASINO_MAX_WIN_H`, at least £100K). A slot bonus buy may stake up to 20 bets; a blackjack double or split up to 2. The "High roller" keystone doubles both.
 - Payback, measured by `tests/casino_test.gd` on every build: slots 95.5 to 95.8% exactly from the reel strips (bonus buys about 93%), roulette 97.3% (every bet type, all 37 numbers), blackjack 99.3% with perfect basic strategy over 300k hands. The shoe is a fresh six decks every hand, so counting cards can't win.
@@ -100,7 +100,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 
 - Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000.
 - Rebirth clears money and assets (`REBIRTH_RESET`), including rewards not yet claimed, the waiting deal and the daily gift, so nothing is carried into a new run. It keeps the market, achievements, stats, settings, goal and streak timers and the tree (`REBIRTH_KEEP`).
-- The tree: 152 nodes (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones), 7,328 RBP in all. Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
+- The tree: 154 nodes plus Sol (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones, 2 unlocks), 7,354 RBP in all. Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
 - Guard rails it moves: away cap up to +7.25 h, one more golden sun a day (so 6 at most with Head office), big taps ×10 with Thunder taps, managers' cut 0 with Loyal staff.
 - Robot (`SIM_REBIRTH=never|asap|patient|rate`, 240 days, seed 1234):
 

@@ -2652,7 +2652,7 @@ func reset_game(fresh_market := false) -> void:
 
 
 # ==== casino ================================================================
-# Chips are bought at the cage with cash and cashed out any time. Every
+# Opened by unlock nodes in the RBP tree (u_casino, u_tables). Chips are bought at the cage with cash and cashed out any time. Every
 # round goes through casino_stake() then casino_pay(): limits are checked,
 # the result is saved at once (before any animation), so closing the app
 # mid-spin can't undo a loss. Limits follow base income, so the casino can't
@@ -2664,18 +2664,41 @@ func chips() -> float:
 
 
 func casino_open() -> bool:
-	return bool(casino.get("open", false))
+	## Opened by the Sol Casino node in the RBP tree.
+	return rb("u_casino") > 0.0
 
 
-func unlock_casino() -> bool:
-	if casino_open() or cash < Data.CASINO_COST:
-		return false
-	cash -= Data.CASINO_COST
-	casino["open"] = true
-	GameLog.info("casino", "Casino unlocked")
+func tables_open() -> bool:
+	## Roulette and blackjack: the High tables node (and the casino itself).
+	return casino_open() and rb("u_tables") > 0.0
+
+
+func grant_node(id: String) -> void:
+	## Tests and screenshots: own a tree node without paying.
+	rebirth["nodes"][id] = true
+	_rb_cache = {}
 	recalc()
-	save_game()
-	return true
+
+
+func path_cost(id: String) -> int:
+	## RBP needed to reach and buy a node from what you own (cheapest path).
+	if node_owned(id):
+		return 0
+	var best := {}
+	var todo: Array = []
+	for n in RebirthTree.nodes():
+		if node_owned(String(n["id"])):
+			best[n["id"]] = 0
+			todo.append(String(n["id"]))
+	while not todo.is_empty():
+		todo.sort_custom(func(a, b): return int(best[a]) < int(best[b]))
+		var cur: String = todo.pop_front()
+		for l in RebirthTree.node(cur)["links"]:
+			var c := int(best[cur]) + int(RebirthTree.node(String(l))["cost"])
+			if not best.has(l) or c < int(best[l]):
+				best[l] = c
+				todo.append(String(l))
+	return int(best.get(id, 0))
 
 
 func base_income() -> float:
@@ -2867,7 +2890,7 @@ func do_rebirth() -> int:
 	reduce_motion = bool(keep["reduce_motion"])
 	started_at = float(keep["started_at"])
 	rebirth = keep["rebirth"]
-	casino = {"open": bool(keep["casino"].get("open", false)), "chips": 0.0}   # chips are money: they go
+	casino = {"open": false, "chips": 0.0}   # chips are money: they go (the tree keeps the unlock)
 	sci = keep_sci
 	rebirth["count"] = int(rebirth.get("count", 0)) + 1
 	rebirth["earned"] = int(rebirth.get("earned", 0)) + got

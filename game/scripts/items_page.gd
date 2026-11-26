@@ -58,7 +58,6 @@ func build() -> void:
 
 	# The casino lives with your lifestyle.
 	var cc := card()
-	cc.get_parent().visible = ResourceLoader.exists("res://scripts/slots_page.gd")   # shown once the games are in
 	_casino_row = Row.new()
 	_casino_row.set_lead(CasinoPage.CasinoArt.new("roulette", 44.0))
 	_casino_row.pressed.connect(func():
@@ -90,7 +89,7 @@ func refresh() -> void:
 	if Game.casino_open():
 		_casino_row.set_texts("Casino", "Slots, roulette, blackjack", "Chips " + Game.money_short(Game.chips()) if Game.chips() >= 0.01 else "")
 	else:
-		_casino_row.set_texts("Casino", "Opens for " + Game.money_short(Data.CASINO_COST), "")
+		_casino_row.set_texts("Casino", "Unlocks in the Rebirth tree", "")
 	var h: Array = Data.HOMES[Game.home]
 	if _home_kind != String(h[3]):
 		_home_kind = h[3]

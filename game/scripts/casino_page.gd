@@ -1,7 +1,8 @@
 class_name CasinoPage
 extends Page
 ## Sol Casino: the cage (buy chips, cash out), the table limits and the games.
-## Locked until bought once (Data.CASINO_COST); the unlock survives rebirth.
+## Opened by unlock nodes in the RBP tree: Sol Casino (slots) and High
+## tables (roulette and blackjack). Tree nodes last through every rebirth.
 
 const GAMES := [
 	# id, title, subtitle, page script, arg
@@ -18,6 +19,7 @@ var _open: VBoxContainer
 var _chips: Label
 var _limits: Label
 var _stats: Label
+var _table_rows: Array = []
 
 
 func _init() -> void:
@@ -34,7 +36,7 @@ func build() -> void:
 	_locked = VBoxContainer.new()
 	_locked.add_theme_constant_override("separation", 10)
 	body.add_child(_locked)
-	var l := UI.label("Slots, roulette and blackjack. Buy in with chips, cash out any time. The house always has a small edge.", 15, UI.SUB)
+	var l := UI.label("Slots, roulette and blackjack. Buy in with chips, cash out any time. The house always has a small edge.\n\nOpen it with the Sol Casino node in your Rebirth tree (next to the centre, between Empire and Hands).", 15, UI.SUB)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_locked.add_child(l)
 	_unlock = UI.pill("", UI.TEXT, UI.INK, 17, 24)
@@ -102,10 +104,15 @@ func build() -> void:
 		r.set_texts(String(gm[1]), String(gm[2]))
 		var path: String = gm[3]
 		var arg: String = gm[4]
+		var table := arg == ""
+		if table:
+			_table_rows.append(r)
 		r.pressed.connect(func():
 			Kit.tick()
-			if not ResourceLoader.exists(path):
-				Kit.toast("Coming soon")
+			if table and not Game.tables_open():
+				Kit.sheet("High tables", "Roulette and blackjack open with the High tables node in your Rebirth tree (%d RBP from what you own)." % Game.path_cost("u_tables"), [
+					{"text": "Open the tree", "style": "primary", "call": func(): push_page.emit(RebirthPage.new())},
+					{"text": "Close", "style": "plain"}])
 				return
 			var pg = load(path).new(arg) if arg != "" else load(path).new()
 			push_page.emit(pg))
@@ -125,9 +132,12 @@ func refresh() -> void:
 	_locked.visible = not open
 	_open.visible = open
 	if not open:
-		_unlock.text = "Open the casino · " + Game.money_short(Data.CASINO_COST)
-		Page.set_enabled(_unlock, Game.cash >= Data.CASINO_COST, false)
+		var need := Game.path_cost("u_casino")
+		_unlock.text = "Open the tree · %d RBP needed" % need if Game.rebirths() > 0 else "Unlocks after your first rebirth"
+		Page.set_enabled(_unlock, Game.rebirths() > 0, false)
 		return
+	for tr in _table_rows:
+		(tr as Row).modulate.a = 1.0 if Game.tables_open() else 0.55
 	_chips.text = Game.money(Game.chips())
 	_limits.text = "Max bet %s · max win %s a round (they grow with your income)" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]
 	var bet := float(Game.counters.get("casino_bet", 0.0))
@@ -137,19 +147,9 @@ func refresh() -> void:
 
 
 func _on_unlock() -> void:
-	if Game.cash < Data.CASINO_COST:
-		Kit.toast("Need %s more" % Game.money_short(Data.CASINO_COST - Game.cash))
-		Motion.shake(_unlock)
-		return
-	Kit.sheet("Open the casino?", "One-off price %s. It stays open, even after a rebirth." % Game.money_short(Data.CASINO_COST), [
-		{"text": "Open · " + Game.money_short(Data.CASINO_COST), "style": "primary", "call": func():
-			if Game.unlock_casino():
-				Kit.haptic("success")
-				Kit.sound("fanfare")
-				Kit.toast("Casino open", true)
-				refresh()},
-		{"text": "Not now", "style": "plain"},
-	])
+	Kit.tick()
+	if Game.rebirths() > 0:
+		push_page.emit(RebirthPage.new())
 
 
 class CasinoArt extends Control:

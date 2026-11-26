@@ -290,13 +290,29 @@ func _run() -> void:
 	await create_timer(0.9).timeout
 	await _shot("35_casino_locked")
 	g.cash = 5.0e9
-	g.unlock_casino()
+	g.grant_node("u_casino")
+	g.grant_node("u_tables")
 	g.buy_chips(2.5e5)
 	g.counters["casino_bet"] = 1.8e5
 	g.counters["casino_won"] = 1.62e5
 	g.flush_changes()
 	await create_timer(0.4).timeout
 	await _shot("36_casino")
+	main.push(load("res://scripts/slots_page.gd").new("classic"))
+	await create_timer(1.0).timeout
+	await _shot("37_slots")
+	main.pop()
+	await create_timer(0.6).timeout
+	main.push(load("res://scripts/roulette_page.gd").new())
+	await create_timer(1.0).timeout
+	await _shot("38_roulette")
+	main.pop()
+	await create_timer(0.6).timeout
+	main.push(load("res://scripts/blackjack_page.gd").new())
+	await create_timer(1.0).timeout
+	await _shot("39_blackjack")
+	main.pop()
+	await create_timer(0.6).timeout
 	main.pop()
 	await create_timer(0.5).timeout
 	# Rebirth and the tree: a second run with part of the tree bought.
