@@ -12,12 +12,12 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 9.3 |
-| 50% complete | 15 to 21 | 20.8 |
-| 75% complete | 28 to 38 | 32.9 to 33.9 |
-| 90% complete | 33 to 46 | 41.5 to 41.9 |
-| All 6 mergers | 35 to 50 | 41.5 to 41.9 |
-| All 17 companies | 35 to 45 | 37.5 to 37.9 |
+| 25% complete | 7 to 10 | 8.9 |
+| 50% complete | 15 to 21 | 19.3 to 20.5 |
+| 75% complete | 28 to 38 | 32.5 to 32.8 |
+| 90% complete | 33 to 46 | 40.3 to 40.8 |
+| All 6 mergers | 35 to 50 | 40.3 to 40.8 |
+| All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message.
 
@@ -37,28 +37,33 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Expansions | real-time timers, doubling each stage, max 48 h | `expansion_minutes()` |
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
 | Shares | dividends; prices drift slowly back to a fair value; news moves them at once | `STOCK_DIV_SCALE`, `_market_tick()` |
-| Crypto | boom and bust phases, staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
+| Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
+| Mining | rigs mine a coin all the time; rig price ×1.3 per rig across all coins, 40 max; 1.8% of rig price an hour at base price; all mining capped at 8% of income; news can speed it up or slow it down for a couple of days | `RIG_*`, `MINE_*` |
+| Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
+| Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |
 | Goals | daily: 1.5 h of income each; weekly: 3 h each | `daily_reward()`, `weekly_reward()` |
 | Achievements | 1 h of income each | `_check_achievements()` |
 | Daily streak | 0.15 h of income × days in a row (max 7) on the first open each day | `_check_streak()` |
 | Deals | small, every 12 to 25 minutes of play | `roll_deal()`, `DEAL_EVERY_MIN` |
 | Collections, homes, mergers | permanent multipliers | `bonus`, `HOME_BONUS`, `mult` |
-| Unit milestones | 10, 25, 50 units of one company: ×1.1, ×1.15, ×1.25 | `MILESTONES` |
+| Unit milestones | 5, 25, 50 units of one company: ×1.1, ×1.15, ×1.25 | `MILESTONES` |
 | Synergies | one-off buys: a company at stage N lifts another by 20 to 30% | `SYNERGIES` |
 | Achievements | +0.25% income each, capped at +15% | `ACH_BONUS`, `ACH_BONUS_CAP` |
 | Overall dial | all company income × 0.84, set so the 1.1 bonuses keep the pace | `INCOME_SCALE` |
 
 ## Guard rails (keep these true)
 
-1. Trading must not beat owning companies. Random moves go into the fair price itself (a random walk) and the price follows it, so dips are not promises of a bounce. Coin news shifts the coin's long-run anchor too. Re-run the exploit persona after any market change.
+1. Trading must not beat owning companies. `tests/market_test.gd` measures it: the average return 6, 24 and 72 hours after crash news, pump news and big dips must stay close to the normal return (limits 3%, 5%, 8%). A pull back to a home price made dips bounce by 12%, so coins no longer have one. Random moves go into the fair price itself (a random walk) and the price follows it, so dips are not promises of a bounce. Coin news shifts the coin's long-run anchor too. Re-run the exploit persona after any market change.
 2. Restoring a backup never passes time (so it can't re-roll the market).
 3. Time away is worked out without the ×2 boost, then only the boosted hours are added back.
 4. Selling a unit to a buyer pays a little under what rebuying costs.
 5. Staking pays at most 5% of hourly income across all coins together.
 10. Taps: at most 7 paid a second. Invest goals need a real amount (10 minutes of income or $100).
 11. The clock going backwards never re-rolls goals or the streak. Restoring a backup keeps the live market and deal.
-12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income.
+12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income or a short buff. Buffs end when the app closes and never pay while away.
+13. Mining pays at most 8% of income, counts at most 8 hours while away, and a restore mines nothing.
+14. A reset keeps the live market, so reset then restore can't re-roll prices.
 6. Goals only ask for things that are still possible (no "buy units" when every company is full).
 7. Deals and the welcome-back card only appear while the app is open.
 8. Rivals stay beaten once passed.
@@ -76,7 +81,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
    ```
 2. Make the change and run both again.
 3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real.
-4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes) or `nodeals` (skip deals and managers). `news`, `dip` and `hold` run trading bots that try to profit from news.
+4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes), `nodeals` (skip deals and managers) or `nomine` (no mining rigs). `news`, `dip` and `hold` run trading bots that try to profit from news.
 
 ## Open questions for the owner
 

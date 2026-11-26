@@ -524,9 +524,9 @@ func _run() -> void:
 	game.open_business("food", "Mile Test")
 	_check(is_equal_approx(game.milestone_mult("food"), 1.0), "no milestone with one unit")
 	game.biz["food"]["stage"] = 2
-	game.biz["food"]["units"] = 10
+	game.biz["food"]["units"] = 5
 	game.recalc()
-	_check(is_equal_approx(game.milestone_mult("food"), 1.1), "10 units gives the first milestone")
+	_check(is_equal_approx(game.milestone_mult("food"), 1.1), "5 units gives the first milestone")
 	_check(not game.synergy_ready("delivery") and not game.buy_synergy("delivery"), "a synergy needs its other company first")
 	game.open_business("taxi", "Syn Test")
 	game.biz["taxi"]["stage"] = 3
@@ -573,6 +573,48 @@ func _run() -> void:
 	_check(game.away_earned <= plain_h * 1.02 + 10.0, "Rush never pays while away (%.2f h)" % (game.away_earned / maxf(1.0, plain_h)))
 	game.sim_time = -1.0
 	game.reset_game()
+	# Crypto mining: rig prices climb across all coins, mining pays coins,
+	# is capped, counts only 8 h while away, and a restore pays nothing.
+	game.cash = 1.0e9
+	for mbid in ["shop", "taxi", "shipping"]:
+		game.open_business(mbid, "Mine Test")
+		while game.buy_unit(mbid):
+			pass
+	var rp0: float = game.rig_price()
+	_check(game.buy_rig("KRV") and game.buy_rig("VLT") and absf(game.rig_price() - rp0 * Data.RIG_GROWTH * Data.RIG_GROWTH) < 1.0, "rig prices climb across all coins")
+	game.recalc()
+	var mph: float = game.mine_per_hour("KRV")
+	var kq0: float = game.holding(game.coins, "KRV")
+	game.advance(3600.0)
+	_check(mph > 0.0 and absf(game.holding(game.coins, "KRV") - kq0 - mph) < mph * 0.05 + 1e-9, "a rig mines its coin each hour (%.4f)" % mph)
+	for k in 30:
+		game.cash = 1.0e15
+		game.buy_rig("HLO")
+	game.recalc()
+	_check(game.mining_capped() and game.mining_value_per_hour() <= game.income_per_hour * Data.MINE_CAP * 1.01 + 1.0, "all mining together is capped at 8 percent of income")
+	_check(not game.buy_rig("KRV") or game.rigs_total() <= Data.RIG_MAX, "never more than %d rigs" % Data.RIG_MAX)
+	var mv0: float = float(game.counters.get("mined_value", 0.0))
+	game.sim_time = game.now()
+	game.apply_offline(48.0 * 3600.0)
+	var mined_away: float = float(game.counters.get("mined_value", 0.0)) - mv0
+	_check(mined_away <= game.mining_value_per_hour() * 8.0 * 1.3 + 1.0, "mining away counts at most 8 h (%.1f h)" % (mined_away / maxf(1.0, game.mining_value_per_hour())))
+	var mcode: String = game.backup_code()
+	var mq: float = game.holding(game.coins, "HLO")
+	game.sim_time += 24.0 * 3600.0
+	game.restore_code(mcode)
+	_check(absf(game.holding(game.coins, "HLO") - mq) <= mq * 0.001 + 1e-9, "restoring a backup mines nothing")
+	# Reset then restore can't re-roll the market.
+	var pr0: float = game.price("DRF")
+	var rcode: String = game.backup_code()
+	game.reset_game()
+	_check(absf(game.price("DRF") - pr0) < pr0 * 0.001, "a reset keeps the live market")
+	game.restore_code(rcode)
+	_check(absf(game.price("DRF") - pr0) < pr0 * 0.001 and game.rigs_total() > 0, "reset then restore brings back rigs and keeps prices")
+	for c in Data.COINS:
+		if game.price(c[0]) <= 0.0:
+			_check(false, "coin %s has a price" % c[0])
+	game.sim_time = -1.0
+	game.reset_game()
 	# A real save from version 1.0.31 (save v7) still loads, with nothing lost.
 	var fx := FileAccess.get_file_as_string("res://tests/fixtures/save_v7.json")
 	var fd: Dictionary = JSON.parse_string(fx)
@@ -583,7 +625,8 @@ func _run() -> void:
 	game.load_game()
 	_check(game.biz.size() == 4 and game.props_owned() == 2 and game.staked("KRV") > 0.0 and game.level == 2 and game.taps >= 300, "old v7 save loads with companies, property, staking and level")
 	_check(game.cash >= 1234567.0 and game.shares.size() == 1, "old v7 save keeps cash and shares (%.2f)" % game.cash)
-	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION and game.synergies.is_empty(), "old save is upgraded to the current version")
+	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION and game.synergies.is_empty() and game.rigs.is_empty(), "old save is upgraded to the current version")
+	_check(game.price("VLT") > 0.0 and game.price("HLO") > 0.0 and game.series("QRT", "1D").size() > 0, "old save gets prices and history for the new coins")
 	for ti in 5:
 		main.show_page(ti)
 		await process_frame

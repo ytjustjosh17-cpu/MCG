@@ -27,7 +27,8 @@ const SECTOR_COL := {
 	"Industry": Color("#AEB7B8"),
 }
 const COIN_COL := [Color("#D9A75E"), Color("#82BDB2"), Color("#B8A58E"), Color("#D6CCB2"), Color("#9DC3DF"),
-	Color("#E39573"), Color("#C9B6D9"), Color("#A9D3C6"), Color("#E3CB84"), Color("#A8D8E6")]
+	Color("#E39573"), Color("#C9B6D9"), Color("#A9D3C6"), Color("#E3CB84"), Color("#A8D8E6"),
+	Color("#BFD99A"), Color("#D9B3A6"), Color("#9FB8D9")]
 
 # Type: Switzer for text, Tanker for big numbers and titles (both from
 # Fontshare, ITF Free Font License). They can't be stored in this public repo,

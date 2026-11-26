@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 8
+const SAVE_VERSION := 9
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -59,6 +59,8 @@ var props := {}        # "index" -> {imps: [bool...]}
 var items := {}        # "col:index" -> true
 var mergers := {}      # id -> true
 var synergies := {}    # id -> true (v8)
+var rigs := {}         # coin -> {n: rigs, hash: cash paid for them} (v9)
+var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
 var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]}
@@ -92,6 +94,7 @@ var rush_until := 0.0
 var last_sun := ""        # "cash", "frenzy" or "rush"
 var last_tap_crit := false
 var _tap_rng := RandomNumberGenerator.new()   # own stream, so markets stay on their seed
+var _news_rng := RandomNumberGenerator.new()  # mining news, likewise
 
 # ---- runtime -------------------------------------------------------------
 var sim_time := -1.0   # set by the pacing simulator
@@ -113,6 +116,7 @@ var _achievements: Array = []
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_tap_rng.randomize()
+	_news_rng.randomize()
 	_achievements = _build_achievements()
 	load_game()
 
@@ -754,6 +758,77 @@ func staking_per_hour() -> float:
 		v += stake_earn_per_hour(sym)
 	return v
 
+# ---- mining ----------------------------------------------------------------
+
+func rigs_total() -> int:
+	var n := 0
+	for k in rigs.keys():
+		n += int(rigs[k].get("n", 0))
+	return n
+
+
+func rig_price() -> float:
+	## The next rig, for any coin. Climbs with every rig you own.
+	return Data.RIG_BASE * pow(Data.RIG_GROWTH, rigs_total())
+
+
+func rig_count(sym: String) -> int:
+	return int(rigs.get(sym, {}).get("n", 0))
+
+
+func buy_rig(sym: String) -> bool:
+	if _coin(sym).is_empty() or rigs_total() >= Data.RIG_MAX:
+		return false
+	var p := rig_price()
+	if cash < p:
+		return false
+	cash -= p
+	var r: Dictionary = rigs.get(sym, {"n": 0, "hash": 0.0})
+	r["n"] = int(r["n"]) + 1
+	r["hash"] = float(r["hash"]) + p
+	rigs[sym] = r
+	if not coins.has(sym):
+		coins[sym] = {"qty": 0.0, "cost": 0.0}
+	_bump("rigs_bought")
+	GameLog.info("invest", "Mining rig for %s (%s)" % [sym, money(p)])
+	recalc()
+	return true
+
+
+func _mine_raw(sym: String) -> float:
+	## Coins per hour before the cap.
+	var c := _coin(sym)
+	if c.is_empty() or not rigs.has(sym):
+		return 0.0
+	return float(rigs[sym].get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(sym, 1.0)) / float(c[2])
+
+
+func _mine_scale() -> float:
+	## Mining pays at most MINE_CAP of hourly income across all coins together.
+	var raw := 0.0
+	for k in rigs.keys():
+		raw += _mine_raw(k) * price(k)
+	if raw <= 0.0:
+		return 1.0
+	return minf(1.0, maxf(income_per_hour, 1000.0) * Data.MINE_CAP / raw)
+
+
+func mine_per_hour(sym: String) -> float:
+	## Coins this coin's rigs mine per hour, after the cap.
+	return _mine_raw(sym) * _mine_scale()
+
+
+func mining_value_per_hour() -> float:
+	var v := 0.0
+	for k in rigs.keys():
+		v += mine_per_hour(k) * price(k)
+	return v
+
+
+func mining_capped() -> bool:
+	return _mine_scale() < 0.999
+
+
 func avg_price(book: Dictionary, sym: String) -> float:
 	if not book.has(sym):
 		return 0.0
@@ -887,15 +962,17 @@ func _market_tick(minutes := 1) -> void:
 		# Coins wander in boom and bust phases that change every few hours.
 		if not trends.has(sym) or randf() < m / 180.0:
 			trends[sym] = randfn(0.0, 0.0002)
-		var f_log := float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m + randfn(0.0, float(c[3]) * 0.3 * sqrt(m))
-		# Only a very slow pull home (weeks), and hard limits so a coin can't
-		# run off to nothing or to the moon.
+		var f_log := float(fair_log.get(sym, log(float(c[2])))) + float(trends[sym]) * m + randfn(0.0, float(c[3]) * 0.2 * sqrt(m))
+		# No pull back home (1.1): any pull made dips bounce, which the market
+		# test caught. Coins wander freely within wide limits (x20 either way).
 		var anchor := log(float(c[2])) + float(coin_shift.get(sym, 0.0))
-		f_log = lerpf(f_log, anchor, 0.00002 * m)
 		fair_log[sym] = clampf(f_log, anchor - 3.0, anchor + 3.0)
 		coin_shift[sym] = float(coin_shift.get(sym, 0.0)) * pow(0.99995, m)
 		var fair := exp(float(fair_log[sym]))
 		_step(sym, fair, follow, float(c[3]) * 0.03 * sqrt(m))
+	for k in mine_eff.keys():
+		# Mining news wears off over about two days.
+		mine_eff[k] = 1.0 + (float(mine_eff[k]) - 1.0) * pow(0.9995, m)
 	if randf() < m / Data.NEWS_EVERY_MIN:
 		_news_event()
 
@@ -978,6 +1055,17 @@ func _news_event() -> void:
 				prices[st[0]] = price(st[0]) * f
 		var tmpl: Array = Data.NEWS_SECTOR_UP if up else Data.NEWS_SECTOR_DOWN
 		item = {"text": tmpl[randi() % tmpl.size()] % sec, "sym": sec}
+	elif r < 0.85 and not rigs.is_empty() and _news_rng.randf() < 0.5:
+		# Mining news: a coin's mining speeds up or slows down for a while.
+		var keys := rigs.keys()
+		var ms: String = keys[_news_rng.randi() % keys.size()]
+		var mup := _news_rng.randf() < 0.5
+		var eff := float(mine_eff.get(ms, 1.0)) * (1.5 if mup else 0.5)
+		mine_eff[ms] = clampf(eff, 0.25, 2.0)
+		f = 1.0
+		sym = ms
+		var mt: Array = Data.NEWS_MINE_UP if mup else Data.NEWS_MINE_DOWN
+		item = {"text": mt[_news_rng.randi() % mt.size()] % _coin(ms)[1], "sym": ms, "mine": mup}
 	else:
 		var c: Array = Data.COINS[randi() % Data.COINS.size()]
 		var up := randf() < 0.5
@@ -1027,6 +1115,23 @@ func _init_market() -> void:
 		_quiet = false
 		news.clear()
 		_end_on(saved)
+	# A coin or share added in an update gets its own believable back history,
+	# so its charts aren't empty on an old save.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	for list in [Data.STOCKS, Data.COINS]:
+		for a in list:
+			var sym: String = a[0]
+			if hist_h.has(sym) and not (hist_h[sym] as Array).is_empty():
+				continue
+			var vol: float = float(a[3]) * 0.2 if list == Data.COINS else 0.006
+			for spec in [[price_hist, MARKET_HIST, 1.0], [hist_q, HIST_Q, 15.0], [hist_h, HIST_H, 60.0]]:
+				var arr: Array = []
+				var lp := log(price(sym))
+				for i in int(spec[1]):
+					arr.push_front(_sig(exp(lp)))
+					lp += rng.randfn(0.0, vol * sqrt(float(spec[2])))
+				(spec[0] as Dictionary)[sym] = arr
 
 
 func _end_on(saved: Dictionary) -> void:
@@ -1865,6 +1970,7 @@ func apply_offline(seconds: float) -> void:
 	ibost_until = keep_ib
 	var gained := base * capped / 3600.0 + biz_base * ib_part / 3600.0
 	var exp0 := int(counters.get("expansions", 0))
+	var mined0 := float(counters.get("mined_value", 0.0))
 	var pay0 := payouts.size()
 	advance(s, false)
 	recalc()
@@ -1878,6 +1984,9 @@ func apply_offline(seconds: float) -> void:
 		away_notes.append("%d expansion%s done" % [done, "" if done == 1 else "s"])
 	if pay0 > payouts.size():
 		away_notes.append("Rush orders paid")
+	var mined := float(counters.get("mined_value", 0.0)) - mined0
+	if mined >= 1.0:
+		away_notes.append("Mined %s of crypto" % money_short(mined))
 	if s > Data.OFFLINE_CAP_H * 3600.0:
 		away_notes.append("Capped at %d h" % int(Data.OFFLINE_CAP_H))
 	away_unseen = s >= 600.0 and away_earned >= 1.0
@@ -1901,7 +2010,14 @@ func apply_offline(seconds: float) -> void:
 
 
 func _accrue(dt: float) -> void:
-	## Dividends earned so far and staking rewards (paid in coins).
+	## Dividends earned so far, staking rewards and mining (both paid in coins).
+	for sym in rigs.keys():
+		var got := mine_per_hour(sym) * dt / 3600.0
+		if got > 0.0:
+			if not coins.has(sym):
+				coins[sym] = {"qty": 0.0, "cost": 0.0}
+			coins[sym]["qty"] = holding(coins, sym) + got
+			counters["mined_value"] = float(counters.get("mined_value", 0.0)) + got * price(sym)
 	counters["dividends_earned"] = float(counters.get("dividends_earned", 0.0)) + dividends_per_hour() * dt / 3600.0
 	for sym in coins.keys():
 		var st := staked(sym)
@@ -1939,7 +2055,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "rigs": rigs, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2070,6 +2186,12 @@ func _migrate(d: Dictionary) -> Dictionary:
 		# are worked out from what you already own, so old saves get them at once.
 		d["synergies"] = d.get("synergies", {})
 		v = 8
+	if v < 9:
+		# v9 (1.1) adds crypto mining. New coins get their price on load
+		# (_init_market fills any coin the save doesn't have).
+		d["rigs"] = d.get("rigs", {})
+		d["mine_eff"] = d.get("mine_eff", {})
+		v = 9
 	d["version"] = v
 	return d
 
@@ -2104,6 +2226,8 @@ func _reset_state() -> void:
 	items = {}
 	mergers = {}
 	synergies = {}
+	rigs = {}
+	mine_eff = {}
 	achieved = {}
 	counters = {}
 	daily = {}
@@ -2163,6 +2287,8 @@ func load_game() -> void:
 	home = clampi(int(d.get("home", 0)), 0, Data.HOMES.size() - 1)
 	mergers = d.get("mergers", {})
 	synergies = d.get("synergies", {})
+	rigs = d.get("rigs", {})
+	mine_eff = d.get("mine_eff", {})
 	achieved = d.get("achieved", {})
 	counters = d.get("counters", {})
 	daily = d.get("daily", {})
@@ -2192,7 +2318,23 @@ func load_game() -> void:
 
 func reset_game() -> void:
 	GameLog.info("game", "Progress reset")
+	# The market is the world, not your save: it carries on through a reset,
+	# so resetting and then restoring a backup can't re-roll prices.
+	var keep := {}
+	for k in ["prices", "price_hist", "hist_q", "hist_h", "moods", "coin_shift", "trends", "fair_log", "news"]:
+		keep[k] = to_dict()[k]
+	var ticks := float(counters.get("market_ticks", 0))
 	_reset_state()
+	prices = keep["prices"]
+	price_hist = keep["price_hist"]
+	hist_q = keep["hist_q"]
+	hist_h = keep["hist_h"]
+	moods = keep["moods"]
+	coin_shift = keep["coin_shift"]
+	trends = keep["trends"]
+	fair_log = keep["fair_log"]
+	news = keep["news"]
+	counters["market_ticks"] = ticks
 	_init_market()
 	recalc()
 	_record_history()
