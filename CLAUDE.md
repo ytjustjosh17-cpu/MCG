@@ -26,6 +26,14 @@ Read this file before changing anything. Then read the doc for the area you touc
 5. Never show real brands or real companies. Companies, shares and places are made up. Crypto coins are real names with rough prices (owner's choice, 1.1); their prices in the game are still a made-up simulation.
 6. Never push a release with a failing test.
 
+## Fast path (use this)
+
+- Follow the `sol-feature` skill (`.claude/skills/sol-feature/SKILL.md`) for every change request.
+- `tools/check_all.sh --quick` while working (rules, smoke, touch: about 1 minute).
+- `tools/check_all.sh` before committing (rules and all 9 suites in 4 parallel lanes: about 2 minutes). It finds or downloads Godot 4.4.1 itself.
+- `tools/shots.sh` renders every screen to `/tmp/sol-shots`.
+- `tools/release.sh` only after the owner says "push": checks, pushes, waits for the build, prints the version.
+
 ## Before every commit
 
 Install the hook once so the rules run on every commit:
