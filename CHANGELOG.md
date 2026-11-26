@@ -1,11 +1,13 @@
 # Changelog
 
-## Sell companies, manager switch, less text
+## Sell companies, manager switch, centred pop-ups, less text
 
 - Company page: "Sell company" at the bottom pays half its value (not
   while it is expanding).
 - Tap a hired manager to switch them off or on. Off means no expanding and
   no cut of income.
+- Pop-ups no longer slide up from the bottom: they float in the middle as
+  a card, fade in and close with a tap outside.
 - Shorter text: manager, auto clicker, locking coins, rebirth and casino
   explanations now fit in a line or two.
 

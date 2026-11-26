@@ -165,6 +165,9 @@ func _action_button(a: Dictionary, height := 52) -> Button:
 
 # ---- bottom sheet -----------------------------------------------------------
 
+const SHEET_MARGIN := 14.0   # pop-up cards float with this gap at the sides
+
+
 func sheet(title: String, body: String, actions: Array, dismissable := true, extra: Control = null) -> Control:
 	## actions: [{"text": String, "style": "primary"|"secondary"|"plain", "call": Callable}]
 	# A fast double tap mustn't stack two copies of the same sheet.
@@ -180,11 +183,12 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 	dim.color = Color(DIM, 0.0)
 	root.add_child(dim)
 
+	# A card that floats in the middle of the screen (owner's choice).
 	var pad := 20.0
-	var w := scr.x
+	var w := scr.x - SHEET_MARGIN * 2.0
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
-	col.position = Vector2(pad, 28)
+	col.position = Vector2(pad, 22)
 	col.size = Vector2(w - pad * 2, 0)
 	if title != "":
 		var t := UI.label(title, 22, UI.TEXT, true)
@@ -212,7 +216,8 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 				_stack.remove_at(i)
 				break
 		var tw := root.create_tween().set_parallel(true)
-		tw.tween_property(panel, "position:y", scr.y + 8.0, Motion.d(0.22)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(panel, "position:y", panel.position.y + 16.0, Motion.d(0.18)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(panel, "modulate:a", 0.0, 0.18)
 		tw.tween_property(dim, "color:a", 0.0, 0.22)
 		tw.chain().tween_callback(func():
 			root.queue_free()
@@ -234,15 +239,10 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 				if cb.is_valid():
 					cb.call())
 		col.add_child(b)
-	panel.size = Vector2(w, scr.y)
-	panel.position = Vector2(0, scr.y + 8.0)
+	panel.size = Vector2(w, 10)
+	panel.position = Vector2(SHEET_MARGIN, scr.y * 0.4)
+	panel.modulate.a = 0.0
 	root.add_child(panel)
-	var grab := ColorRect.new()
-	grab.color = UI.TRACK
-	grab.size = Vector2(36, 5)
-	grab.position = Vector2(w / 2.0 - 18.0, 10)
-	grab.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(grab)
 	panel.add_child(col)
 	var geo := {"rest": scr.y}
 	_present_sheet(root, panel, col, dim, geo)
@@ -292,11 +292,14 @@ func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect,
 	var scr := screen()
 	var inner := col.get_combined_minimum_size().y
 	col.size = Vector2(col.size.x, inner)
-	var h := inner + 28.0 + 20.0 + bottom_inset
-	panel.size = Vector2(scr.x, h + 40.0)
-	geo["rest"] = scr.y - h
+	var h := inner + 22.0 + 20.0
+	panel.size = Vector2(scr.x - SHEET_MARGIN * 2.0, h)
+	# Centred; a tall card starts under the status bar and stays on screen.
+	geo["rest"] = maxf(top_inset + 12.0, (scr.y - h) * 0.5)
+	panel.position.y = float(geo["rest"]) + 24.0
 	var tw := root.create_tween().set_parallel(true)
-	tw.tween_property(panel, "position:y", geo["rest"], Motion.d(Motion.SLOW)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(panel, "position:y", geo["rest"], Motion.d(0.32)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	tw.tween_property(panel, "modulate:a", 1.0, Motion.d(0.2))
 	tw.tween_property(dim, "color:a", DIM.a, Motion.d(0.25))
 
 
