@@ -20,6 +20,9 @@ func _run() -> void:
 	if OS.get_cmdline_user_args().size() > 0:
 		out = OS.get_cmdline_user_args()[0]
 	var g = root.get_node("Game")
+	# Pin the time and weather so pictures don't change with the clock (1.2).
+	SkyTime.force_hour = 15.0
+	SkyTime.force_weather = "clear"
 	g.reset_game()
 	# A believable mid-game save.
 	g.cash = 5.0e7
@@ -72,6 +75,8 @@ func _run() -> void:
 		g.cash += 2000.0
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
+	SkyTime.force_hour = 15.0   # again: loading the scene can reset static vars
+	SkyTime.force_weather = "clear"
 	await _shot("01_earn")
 	main.show_page(1)
 	await _shot("02_business")
@@ -373,6 +378,33 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	main._pages[2].scroll.scroll_vertical = 5000
 	await _shot("42_isles")
+	# 1.2 look and feel: night, rain at dusk, fog, and inside your home.
+	g.cash = 5.0e9
+	for col in ["art", "watches", "cars", "jets"]:
+		g.buy_item(col, 2)
+	for h in 5:
+		g.move_home()
+	main.show_page(0)
+	for spec in [[23.0, "clear", "43_night"], [19.5, "rain", "44_rain_dusk"], [8.0, "fog", "45_fog_morning"]]:
+		SkyTime.force_hour = float(spec[0])
+		SkyTime.force_weather = String(spec[1])
+		var tc = main._pages[0].find_child("TowerCard", true, false)
+		if tc:
+			tc._sky_t = 0.0
+			for ch in tc.get_children():
+				if ch is SkyTime.Layer:
+					ch._check = 0.0
+		await create_timer(0.8).timeout
+		await _shot(String(spec[2]))
+	SkyTime.force_hour = 21.5
+	SkyTime.force_weather = "clear"
+	main.show_page(3)
+	await create_timer(0.5).timeout
+	main.push(HomePage.new())
+	await create_timer(1.0).timeout
+	await _shot("46_home")
+	main.pop()
+	await create_timer(0.5).timeout
 	# First-time guide on a brand-new game.
 	g.reset_game()
 	g.ui["guide_done"] = false
@@ -380,7 +412,7 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	Guide.maybe_start(main)
 	await create_timer(0.8).timeout
-	await _shot("43_guide")
+	await _shot("47_guide")
 	g.ui["guide_done"] = true
 	g.reset_game()
 	quit()
