@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1 (first build: v1.1.<run number>)
+## 1.1 (first build: v1.1.36)
 
 Old saves load as before. Saves move from v7 to v9 on first load, and new
 fields start empty. A real save from 1.0.31 is kept as a test and must load
@@ -53,11 +53,17 @@ with nothing lost.
 - Coins no longer drift back to a home price. The new market test found
   that drift made coins bounce about 12% after big dips, an easy trade.
   Coins also swing a little less each minute.
-- Mining pays at most 8% of income, rig prices climb ×1.3 per rig across all
-  coins, 40 rigs at most.
+- Mining pays at most 8% of income, rig prices climb ×1.45 per rig across all
+  coins, 60 rigs at most, so mining stays worth having all game (robot: 5 to
+  8% of income from day 10 to day 50). The rig button shows what it adds.
 - Frenzy doesn't stack with the ×3 tap boost; the bigger one wins.
 
 ### Fixed
+
+- Mining news showed a 0% price change; it now shows the mining speed change.
+- Mined coins showed "No change · avg £0"; they now show as all profit.
+- Reaching a milestone now gives a burst, a sound and a note.
+- Tests and the pacing robot start from a fresh market, so seeds repeat exactly.
 
 - Build 25 shipped without its fonts (Tanker and Switzer). The build now
   fails if they are missing and checks the finished app for them.

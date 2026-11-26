@@ -293,6 +293,18 @@ func _on_synergy(sid: String, r: Row) -> void:
 			Kit.toast("Not ready yet")
 
 
+func _milestone_check(before: float) -> void:
+	## A milestone just reached: a burst, a sound and a short note.
+	if Game.milestone_mult(id) <= before + 0.0001:
+		return
+	var b := Data.business(id)
+	Kit.sound("fanfare")
+	Kit.haptic("success")
+	Kit.toast("Milestone · %d %s · income ×%.2f" % [int(Game.biz[id]["units"]), b.get("units", "units"), Game.milestone_mult(id) / before], true)
+	if not Motion.reduced():
+		add_child(Confetti.new(_units_value.global_position - global_position + Vector2(20, 0), 50))
+
+
 func _buy_n() -> int:
 	## Units the buy button gets right now, for the chosen ×1/×10/×100/Max.
 	return Game.bulk_count(id, int(Game.ui.get("buy_mult", 1)))
@@ -301,7 +313,9 @@ func _buy_n() -> int:
 func _on_hold() -> void:
 	if not _buy.is_pressed() or Kit.dragged:
 		return
+	var hm0 := Game.milestone_mult(id)
 	if Game.buy_units(id, _buy_n()) > 0:
+		_milestone_check(hm0)
 		_held += 1
 		Kit.haptic("selection")
 		Motion.pop(_units_value, 1.08)
@@ -314,8 +328,10 @@ func _on_buy() -> void:
 		_held = 0  # the hold already bought; releasing shouldn't buy one more
 		return
 	var want := _buy_n()
+	var m0 := Game.milestone_mult(id)
 	var got := Game.buy_units(id, want)
 	if got > 0:
+		_milestone_check(m0)
 		Kit.haptic("light" if got == 1 else "success")
 		Motion.pop(_units_value, 1.15)
 		if got > 1:

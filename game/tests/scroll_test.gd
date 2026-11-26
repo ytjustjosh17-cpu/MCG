@@ -230,11 +230,11 @@ func _run() -> void:
 		if sun_ch.has_method("_catch"):
 			sun = sun_ch
 	var found := sun != null
-	var cash_s: float = g.cash
+	var suns_s: int = int(g.counters.get("suns", 0))
 	var taps_s: int = g.taps
 	if found:
 		await _wobble_tap(sun.get_global_rect().get_center())
-	_ok(found and g.cash > cash_s and g.taps == taps_s, "tapping a golden sun pays and isn't a tower tap")
+	_ok(found and int(g.counters.get("suns", 0)) > suns_s and g.taps == taps_s, "tapping a golden sun catches it and isn't a tower tap")
 	# Tap targets: every visible button on every tab and main detail page is
 	# at least 44 px each way (mobile rule). Lists the offenders.
 	var small: Array = []

@@ -108,8 +108,8 @@ const STAKE_LOCK_H := 24.0
 # Mining (1.1): buy rigs for a coin; they mine that coin all the time.
 # Rig prices climb across ALL coins (spreading out doesn't dodge it).
 const RIG_BASE := 25000.0
-const RIG_GROWTH := 1.3
-const RIG_MAX := 40              # rigs in total
+const RIG_GROWTH := 1.45
+const RIG_MAX := 60              # rigs in total (the last ones are late-game buys)
 const MINE_YIELD := 0.018        # a rig mines 1.8% of its price per hour, at the coin's base price
 const MINE_CAP := 0.08           # all mining together pays at most 8% of hourly income
 const NEWS_MINE_UP := ["%s network upgrade speeds up mining", "Cheap power boosts %s miners"]

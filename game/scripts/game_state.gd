@@ -795,6 +795,23 @@ func buy_rig(sym: String) -> bool:
 	return true
 
 
+func rig_gain(sym: String) -> float:
+	## Extra mining value per hour the next rig for this coin would really add
+	## (after the cap), at today's price.
+	if _coin(sym).is_empty():
+		return 0.0
+	var had := rigs.has(sym)
+	var old: Dictionary = rigs[sym].duplicate() if had else {}
+	var before := mining_value_per_hour()
+	rigs[sym] = {"n": int(old.get("n", 0)) + 1, "hash": float(old.get("hash", 0.0)) + rig_price()}
+	var after := mining_value_per_hour()
+	if had:
+		rigs[sym] = old
+	else:
+		rigs.erase(sym)
+	return maxf(0.0, after - before)
+
+
 func _mine_raw(sym: String) -> float:
 	## Coins per hour before the cap.
 	var c := _coin(sym)
@@ -1060,9 +1077,9 @@ func _news_event() -> void:
 		var keys := rigs.keys()
 		var ms: String = keys[_news_rng.randi() % keys.size()]
 		var mup := _news_rng.randf() < 0.5
-		var eff := float(mine_eff.get(ms, 1.0)) * (1.5 if mup else 0.5)
-		mine_eff[ms] = clampf(eff, 0.25, 2.0)
-		f = 1.0
+		var eff0 := float(mine_eff.get(ms, 1.0))
+		mine_eff[ms] = clampf(eff0 * (1.5 if mup else 0.5), 0.25, 2.0)
+		f = float(mine_eff[ms]) / eff0   # shown as the change in mining speed
 		sym = ms
 		var mt: Array = Data.NEWS_MINE_UP if mup else Data.NEWS_MINE_DOWN
 		item = {"text": mt[_news_rng.randi() % mt.size()] % _coin(ms)[1], "sym": ms, "mine": mup}
@@ -2130,7 +2147,7 @@ func restore_code(text: String) -> bool:
 	d["saved_at"] = now()  # no time passes on restore, so it can't re-roll the market
 	# Keep today's market and deal, so a restore can't rewind prices or re-roll a deal.
 	var live := to_dict()
-	for k in ["prices", "price_hist", "hist_q", "hist_h", "moods", "coin_shift", "trends", "fair_log", "news", "deal", "deal_wait"]:
+	for k in ["prices", "price_hist", "hist_q", "hist_h", "moods", "coin_shift", "trends", "fair_log", "news", "deal", "deal_wait", "mine_eff"]:
 		d[k] = live[k]
 	f.store_string(JSON.stringify(d))
 	f.close()
@@ -2316,8 +2333,17 @@ func load_game() -> void:
 		counters["rivals"] = float(rivals_beaten())
 
 
-func reset_game() -> void:
+func reset_game(fresh_market := false) -> void:
 	GameLog.info("game", "Progress reset")
+	if fresh_market:
+		# Tests and the robot: a brand new market, so seeds repeat exactly.
+		_reset_state()
+		_init_market()
+		recalc()
+		_record_history()
+		save_game()
+		flush_changes()
+		return
 	# The market is the world, not your save: it carries on through a reset,
 	# so resetting and then restoring a backup can't re-roll prices.
 	var keep := {}
