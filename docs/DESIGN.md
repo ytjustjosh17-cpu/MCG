@@ -61,7 +61,7 @@ Rules:
 |---|---|
 | A page | `Page` (`page.gd`): `card()`, `padded()`, `section()`, `separator()`, `button()` |
 | A list row | `Row` (`row.gd`), with `set_texts()`, `set_change()`, `set_lead()` |
-| Company or coin mark | `AssetTile` (`asset_tile.gd`): a bare shape, no box behind it |
+| Company or coin mark | `AssetTile` (`asset_tile.gd`): coins show their real logo (`assets/coins`, CC0); shares a sector shape with the company initial cut in |
 | Tabs inside a page | `Segmented` |
 | Bottom sheet, alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()` |
 | Celebration | `Kit.celebrate()` (never blocks taps, leaves by itself) |

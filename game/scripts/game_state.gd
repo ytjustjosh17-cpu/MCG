@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 10
+const SAVE_VERSION := 11
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -61,6 +61,7 @@ var mergers := {}      # id -> true
 var synergies := {}    # id -> true (v8)
 var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for them (v10)
 var mine_target := ""  # the one coin every miner digs up (v10); change it any time
+var upgrades := {}     # head office upgrades bought: id -> true (v11)
 var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
@@ -130,7 +131,43 @@ func now() -> float:
 # ==== tapping and levels =================================================
 
 func tap_value() -> float:
-	return Data.tap_base(level) + income_per_hour * 0.0012
+	return (Data.tap_base(level) + income_per_hour * 0.0012) * (1.5 if has_up("tap") else 1.0)
+
+
+# ---- head office upgrades -------------------------------------------------
+
+func has_up(id: String) -> bool:
+	return upgrades.has(id)
+
+
+func upgrade(id: String) -> Array:
+	for u in Data.UPGRADES:
+		if u[0] == id:
+			return u
+	return []
+
+
+func buy_upgrade(id: String) -> bool:
+	var u := upgrade(id)
+	if u.is_empty() or has_up(id) or cash < float(u[3]):
+		return false
+	cash -= float(u[3])
+	upgrades[id] = true
+	GameLog.info("game", "Head office upgrade: %s" % id)
+	recalc()
+	return true
+
+
+func offline_cap_h() -> float:
+	return Data.OFFLINE_CAP_H + (2.0 if has_up("away1") else 0.0) + (2.0 if has_up("away2") else 0.0)
+
+
+func sun_per_day() -> int:
+	return Data.SUN_PER_DAY + (1 if has_up("sun") else 0)
+
+
+func manager_cut() -> float:
+	return 0.06 if has_up("mgr") else Data.MANAGER_CUT
 
 
 func crit_chance() -> float:
@@ -356,7 +393,7 @@ func biz_income(id: String) -> float:
 	if ibost_active():
 		v *= 2.0
 	if s.get("manager", false) and int(s["stage"]) < Data.MAX_STAGE:
-		v *= 1.0 - Data.MANAGER_CUT  # no cut once fully expanded
+		v *= 1.0 - manager_cut()  # no cut once fully expanded
 	return v
 
 
@@ -399,7 +436,7 @@ func tick_deals(dt: float) -> void:
 		return
 	deal_wait -= dt
 	if deal_wait <= 0.0:
-		deal_wait = randf_range(Data.DEAL_EVERY_MIN[0], Data.DEAL_EVERY_MIN[1]) * 60.0
+		deal_wait = randf_range(Data.DEAL_EVERY_MIN[0], Data.DEAL_EVERY_MIN[1]) * 60.0 * (0.75 if has_up("deals") else 1.0)
 		deal = roll_deal()
 		if not deal.is_empty():
 			deal_ready.emit(deal)
@@ -476,7 +513,7 @@ func tick_sun(dt: float) -> void:
 	if sun_day != _today():
 		sun_day = _today()
 		sun_count = 0
-	if sun_count >= Data.SUN_PER_DAY:
+	if sun_count >= sun_per_day():
 		return
 	sun_wait -= dt
 	if sun_wait <= 0.0:
@@ -631,7 +668,8 @@ func expansion_cost(id: String) -> float:
 
 
 func expansion_seconds(id: String) -> float:
-	return Data.expansion_minutes(Data.business(id), int(biz[id]["stage"])) * 60.0 if biz.has(id) else 0.0
+	var k := (0.85 if has_up("fast1") else 1.0) * (0.85 if has_up("fast2") else 1.0)
+	return Data.expansion_minutes(Data.business(id), int(biz[id]["stage"])) * 60.0 * k if biz.has(id) else 0.0
 
 
 func expanding(id: String) -> bool:
@@ -712,7 +750,7 @@ func stake_left(sym: String) -> float:
 
 func stake_rate(sym: String) -> float:
 	var c := _coin(sym)
-	return float(c[4]) if c.size() > 4 else 0.0
+	return (float(c[4]) if c.size() > 4 else 0.0) * (1.25 if has_up("lock") else 1.0)
 
 
 func stake(sym: String, fraction: float) -> bool:
@@ -846,15 +884,13 @@ func _mine_raw_value() -> float:
 	## whichever coin it digs, so switching coins never changes what you earn.
 	if mine_target == "" or rigs_total() <= 0:
 		return 0.0
-	return float(miners.get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(mine_target, 1.0))
+	return float(miners.get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(mine_target, 1.0)) * (1.25 if has_up("mine") else 1.0)
 
 
 func _mine_scale() -> float:
-	## All mining pays at most mine_cap() of hourly income.
-	var raw := _mine_raw_value()
-	if raw <= 0.0:
-		return 1.0
-	return minf(1.0, maxf(income_per_hour, 0.0) * mine_cap() / raw)
+	## 1.1 rebalance: no cap tied to income any more (it made early miners
+	## worthless). Miners are limited by their price, ×1.6 each, 40 at most.
+	return 1.0
 
 
 func mine_cap() -> float:
@@ -1667,6 +1703,8 @@ func _build_achievements() -> Array:
 		a.append({"id": "syn_%d" % n, "title": "%d synerg%s" % [n, "y" if n == 1 else "ies"], "m": "synergies", "goal": float(n)})
 	for n in [1, 10, 17]:
 		a.append({"id": "mile_%d" % n, "title": "%d full compan%s" % [n, "y" if n == 1 else "ies"], "m": "full50", "goal": float(n)})
+	for n in [1, 5, 10]:
+		a.append({"id": "office_%d" % n, "title": "%d head office upgrade%s" % [n, "" if n == 1 else "s"], "m": "upgrades", "goal": float(n)})
 	for n in [10, 100]:
 		a.append({"id": "boosts_%d" % n, "title": "%d boosts" % n, "m": "boosts", "goal": float(n)})
 	return a
@@ -1708,6 +1746,7 @@ func metric(m: String) -> float:
 		"level": return float(level)
 		"boosts": return float(boosts_used)
 		"synergies": return float(synergies.size())
+		"upgrades": return float(upgrades.size())
 		"full50":
 			var n := 0
 			for id in biz.keys():
@@ -2019,7 +2058,7 @@ func apply_offline(seconds: float) -> void:
 	# Some of the time away counts towards the next deal (up to 2 h), so
 	# short-session players still get them.
 	deal_wait -= minf(s, 1800.0)
-	var capped := minf(s, Data.OFFLINE_CAP_H * 3600.0)
+	var capped := minf(s, offline_cap_h() * 3600.0)
 	var before := cash
 	var ib_part := 0.0
 	if ibost_until > 0.0:
@@ -2055,8 +2094,8 @@ func apply_offline(seconds: float) -> void:
 	var lock_got := float(counters.get("stake_earned", 0.0)) - staked0
 	if lock_got >= 1.0:
 		away_notes.append("Locked coins earned %s" % money_short(lock_got))
-	if s > Data.OFFLINE_CAP_H * 3600.0:
-		away_notes.append("Capped at %d h" % int(Data.OFFLINE_CAP_H))
+	if s > offline_cap_h() * 3600.0:
+		away_notes.append("Capped at %d h" % int(offline_cap_h()))
 	away_unseen = s >= 600.0 and away_earned >= 1.0
 	var exp_before := 0
 	for id in biz.keys():
@@ -2123,7 +2162,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2300,6 +2339,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 	if v < 10:
 		_migrate_v10(d, live_prices)
 		v = 10
+	if v < 11:
+		# v11 adds head office upgrades (none bought yet).
+		d["upgrades"] = d.get("upgrades", {})
+		v = 11
 	d["version"] = v
 	return d
 
@@ -2357,6 +2400,8 @@ func _migrate_v10(d: Dictionary, live_prices: Dictionary = {}) -> void:
 
 func _reset_state() -> void:
 	sci = false
+	away_unseen = false
+	away_earned = 0.0
 	frenzy_until = 0.0
 	rush_until = 0.0
 	home = 0
@@ -2387,6 +2432,7 @@ func _reset_state() -> void:
 	synergies = {}
 	miners = {"n": 0, "hash": 0.0}
 	mine_target = ""
+	upgrades = {}
 	mine_eff = {}
 	achieved = {}
 	counters = {}
@@ -2449,6 +2495,7 @@ func load_game() -> void:
 	synergies = d.get("synergies", {})
 	miners = d.get("miners", {"n": 0, "hash": 0.0})
 	mine_target = String(d.get("mine_target", ""))
+	upgrades = d.get("upgrades", {})
 	if not mine_target.is_empty() and _coin(mine_target).is_empty():
 		mine_target = ""
 	mine_eff = d.get("mine_eff", {})

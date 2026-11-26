@@ -16,8 +16,8 @@ Tap to earn, start companies, trade made-up shares and well-known crypto coins, 
 
 ## What's in it
 
-- 17 companies to open, fill and expand, with milestones and partner boosts
-- Shares, property and crypto (with miners and locking)
+- 17 companies to open, fill and expand, with milestones, partners and head office upgrades
+- Shares, property and real crypto coins (with miners and locking)
 - Daily and weekly goals, golden suns, rivals, achievements
 - Built to take weeks, not days
 
@@ -65,6 +65,7 @@ Only install `Sol.apk` from this repo's Releases page.
 - [Switzer](https://www.fontshare.com/fonts/switzer) and [Tanker](https://www.fontshare.com/fonts/tanker) fonts from Fontshare (ITF Free Font License). They aren't stored here: the build downloads them from Fontshare.
 - [Inter](https://github.com/rsms/inter) font as a backup (SIL Open Font License 1.1), see `game/assets/fonts/LICENSE.txt`
 - [Phosphor](https://github.com/phosphor-icons/core) icons (MIT), see `game/assets/icons/LICENSE-phosphor.txt`
+- Coin logos from [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons) (CC0), see `game/assets/coins/LICENSE.txt`
 
 ## For developers
 

@@ -489,7 +489,7 @@ func _refresh_mining() -> void:
 		_mine_target.set_lead(AssetTile.new(tgt))
 	var mph := Game.mine_per_hour(tgt)
 	_mine_target.set_texts("Mining " + String(c[1]), ("%s %s /h" % [AssetDetail.qty_text(mph), tgt]) if n > 0 else "Tap to choose the coin", "Change")
-	var notes: Array = ["They keep mining while you're away (8 h max)."]
+	var notes: Array = ["They keep mining while you're away (%d h max)." % int(Game.offline_cap_h())]
 	if Game.mining_capped():
 		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
 	_mine_note.text = " ".join(notes)
@@ -497,7 +497,10 @@ func _refresh_mining() -> void:
 		_rig_btn.text = "All miners bought"
 		Page.set_enabled(_rig_btn, false)
 	else:
-		_rig_btn.text = "Buy miner · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(Game.miner_gain())]
+		var gain := Game.miner_gain()
+		var back_h := Game.rig_price() / maxf(gain, 0.001)
+		_rig_btn.text = "Buy miner · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(gain)]
+		_mine_note.text += "  Next miner pays for itself in about %s." % Game.clock(back_h * 3600.0)
 		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price(), false)
 
 

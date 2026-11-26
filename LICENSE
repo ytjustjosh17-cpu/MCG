@@ -13,6 +13,7 @@ Third-party components keep their own licences:
 - Switzer and Tanker fonts: ITF Free Font License (fontshare.com). Not included
   in this repository; the build downloads them from Fontshare.
 - Phosphor icons: MIT License (game/assets/icons/LICENSE-phosphor.txt)
+- Coin logos: cryptocurrency-icons, CC0 1.0 (game/assets/coins/LICENSE.txt)
 - Godot Engine: MIT License (https://godotengine.org/license)
 
 DISCLAIMER

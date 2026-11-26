@@ -112,9 +112,9 @@ const STAKE_LOCK_H := 24.0
 # Mining (1.1): buy rigs for a coin; they mine that coin all the time.
 # Rig prices climb across ALL coins (spreading out doesn't dodge it).
 const RIG_BASE := 25000.0
-const RIG_GROWTH := 1.45
-const RIG_MAX := 60              # miners in total (the last ones are late-game buys)
-const MINE_YIELD := 0.03         # a miner earns 3% of its price per hour (before the cap)
+const RIG_GROWTH := 1.7         # each miner costs 70% more than the last
+const RIG_MAX := 40              # miners in total
+const MINE_YIELD := 0.04         # a miner earns 4% of its price an hour (pays back in about a day)
 const MINE_CAP := 0.02           # all mining pays at most 2% of hourly income...
 const MINE_CAP_PER_RIG := 0.0015 # ...plus 0.15% per miner owned (11% with all 60), so every miner counts
 const NEWS_MINE_UP := ["%s mining gets faster", "%s miners earn more"]
@@ -184,9 +184,23 @@ const SYNERGIES := [
 	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 1.5e12],
 ]
 # One dial for all company income, set so 1.1's new bonuses keep the same pace.
-const INCOME_SCALE := 0.84
+const INCOME_SCALE := 0.8
 const ACH_BONUS := 0.002      # each achievement adds 0.2% to all income (cap lands near the last ones)
 const ACH_BONUS_CAP := 0.15   # but never more than +15% in total
+# ---- head office (1.1): one-off upgrades that change the rules -----------
+# id, name, what it does, cost
+const UPGRADES := [
+	["tap", "Stronger taps", "Taps earn ×1.5", 5.0e4],
+	["deals", "Dealmaker", "Deals come 25% sooner", 3.0e5],
+	["away1", "Night shift", "Earn while away up to 10 h", 1.0e6],
+	["fast1", "Fast builders", "Expansions 15% quicker", 3.0e6],
+	["sun", "Lucky skies", "One more golden sun a day", 2.0e7],
+	["lock", "Better vault", "Locked coins earn 25% more", 1.0e8],
+	["mine", "Cooler miners", "Miners earn 25% more", 1.0e9],
+	["away2", "Weekend staff", "Earn while away up to 12 h", 2.0e10],
+	["fast2", "Express permits", "Expansions another 15% quicker", 2.0e11],
+	["mgr", "Better managers", "Managers take 6%, not 10%", 2.0e12],
+]
 const MANAGER_CUT := 0.10        # share of that company's income they keep
 const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
 

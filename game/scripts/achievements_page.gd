@@ -6,7 +6,7 @@ const FILTERS := [["all", "All"], ["taps", "Taps"], ["worth", "Net worth"], ["bi
 const GROUP := {
 	"taps": "taps", "boosts": "taps", "level": "taps",
 	"worth": "worth", "home": "worth",
-	"biz": "biz", "expansions": "biz", "managers": "biz", "synergies": "biz", "full50": "biz", "mergers": "biz", "deals": "biz", "rivals": "biz",
+	"biz": "biz", "expansions": "biz", "managers": "biz", "synergies": "biz", "full50": "biz", "upgrades": "biz", "mergers": "biz", "deals": "biz", "rivals": "biz",
 	"props": "invest", "shares": "invest", "crypto_profit": "invest", "dividends": "invest", "stake_earned": "invest",
 }
 const MONEY := ["worth", "shares", "crypto_profit", "dividends", "stake_earned"]

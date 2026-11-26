@@ -85,6 +85,10 @@ func _run() -> void:
 	await create_timer(0.4).timeout
 	main.push(MergersPage.new())
 	await _shot("05_mergers")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.push(load("res://scripts/head_office_page.gd").new())
+	await _shot("05b_head_office")
 	main.show_page(2)
 	await _shot("06_invest_shares")
 	var inv = main._pages[2]

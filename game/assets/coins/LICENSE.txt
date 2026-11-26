@@ -1,0 +1,5 @@
+Coin logos (BTC, ETH, SOL, XRP, DOGE, ADA, TRX, LINK, AVAX, DOT, LTC) come from
+cryptocurrency-icons by Atomic Labs (github.com/spothq/cryptocurrency-icons),
+released under CC0 1.0 (public domain). The coin names and logos belong to their
+projects; this game is not linked to or endorsed by any of them.
+Shiba Inu and Pepe badges are drawn in code (asset_tile.gd).

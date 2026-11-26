@@ -177,6 +177,7 @@ func _on_more() -> void:
 	if int(ex[0]) > 0:
 		opts.append(["expand", "Expand %d · %s" % [ex[0], Game.money_short(float(ex[1]))]])
 	opts.append(["mergers", "Mergers"])
+	opts.append(["office", "Head office · %d/%d" % [Game.upgrades.size(), Data.UPGRADES.size()]])
 	Kit.pick("More", opts, "", _on_more_pick)
 
 
@@ -187,6 +188,8 @@ func _on_more_pick(v) -> void:
 		_on_expand_all()
 	elif v == "mergers":
 		push_page.emit(MergersPage.new())
+	elif v == "office":
+		push_page.emit(HeadOfficePage.new())
 
 
 func _on_fill() -> void:

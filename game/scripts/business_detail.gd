@@ -183,7 +183,7 @@ func refresh() -> void:
 	if not nm.is_empty():
 		_mile.text = "At %d %s: income ×%s" % [int(nm[0]), b.get("units", "units"), str(nm[1])]
 	_refresh_synergies()
-	var cut := int(Data.MANAGER_CUT * 100.0)
+	var cut := int(round(Game.manager_cut() * 100.0))
 	# A fully expanded company has nothing left for a manager to do.
 	_mgr.get_parent().get_parent().visible = stage < Data.MAX_STAGE
 	if Game.has_manager(id):
