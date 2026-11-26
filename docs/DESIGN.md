@@ -65,6 +65,8 @@ Rules:
 | Company or coin mark | `AssetTile` (`asset_tile.gd`): coins show their real logo (`assets/coins`, CC0); shares a sector shape with the company initial cut in |
 | Tabs inside a page | `Segmented` |
 | Bottom sheet, alert, toast | `Kit.sheet()`, `Kit.alert()`, `Kit.toast()` |
+| Buy / sell / convert amounts | `TradeSheet` (`trade_sheet.gd`): what you own, a big live amount, a thick slider with quarter snaps, 25/50/75/Max chips, an £ amount box, "After:" line, one confirm button |
+| Miners at work | `MinerRack` (`miner_rack.gd`): machines with spinning fans, blinking lights and coins rising; still with Less motion |
 | Celebration | `Kit.celebrate()` (never blocks taps, leaves by itself) |
 | Count-up number | `CountLabel` |
 | Price chart | `PriceChart` |

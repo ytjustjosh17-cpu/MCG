@@ -1,5 +1,15 @@
 # Changelog
 
+## Better trading, coin convert, miners you can see
+
+- Buy and Sell open a new pop-up: what you own, a big live amount, a slider
+  (snaps at quarters), 25%, 50%, 75% and Max, or type an amount in £. It
+  shows what you'll get and what's left, then one button to confirm.
+- Convert: swap coins straight into another coin (pick it from a grid of
+  logos). Same small fee as selling.
+- Crypto miners: a little rack of machines with spinning fans, blinking
+  lights and coins floating up.
+
 ## Claim your rewards
 
 - Goals, the daily gift and achievements no longer pay by themselves. They

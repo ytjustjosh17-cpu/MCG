@@ -1000,6 +1000,21 @@ func sell_asset(kind: String, sym: String, fraction: float) -> float:
 	return got
 
 
+func convert_coin(from: String, to: String, fraction: float) -> float:
+	## Swap free coins of one kind for another: sold at the usual spread,
+	## then bought at the other coin's price. Returns how many `to` coins you got.
+	if from == to or _coin(to).is_empty() or holding(coins, from) <= 0.0:
+		return 0.0
+	var before := holding(coins, to)
+	var got := sell_asset("coin", from, fraction)
+	if got <= 0.0:
+		return 0.0
+	buy_asset("coin", to, got)
+	_bump("conversions")
+	GameLog.info("invest", "Converted %s to %s (%s)" % [from, to, money(got)])
+	return holding(coins, to) - before
+
+
 func book_value(book: Dictionary) -> float:
 	var v := 0.0
 	for sym in book.keys():

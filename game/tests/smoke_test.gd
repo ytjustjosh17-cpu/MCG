@@ -681,6 +681,15 @@ func _run() -> void:
 	game.claim_all()
 	_check(game.unclaimed() == 0, "Claim all clears the list")
 	game.reset_game()
+	# Converting coins keeps the value, less the usual sell spread.
+	game.reset_game()
+	game.cash = 1.0e6
+	game.buy_asset("coin", "XRP", 1.0e5)
+	var xv: float = game.holding(game.coins, "XRP") * game.price("XRP")
+	var got_btc: float = game.convert_coin("XRP", "BTC", 0.5)
+	var btc_v: float = got_btc * game.price("BTC")
+	_check(absf(btc_v - xv * 0.5 * (1.0 - Data.SELL_SPREAD)) < xv * 0.001 and absf(game.cash - 9.0e5) < 1.0, "converting half the XRP into BTC keeps the value less the spread")
+	_check(game.convert_coin("XRP", "XRP", 1.0) == 0.0 and game.convert_coin("DOGE", "BTC", 1.0) == 0.0, "no converting into the same coin or from a coin you don't own")
 	# Head office upgrades: each works once and changes its rule.
 	game.reset_game()
 	game.cash = 1.0e13
