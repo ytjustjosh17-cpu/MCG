@@ -251,6 +251,17 @@ const WHEEL := [
 	["cash", 5.0, 22], ["chips", 10.0, 18], ["cash", 10.0, 16], ["chips", 20.0, 12],
 	["cash", 20.0, 12], ["chips", 45.0, 8], ["cash", 60.0, 7], ["cash", 180.0, 5],
 ]
+# Bank (1.2). Savings earn interest every hour, capped so they never beat
+# running companies. Loans are paid back in set instalments; if cash is short
+# on a payment, it goes into the minus and income pays it off first.
+const BANK_RATE_H := 0.002        # savings interest per hour (0.2%)
+const BANK_CAP := 0.05            # interest at most 5% of base income an hour
+const BANK_CAP_FLOOR := 100.0     # (and at least £100/h of room early on)
+const LOAN_MAX_H := 6.0           # borrow up to 6 hours of base income
+const LOAN_MIN := 5000.0          # or at least this much
+const LOAN_FEE := 0.25            # repay 125% of what you borrowed
+const LOAN_PAYMENTS := 5          # in 5 equal payments
+const LOAN_EVERY_H := 4.0         # one every 4 hours
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const SUN_PER_DAY := 4                # never more than this a day
 # What a caught sun gives: chance of a cash prize, else a short buff (1.1).

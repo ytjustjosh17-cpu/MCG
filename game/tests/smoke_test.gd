@@ -885,6 +885,36 @@ func _run() -> void:
 	_check(game.tap_tired() and tt_tired < tt_full * 0.5 and tt_tired > 0.0, "after a long non-stop run taps pay a quarter (%.2f vs %.2f)" % [tt_tired, tt_full])
 	game._tap_heat = 0.0
 	game.reset_game(true)
+	# Bank: savings earn capped interest; a loan is repaid in set payments and
+	# can push cash into the minus.
+	game.reset_game(true)
+	game.sim_time = 1.7e9
+	game.cash = 1.0e5
+	_check(game.deposit(4.0e4) and absf(game.savings() - 4.0e4) < 0.01 and absf(game.cash - 6.0e4) < 0.01, "deposit moves cash into savings")
+	var bk_nw: float = game.net_worth()
+	game._bank_tick(3600.0)
+	var bk_int: float = game.savings() - 4.0e4
+	_check(bk_int > 0.0 and bk_int <= maxf(game.base_income(), Data.BANK_CAP_FLOOR) * Data.BANK_CAP + 0.01, "an hour of interest, capped (%s)" % game.money_short(bk_int))
+	_check(game.withdraw(1.0e9) and game.savings() < 0.01, "withdraw takes it all back")
+	game.cash = 0.0
+	var bk_lim: float = game.loan_limit()
+	_check(not game.take_loan(bk_lim * 2.0), "can't borrow over the limit")
+	_check(game.take_loan(4000.0) and absf(game.cash - 4000.0) < 0.01 and not game.take_loan(100.0), "a £4K loan, one at a time")
+	_check(absf(game.loan_owed() - 5000.0) < 0.01 and game.net_worth() < game.cash + game.savings() + 0.01 - 999.0, "owing counts against net worth")
+	game.cash = 0.0
+	game.sim_time += Data.LOAN_EVERY_H * 3600.0 + 1.0
+	game._bank_tick(0.0)
+	_check(absf(game.cash + 1000.0) < 0.01 and int(game.loan()["left"]) == 4, "a payment of £1K falls due and puts cash in the minus")
+	_check(not game.buy_chips(1.0) and not game.deposit(1.0), "in the minus, nothing can be bought")
+	game.sim_time += Data.LOAN_EVERY_H * 3600.0 * 4.0 + 1.0
+	game._bank_tick(0.0)
+	_check(game.loan().is_empty() and absf(game.cash + 5000.0) < 0.01, "all five payments taken, loan done")
+	var bk_old: Dictionary = game.to_dict()
+	bk_old["version"] = 16
+	bk_old.erase("bank")
+	_check(game._migrate(bk_old).has("bank"), "v16 saves load with an empty bank")
+	game.sim_time = -1.0
+	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
 	tk._toast_q.clear()

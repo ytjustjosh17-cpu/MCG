@@ -111,6 +111,8 @@ func _gamble() -> void:
 func _session(active_s: float) -> void:
 	if OS.get_environment("SIM_GAMBLE") == "1":
 		_gamble()
+	if OS.get_environment("SIM_LOAN") == "1" and g.loan().is_empty() and g.cash >= 0.0:
+		g.take_loan(g.loan_limit())   # borrower persona: always the biggest loan
 	if trader in ["news", "dip", "hold"]:
 		_trade()
 	# Tap for a while (3 taps a second), using the tap boost when ready.
