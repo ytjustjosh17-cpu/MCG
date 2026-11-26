@@ -238,6 +238,33 @@ func _run() -> void:
 	if found:
 		await _wobble_tap(sun.get_global_rect().get_center())
 	_ok(found and int(g.counters.get("suns", 0)) > suns_s and g.taps == taps_s, "tapping a golden sun catches it and isn't a tower tap")
+	# Trade sheet: dragging the slider (with wobble) changes the amount, and
+	# the Sell button sells that much.
+	g.cash = maxf(g.cash, 1.0e6)
+	g.buy_asset("coin", "DOGE", 1.0e5)
+	main.show_page(2)
+	await create_timer(0.5).timeout
+	TradeSheet.open("coin", "DOGE", "sell")
+	await create_timer(0.8).timeout
+	var ts = null
+	for n in root.get_node("Kit").find_children("*", "TradeSheet", true, false):
+		ts = n
+	var q0: float = g.holding(g.coins, "DOGE")
+	var ts_found: bool = ts != null
+	if ts:
+		var sr: Rect2 = ts._slider.get_global_rect()
+		var from_p := Vector2(sr.position.x + sr.size.x * 0.5, sr.get_center().y)
+		_ev_button(from_p, true)
+		await process_frame
+		var to_p := Vector2(sr.position.x + sr.size.x * 0.27, sr.get_center().y + 3.0)
+		_ev_move(to_p, to_p - from_p)
+		await process_frame
+		_ev_button(to_p, false)
+		await create_timer(0.2).timeout
+		await _wobble_tap(ts._go.get_global_rect().get_center())
+		await create_timer(0.5).timeout
+	var sold: float = 1.0 - g.holding(g.coins, "DOGE") / maxf(q0, 1e-9)
+	_ok(ts_found and sold > 0.15 and sold < 0.35, "dragging the slider to about a quarter sells about a quarter (%.2f)" % sold)
 	# Tap targets: every visible button on every tab and main detail page is
 	# at least 44 px each way (mobile rule). Lists the offenders.
 	var small: Array = []

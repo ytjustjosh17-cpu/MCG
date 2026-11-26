@@ -459,6 +459,7 @@ func _mining_section() -> Control:
 	box.add_theme_constant_override("separation", 8)
 	box.add_child(UI.label("Crypto miners", 17, UI.TEXT, true))
 	var mc := card(box)
+	mc.add_child(MinerRack.new())   # the machines at work
 	_mine_sum = Row.new("cpu", "", false)
 	_mine_sum.disabled = true
 	_mine_sum.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())

@@ -100,6 +100,19 @@ func _run() -> void:
 	await _shot("09_coin")
 	main._stack[-1].scroll.scroll_vertical = 600
 	await _shot("09b_coin_staking")
+	g.buy_asset("coin", "XRP", 2.0e4)
+	TradeSheet.open("coin", "XRP", "sell")
+	await _shot("09e_sell")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	TradeSheet.open("coin", "XRP", "convert")
+	await _shot("09f_convert")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
+	TradeSheet.open("coin", "XRP", "buy")
+	await _shot("09g_buy")
+	root.get_node("Kit").close_top()
+	await create_timer(0.5).timeout
 	main.pop()
 	await create_timer(0.4).timeout
 	inv._seg.select(0, true)
@@ -247,7 +260,7 @@ func _run() -> void:
 	main.show_page(2)
 	main._pages[2]._seg.select(2, true)
 	await create_timer(0.4).timeout
-	main._pages[2].scroll.scroll_vertical = 330
+	main._pages[2].scroll.scroll_vertical = 300
 	await _shot("31_crypto_mining")
 	main._pages[2]._on_pick_target()
 	await _shot("32_mine_pick")

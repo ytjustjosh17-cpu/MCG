@@ -16,6 +16,7 @@ var _own: Label
 var _profit: Label
 var _extra: Label
 var _sell: Button
+var _convert: Button
 var _lock_row: Row
 var _mine_line: Control
 var _mine_l: Label
@@ -81,6 +82,10 @@ func build() -> void:
 	body.add_child(h)
 	_sell = button("Sell", false, _on_sell)
 	h.add_child(_sell)
+	if kind == "coin":
+		# Swap these coins for another kind in one go.
+		_convert = button("Convert", false, _on_convert)
+		h.add_child(_convert)
 	h.add_child(button("Buy", true, _on_buy))
 
 	# What you own, in one card: hidden when you own none.
@@ -218,6 +223,8 @@ func refresh() -> void:
 			_lock_row.set_texts("Locked " + qty_text(locked), "Earning · can unlock", "Unlock")
 	Page.set_enabled(_sell, free > 0.0, false)
 	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
+	if _convert:
+		_convert.modulate.a = 1.0 if free > 0.0 else 0.4
 	var news_n := int(Game.counters.get("news_total", 0))
 	if news_n != _news_count:
 		_news_count = news_n
@@ -251,48 +258,34 @@ func _notification(what: int) -> void:
 
 
 func _on_buy() -> void:
-	var actions: Array = []
-	var fracs := [1.0, 0.5, 0.25, 0.1]   # the small, safe one sits nearest the thumb
-	for f in fracs:
-		var ff: float = f
-		var amt := Game.cash * ff
-		if amt >= 0.01:
-			var label := Game.money_short(amt) + (" · All" if ff >= 1.0 else " · %d%%" % int(ff * 100))
-			actions.append({"text": label, "style": "primary" if ff == 0.1 else "secondary", "call": func():
-				var spend := Game.cash * ff
-				if Game.buy_asset(kind, sym, spend):
-					Kit.haptic("success")
-					Kit.toast("Bought %s · %s" % [sym, Game.money_short(spend)], true)})
-	if actions.is_empty():
+	if Game.cash < 0.01:
 		Kit.toast("No cash to spend")
 		return
-	actions.append({"text": "Close", "style": "plain"})
-	Kit.sheet("Buy " + sym, "", actions, true, UI.display(price_text(Game.price(sym)), 36))
+	TradeSheet.open(kind, sym, "buy")
+
+
+func _blocked_sell() -> bool:
+	## True (with a reason shown) when there are no free coins or shares to move.
+	if Game.holding(_book(), sym) > 0.0:
+		return false
+	Kit.haptic("error")
+	if kind == "coin" and Game.staked(sym) > 0.0 and Game.stake_left(sym) > 0.0:
+		Kit.toast("All locked · free in " + Game.clock(Game.stake_left(sym)))
+	elif kind == "coin" and Game.staked(sym) > 0.0:
+		Kit.toast("Unlock them first (tap Locked)")
+	else:
+		Kit.toast("You don't own any yet")
+	return true
 
 
 func _on_sell() -> void:
-	var free := Game.holding(_book(), sym)
-	if free <= 0.0:
-		Kit.haptic("error")
-		if kind == "coin" and Game.staked(sym) > 0.0 and Game.stake_left(sym) > 0.0:
-			Kit.toast("All locked · free in " + Game.clock(Game.stake_left(sym)))
-		elif kind == "coin" and Game.staked(sym) > 0.0:
-			Kit.toast("Unlock them first (tap Locked)")
-		else:
-			Kit.toast("You don't own any yet")
-		return
-	var worth := free * Game.price(sym)
-	var actions: Array = []
-	for f in [1.0, 0.5, 0.25]:
-		var ff: float = f
-		var label := ("Sell all · " if ff >= 1.0 else "Sell %d%% · " % int(ff * 100)) + Game.money_short(worth * ff)
-		actions.append({"text": label, "style": "secondary", "call": func():
-			var got := Game.sell_asset(kind, sym, ff)
-			if got > 0.0:
-				Kit.haptic("success")
-				Kit.toast("Sold for " + Game.money_short(got))})
-	actions.append({"text": "Close", "style": "plain"})
-	Kit.sheet("Sell " + sym, "", actions, true, UI.display(price_text(Game.price(sym)), 36))
+	if not _blocked_sell():
+		TradeSheet.open(kind, sym, "sell")
+
+
+func _on_convert() -> void:
+	if not _blocked_sell():
+		TradeSheet.open(kind, sym, "convert")
 
 
 func _on_stake() -> void:
