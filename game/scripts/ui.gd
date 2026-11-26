@@ -31,6 +31,18 @@ const COIN_COL := [ # brand colours, lifted a little to read on the dark teal (s
 	Color("#FFA409"), Color("#5B86E0"), Color("#E05A6C"), Color("#8299EE"), Color("#62B23E"),
 	Color("#E8625D"), Color("#E6488F"), Color("#9FB3D6")]
 const SHIB_FACE := Color("#FFE3B3")
+# Casino (1.1): table felt, roulette pockets, chips and slot symbols.
+const FELT := Color("#0B3A33")
+const FELT_LINE := Color("#3E7A6E")
+const ROUL_RED := Color("#C42A20")
+const ROUL_BLACK := Color("#0A1516")
+const ROUL_GREEN := Color("#1E8758")
+const GOLD := Color("#E9C46A")
+const CHIP_COL := [Color("#E9EEEC"), Color("#D2362B"), Color("#2F6FB8"), Color("#2E9A62"), Color("#1A1F22"), Color("#7C4DB0")]
+const SLOT_COL := {
+	"sun": Color("#FF1A0F"), "crown": Color("#E9C46A"), "bar": Color("#D8E6E3"), "seven": Color("#FF5D73"),
+	"bell": Color("#F2B544"), "cherry": Color("#E2453C"), "lemon": Color("#E8DD5A"), "wild": Color("#7FD8C8"), "scatter": Color("#B98BFF"),
+}
 
 # Type: Switzer for text, Tanker for big numbers and titles (both from
 # Fontshare, ITF Free Font License). They can't be stored in this public repo,
