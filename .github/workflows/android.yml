@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write      # for the build provenance stamp (attestation)
+  attestations: write
 
 jobs:
   rules:
@@ -122,6 +124,21 @@ jobs:
           done
           echo "Fonts are in the APK"
 
+      - name: Fingerprint (SHA-256)
+        id: sum
+        working-directory: game
+        shell: bash
+        run: |
+          SUM=$(sha256sum build/Sol.apk | cut -d' ' -f1)
+          echo "sha256=$SUM" >> "$GITHUB_OUTPUT"
+          echo "$SUM  Sol.apk" > build/Sol.apk.sha256
+          echo "SHA-256: $SUM"
+
+      - name: Stamp where the APK came from (build provenance)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: game/build/Sol.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -139,10 +156,17 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             game/build/Sol.apk
+            game/build/Sol.apk.sha256
           make_latest: "true"
           body: |
             Build ${{ github.run_number }}.
             Install: open this on your phone and tap Sol.apk.
+
+            **Check this file is genuine**
+            - Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+            - SHA-256: `${{ steps.sum.outputs.sha256 }}`
+            - Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`
+            - Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says "not found", upload the file there to scan it).
 
       - name: Wait before retrying
         if: steps.publish.outcome == 'failure'
@@ -157,7 +181,14 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: |
             game/build/Sol.apk
+            game/build/Sol.apk.sha256
           make_latest: "true"
           body: |
             Build ${{ github.run_number }}.
             Install: open this on your phone and tap Sol.apk.
+
+            **Check this file is genuine**
+            - Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+            - SHA-256: `${{ steps.sum.outputs.sha256 }}`
+            - Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`
+            - Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says "not found", upload the file there to scan it).

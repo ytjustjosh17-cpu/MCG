@@ -1,5 +1,11 @@
 # Changelog
 
+## Safety checks on every release
+
+- Each release now lists the APK's SHA-256, links its build log, carries a
+  GitHub build-provenance stamp (`gh attestation verify`) and links a
+  VirusTotal scan. README has an "Is it safe?" section and the permissions.
+
 ## 1.1 update: real coins, simpler miners
 
 - Coins are now real ones (Bitcoin, Ethereum, Solana, XRP, Dogecoin,

@@ -31,6 +31,25 @@ If you install it, you do so at your own risk (see [LICENSE](LICENSE)).
 
 It's only a game. There's no real money, no real shares and no real crypto. Companies and places are made up. Coin names are used only to describe them; the game is not linked to or endorsed by any of them, and the prices are a simulation, not real market data. Nothing here is financial advice. No ads, no payments, no accounts.
 
+## Is it safe?
+
+You can check for yourself:
+- **Built in public.** Every `Sol.apk` is built by GitHub Actions from the code here, never on someone's own computer. Each release links to its build log.
+- **Proof of origin.** Each APK carries a signed GitHub stamp. Check it with `gh attestation verify Sol.apk -R ytjustjosh17-cpu/MCG`.
+- **Fingerprint.** Each release lists the file's SHA-256. If yours matches, it hasn't been changed.
+- **Virus scan.** Each release links to VirusTotal for that exact file.
+
+Permissions the app asks for:
+
+| Permission | Why |
+|---|---|
+| Internet | Checks this repo's releases for updates. Nothing else. |
+| Vibrate | Small taps of feedback; can be turned off in Settings. |
+| Install apps | Only for the Update button, which installs a new `Sol.apk` from this repo's releases. |
+
+Android may warn about any app not from the Play Store. That's normal for apps you install yourself.
+Only install `Sol.apk` from this repo's Releases page.
+
 ## Privacy
 
 - Your progress is saved only on your phone.
