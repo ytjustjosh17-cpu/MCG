@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 13
+const SAVE_VERSION := 14
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -65,6 +65,7 @@ var upgrades := {}     # head office upgrades bought: id -> true (v11)
 var rewards: Array = []  # earned but not yet claimed: {key, kind, title, amount} (v12)
 var rebirth := {"count": 0, "earned": 0, "nodes": {}}   # RBP earned in total, tree nodes owned (v13)
 var _rb_cache := {}      # stat -> summed tree effect; cleared when the tree changes
+var casino := {"open": false, "chips": 0.0}   # unlocked?, chips at the cage (v14)
 var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
@@ -1612,7 +1613,7 @@ func business_value() -> float:
 
 
 func net_worth() -> float:
-	return cash + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
+	return cash + chips() + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
 
 
 func business_per_hour() -> float:
@@ -2215,7 +2216,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "rebirth": rebirth, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2404,6 +2405,10 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v13: rebirth. Nobody has reborn yet, so the tree starts empty.
 		d["rebirth"] = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
 		v = 13
+	if v < 14:
+		# v14: the casino (locked, no chips).
+		d["casino"] = d.get("casino", {"open": false, "chips": 0.0})
+		v = 14
 	d["version"] = v
 	return d
 
@@ -2497,6 +2502,7 @@ func _reset_state() -> void:
 	rewards = []
 	rebirth = {"count": 0, "earned": 0, "nodes": {}}
 	_rb_cache = {}
+	casino = {"open": false, "chips": 0.0}
 	mine_eff = {}
 	achieved = {}
 	counters = {}
@@ -2563,6 +2569,7 @@ func load_game() -> void:
 	rewards = d.get("rewards", [])
 	rebirth = d.get("rebirth", {"count": 0, "earned": 0, "nodes": {}})
 	_rb_cache = {}
+	casino = d.get("casino", {"open": false, "chips": 0.0})
 	if not mine_target.is_empty() and _coin(mine_target).is_empty():
 		mine_target = ""
 	mine_eff = d.get("mine_eff", {})
@@ -2628,6 +2635,99 @@ func reset_game(fresh_market := false) -> void:
 	flush_changes()
 
 
+# ==== casino ================================================================
+# Chips are bought at the cage with cash and cashed out any time. Every
+# round goes through casino_stake() then casino_pay(): limits are checked,
+# the result is saved at once (before any animation), so closing the app
+# mid-spin can't undo a loss. Limits follow base income, so the casino can't
+# skip weeks: a bet is at most CASINO_MAX_BET_H hours of income, a single
+# payout at most CASINO_MAX_WIN_H hours.
+
+func chips() -> float:
+	return float(casino.get("chips", 0.0))
+
+
+func casino_open() -> bool:
+	return bool(casino.get("open", false))
+
+
+func unlock_casino() -> bool:
+	if casino_open() or cash < Data.CASINO_COST:
+		return false
+	cash -= Data.CASINO_COST
+	casino["open"] = true
+	GameLog.info("casino", "Casino unlocked")
+	recalc()
+	save_game()
+	return true
+
+
+func base_income() -> float:
+	## Hourly income without short boosts (the x2 income boost).
+	return income_per_hour / (2.0 if ibost_active() else 1.0)
+
+
+func casino_max_bet() -> float:
+	var m := maxf(Data.CASINO_MIN_BET_CAP, base_income() * Data.CASINO_MAX_BET_H)
+	return m * (2.0 if rb("casino") > 0.0 else 1.0)
+
+
+func casino_max_win() -> float:
+	var m := maxf(Data.CASINO_MIN_WIN_CAP, base_income() * Data.CASINO_MAX_WIN_H)
+	return m * (2.0 if rb("casino") > 0.0 else 1.0)
+
+
+func buy_chips(amount: float) -> bool:
+	amount = minf(amount, cash)
+	if not casino_open() or amount < 0.01:
+		return false
+	cash -= amount
+	casino["chips"] = chips() + amount
+	recalc()
+	save_game()
+	return true
+
+
+func cash_out(amount: float) -> bool:
+	amount = minf(amount, chips())
+	if amount < 0.01:
+		return false
+	casino["chips"] = chips() - amount
+	cash += amount
+	recalc()
+	save_game()
+	return true
+
+
+func casino_stake(amount: float, limit_mult := 1.0) -> bool:
+	## Takes a bet from chips. limit_mult lets a bonus buy or a blackjack
+	## double or split go past one normal bet.
+	if not casino_open() or amount <= 0.0 or amount > chips() + 0.001:
+		return false
+	if amount > casino_max_bet() * limit_mult + 0.001:
+		return false
+	casino["chips"] = chips() - amount
+	counters["casino_bet"] = float(counters.get("casino_bet", 0.0)) + amount
+	counters["casino_rounds"] = int(counters.get("casino_rounds", 0)) + 1
+	save_game()
+	flush_changes()
+	return true
+
+
+func casino_pay(amount: float) -> float:
+	## Pays a win into chips, capped. Returns what was really paid.
+	amount = clampf(amount, 0.0, casino_max_win())
+	if amount <= 0.0:
+		return 0.0
+	casino["chips"] = chips() + amount
+	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + amount
+	if amount > float(counters.get("casino_best", 0.0)):
+		counters["casino_best"] = amount
+	save_game()
+	flush_changes()
+	return amount
+
+
 # ==== rebirth and the RBP tree ===========================================
 
 # What a rebirth clears. Everything else in the save is kept (market, stats,
@@ -2639,7 +2739,7 @@ const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost
 const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
 	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
 	"weekly", "deal_wait", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
-	"reduce_motion", "started_at", "rebirth"]
+	"reduce_motion", "started_at", "rebirth", "casino"]   # casino: the unlock stays, chips are cleared
 
 
 func rb(stat: String) -> float:
@@ -2750,6 +2850,7 @@ func do_rebirth() -> int:
 	reduce_motion = bool(keep["reduce_motion"])
 	started_at = float(keep["started_at"])
 	rebirth = keep["rebirth"]
+	casino = {"open": bool(keep["casino"].get("open", false)), "chips": 0.0}   # chips are money: they go
 	sci = keep_sci
 	rebirth["count"] = int(rebirth.get("count", 0)) + 1
 	rebirth["earned"] = int(rebirth.get("earned", 0)) + got

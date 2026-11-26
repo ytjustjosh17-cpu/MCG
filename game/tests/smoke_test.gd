@@ -733,6 +733,32 @@ func _run() -> void:
 	var rb_mig: Dictionary = game._migrate(rb_old12)
 	_check(int(rb_mig["version"]) == game.SAVE_VERSION and rb_mig.has("rebirth") and (rb_mig["rebirth"]["nodes"] as Dictionary).is_empty(), "v12 saves load with an empty tree")
 	game.reset_game(true)
+	# Casino: locked until bought, bets and wins capped by income, every
+	# round saved at once, chips go on rebirth but the unlock stays.
+	game.reset_game(true)
+	game.cash = 1.0e6
+	_check(not game.buy_chips(100.0) and not game.unlock_casino(), "casino starts locked and costs %s" % game.money_short(Data.CASINO_COST))
+	game.cash = Data.CASINO_COST + 5.0e5
+	_check(game.unlock_casino() and absf(game.cash - 5.0e5) < 0.01, "opening the casino costs exactly its price")
+	var cs_nw: float = game.net_worth()
+	_check(game.buy_chips(2.0e5) and absf(game.chips() - 2.0e5) < 0.01 and absf(game.net_worth() - cs_nw) < 1.0, "chips count in net worth")
+	var cs_max: float = game.casino_max_bet()
+	_check(not game.casino_stake(cs_max * 1.5), "a bet over the limit is refused")
+	_check(game.casino_stake(cs_max), "a bet at the limit is taken")
+	var cs_after: float = game.chips()
+	game.load_game()
+	_check(absf(game.chips() - cs_after) < 0.01, "a bet is saved at once (closing the app can't undo it)")
+	var cs_paid: float = game.casino_pay(game.casino_max_win() * 10.0)
+	_check(absf(cs_paid - game.casino_max_win()) < 0.01, "one payout is capped at %s" % game.money_short(game.casino_max_win()))
+	game.cash = 2.0e10
+	game.do_rebirth()
+	_check(game.casino_open() and game.chips() == 0.0, "rebirth keeps the casino open and clears the chips")
+	var cs_old: Dictionary = game.to_dict()
+	cs_old["version"] = 13
+	cs_old.erase("casino")
+	var cs_mig: Dictionary = game._migrate(cs_old)
+	_check(cs_mig.has("casino") and not bool(cs_mig["casino"]["open"]), "v13 saves load with the casino locked")
+	game.reset_game(true)
 	# Rewards wait for a tap: achievements and goals add to the list, claiming
 	# pays exactly once, and the amount doesn't grow while it waits.
 	game.reset_game()

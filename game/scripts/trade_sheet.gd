@@ -30,7 +30,7 @@ static func open(k: String, s: String, m: String) -> void:
 	ts.kind = k
 	ts.sym = s
 	ts.mode = m
-	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock "}[m] + s
+	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock ", "chips_in": "Buy chips", "chips_out": "Cash out"}[m] + s
 	Kit.sheet(title, "", [{"text": "Close", "style": "plain"}], true, ts)
 
 
@@ -119,7 +119,7 @@ func _ready() -> void:
 	_go.pressed.connect(_confirm)
 	Kit.press_fx(_go)
 	add_child(_go)
-	frac = {"buy": 0.1, "lock": 1.0}.get(mode, 0.5)
+	frac = {"buy": 0.1, "lock": 1.0, "chips_in": 0.1, "chips_out": 1.0}.get(mode, 0.5)
 	_slider.set_value(frac)
 	_update()
 	Game.changed.connect(_update)   # cash and prices move while it is open
@@ -132,8 +132,10 @@ func _book() -> Dictionary:
 
 func _max_value() -> float:
 	## The most this trade can move, in £.
-	if mode == "buy":
+	if mode == "buy" or mode == "chips_in":
 		return Game.cash
+	if mode == "chips_out":
+		return Game.chips()
 	return Game.holding(_book(), sym) * Game.price(sym)
 
 
@@ -168,7 +170,14 @@ func _update() -> void:
 	var amount := mx * frac
 	_amount = amount
 	var units := amount / p if p > 0.0 else 0.0
-	if mode == "buy":
+	if mode == "chips_in" or mode == "chips_out":
+		var inn := mode == "chips_in"
+		_have.text = "Cash %s · chips %s" % [Game.money(Game.cash), Game.money(Game.chips())]
+		_big.text = Game.money_short(amount)
+		_sub.text = ("Chips to play with" if inn else "Back to your cash")
+		_after.text = "After: %s chips · %s cash" % [Game.money_short(Game.chips() + (amount if inn else -amount)), Game.money_short(Game.cash + (-amount if inn else amount))]
+		_go.text = ("Buy chips · " if inn else "Cash out · ") + Game.money_short(amount)
+	elif mode == "buy":
 		_have.text = "Cash %s · you own %s %s" % [Game.money(Game.cash), AssetDetail.qty_text(free), sym]
 		_big.text = Game.money_short(amount)
 		_sub.text = "You get %s %s at %s" % [AssetDetail.qty_text(units), sym, AssetDetail.price_text(p)]
@@ -244,6 +253,12 @@ func _confirm() -> void:
 		"lock":
 			ok = Game.stake(sym, frac)
 			msg = "Locked for 24 h"
+		"chips_in":
+			ok = Game.buy_chips(_amount)
+			msg = "Chips · " + Game.money_short(_amount)
+		"chips_out":
+			ok = Game.cash_out(_amount)
+			msg = "Cashed out " + Game.money_short(_amount)
 	if ok:
 		Kit.haptic("success")
 		Kit.toast(msg, true)

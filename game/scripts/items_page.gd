@@ -3,6 +3,7 @@ extends Page
 ## Items tab: collections. Finishing one raises all income for good.
 
 var _total: Label
+var _casino_row: Row
 var _hint: Label
 var _rows := {}
 var _home_art: Control
@@ -55,6 +56,15 @@ func build() -> void:
 	_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hp.add_child(_next)
 
+	# The casino lives with your lifestyle.
+	var cc := card()
+	_casino_row = Row.new()
+	_casino_row.set_lead(CasinoPage.CasinoArt.new("roulette", 44.0))
+	_casino_row.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(CasinoPage.new()))
+	cc.add_child(_casino_row)
+
 	_total = section("Collections")
 	_hint = UI.label("Own a full set for bonus income", 13, UI.SUB)
 	body.add_child(_hint)
@@ -76,6 +86,10 @@ func build() -> void:
 func refresh() -> void:
 	if _total == null:
 		return
+	if Game.casino_open():
+		_casino_row.set_texts("Casino", "Slots, roulette, blackjack", "Chips " + Game.money_short(Game.chips()) if Game.chips() >= 0.01 else "")
+	else:
+		_casino_row.set_texts("Casino", "Opens for " + Game.money_short(Data.CASINO_COST), "")
 	var h: Array = Data.HOMES[Game.home]
 	if _home_kind != String(h[3]):
 		_home_kind = h[3]
