@@ -12,7 +12,7 @@ const DOWNLOAD := "https://github.com/ytjustjosh17-cpu/MCG/releases/latest/downl
 const APK_PATH := "user://update.apk"
 const APK_META := "user://update.txt"
 const AUTHORITY := "com.redsunholdings.game.fileprovider"
-const MIN_GAP_S := 1800.0
+const MIN_GAP_S := 600.0
 const MIN_APK_BYTES := 5000000
 
 enum State { IDLE, CHECKING, AVAILABLE, DOWNLOADING, READY, INSTALLING, FAILED }
@@ -70,7 +70,9 @@ func _set_state(s: State) -> void:
 func check(force := false) -> void:
 	if state in [State.CHECKING, State.DOWNLOADING, State.INSTALLING]:
 		return
-	if not force and Time.get_ticks_msec() / 1000.0 - _last < MIN_GAP_S and state != State.IDLE:
+	# At most one check every 10 minutes (resuming the app often shouldn't
+	# hit the network each time); the first check always runs.
+	if not force and _last > 0.0 and Time.get_ticks_msec() / 1000.0 - _last < MIN_GAP_S:
 		return
 	_last = Time.get_ticks_msec() / 1000.0
 	var before := state
