@@ -115,6 +115,14 @@ func _spend() -> void:
 				g.merge(m["id"]); bought = true
 		# Mining rigs when one pays back within 3 days and costs under a tenth of cash.
 		# Mined coins are kept (they count for the Coin Exchange merger).
+		# Point the miners at whichever coin news has sped up (free to switch).
+		if g.rigs_total() > 0:
+			var best_c: String = g.mine_target
+			for mc in Data.COINS:
+				if float(g.mine_eff.get(mc[0], 1.0)) > float(g.mine_eff.get(best_c, 1.0)) + 0.05:
+					best_c = mc[0]
+			if best_c != g.mine_target:
+				g.set_mine_target(best_c)
 		var rsym := ""
 		var rbest := 0.0
 		if g.rigs_total() < Data.RIG_MAX and g.rig_price() < g.cash * 0.1:
@@ -181,7 +189,7 @@ func _spend() -> void:
 		# Investing leftovers for the mergers that need shares and crypto.
 		if not bought and g.cash > 50000.0:
 			g.buy_asset("share", "NRV", g.cash * 0.25)
-			g.buy_asset("coin", "KRV", g.cash * 0.05)
+			g.buy_asset("coin", "SOL", g.cash * 0.05)
 
 
 func _milestones() -> void:

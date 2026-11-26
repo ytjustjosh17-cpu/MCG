@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1 update: real coins, simpler miners
+
+- Coins are now real ones (Bitcoin, Ethereum, Solana, XRP, Dogecoin,
+  Cardano, Tron, Chainlink, Avalanche, Polkadot, Litecoin, Shiba Inu, Pepe)
+  at rough real prices. Prices in the game are still a simulation.
+- Old coins became real ones with the same value in £ (save v10). Old
+  backup codes convert too.
+- Miners: one tap buys one. All miners mine one coin; tap "Mining ..." to
+  switch coin, free, any time. Each coin earns the same, unless mining
+  news speeds one up. Miners earn a bit more (3% of their price an hour).
+- Very small prices (Shiba Inu, Pepe) show properly.
+
 ## 1.1 update: tester feedback
 
 Eight testers (3 reviewers, 5 players including a very confused one) went

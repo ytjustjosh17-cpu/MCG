@@ -22,7 +22,7 @@ Read this file before changing anything. Then read the doc for the area you touc
 2. Never commit Fontshare fonts (Switzer, Tanker). Their licence allows them inside the app, not in a public repo. CI downloads them. (R5)
 3. Never break old saves. New save fields need a default when loading and a step in `_migrate()`. Bump `SAVE_VERSION`. (R7)
 4. Never add money, multipliers or automation without running the pacing robot before and after. See BALANCE.md.
-5. Never show real brands, real companies or real coins. Everything in the game is made up.
+5. Never show real brands or real companies. Companies, shares and places are made up. Crypto coins are real names with rough prices (owner's choice, 1.1); their prices in the game are still a made-up simulation.
 6. Never push a release with a failing test.
 
 ## Before every commit

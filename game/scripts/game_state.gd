@@ -16,7 +16,7 @@ signal market_news(item: Dictionary)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 9
+const SAVE_VERSION := 10
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -59,7 +59,8 @@ var props := {}        # "index" -> {imps: [bool...]}
 var items := {}        # "col:index" -> true
 var mergers := {}      # id -> true
 var synergies := {}    # id -> true (v8)
-var rigs := {}         # coin -> {n: rigs, hash: cash paid for them} (v9)
+var miners := {"n": 0, "hash": 0.0}   # all your miners and the cash paid for them (v10)
+var mine_target := ""  # the one coin every miner digs up (v10); change it any time
 var mine_eff := {}     # coin -> mining speed from news, 1.0 = normal (v9)
 var achieved := {}     # id -> true
 var counters := {}     # name -> number
@@ -767,70 +768,90 @@ func staking_per_hour() -> float:
 # ---- mining ----------------------------------------------------------------
 
 func rigs_total() -> int:
-	var n := 0
-	for k in rigs.keys():
-		n += int(rigs[k].get("n", 0))
-	return n
+	return int(miners.get("n", 0))
 
 
 func rig_price() -> float:
-	## The next rig, for any coin. Climbs with every rig you own.
+	## The next miner. Climbs with every miner you own.
 	return Data.RIG_BASE * pow(Data.RIG_GROWTH, rigs_total())
 
 
 func rig_count(sym: String) -> int:
-	return int(rigs.get(sym, {}).get("n", 0))
+	## Miners digging this coin (all of them if it's the target, else none).
+	return rigs_total() if sym == mine_target else 0
 
 
-func buy_rig(sym: String) -> bool:
-	if _coin(sym).is_empty() or rigs_total() >= Data.RIG_MAX:
+func set_mine_target(sym: String) -> bool:
+	## Every miner switches to this coin. Free, any time.
+	if _coin(sym).is_empty():
 		return false
-	var p := rig_price()
-	if cash < p:
-		return false
-	cash -= p
-	var r: Dictionary = rigs.get(sym, {"n": 0, "hash": 0.0})
-	r["n"] = int(r["n"]) + 1
-	r["hash"] = float(r["hash"]) + p
-	rigs[sym] = r
+	mine_target = sym
 	if not coins.has(sym):
 		coins[sym] = {"qty": 0.0, "cost": 0.0}
-	_bump("rigs_bought")
-	GameLog.info("invest", "Mining rig for %s (%s)" % [sym, money(p)])
+	GameLog.info("invest", "Miners now mine %s" % sym)
 	recalc()
 	return true
 
 
-func rig_gain(sym: String) -> float:
-	## Extra mining value per hour the next rig for this coin would really add
-	## (after the cap), at today's price.
-	if _coin(sym).is_empty():
-		return 0.0
-	var had := rigs.has(sym)
-	var old: Dictionary = rigs[sym].duplicate() if had else {}
+func buy_miner() -> bool:
+	if rigs_total() >= Data.RIG_MAX:
+		return false
+	var p := rig_price()
+	if cash < p:
+		return false
+	if mine_target == "":
+		set_mine_target(_first_coin_owned())
+	cash -= p
+	miners = {"n": rigs_total() + 1, "hash": float(miners.get("hash", 0.0)) + p}
+	_bump("rigs_bought")
+	GameLog.info("invest", "Miner bought (%s), mining %s" % [money(p), mine_target])
+	recalc()
+	return true
+
+
+func buy_rig(sym: String) -> bool:
+	## Older name: aim the miners at this coin (only if none chosen yet), then buy one.
+	if mine_target == "" and not _coin(sym).is_empty():
+		set_mine_target(sym)
+	return buy_miner()
+
+
+func _first_coin_owned() -> String:
+	for c in Data.COINS:
+		if holding(coins, c[0]) + staked(c[0]) > 0.0:
+			return c[0]
+	return "BTC"
+
+
+func miner_gain() -> float:
+	## Extra mining value per hour the next miner would really add (after the cap).
 	var before := mining_value_per_hour()
-	rigs[sym] = {"n": int(old.get("n", 0)) + 1, "hash": float(old.get("hash", 0.0)) + rig_price()}
+	var keep := miners.duplicate()
+	var keep_t := mine_target
+	if mine_target == "":
+		mine_target = _first_coin_owned()   # what the first miner would mine
+	miners = {"n": rigs_total() + 1, "hash": float(keep.get("hash", 0.0)) + rig_price()}
 	var after := mining_value_per_hour()
-	if had:
-		rigs[sym] = old
-	else:
-		rigs.erase(sym)
+	miners = keep
+	mine_target = keep_t
 	return maxf(0.0, after - before)
 
 
-func _mine_raw(sym: String) -> float:
-	## Coins per hour before the cap.
-	var c := _coin(sym)
-	if c.is_empty() or not rigs.has(sym):
+func rig_gain(_sym: String = "") -> float:
+	return miner_gain()
+
+
+func _mine_raw_value() -> float:
+	## Mining value per hour in £ before the cap. Each miner earns the same in £
+	## whichever coin it digs, so switching coins never changes what you earn.
+	if mine_target == "" or rigs_total() <= 0:
 		return 0.0
-	return float(rigs[sym].get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(sym, 1.0)) / float(c[2])
+	return float(miners.get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(mine_target, 1.0))
 
 
 func _mine_scale() -> float:
-	## Mining pays at most MINE_CAP of hourly income across all coins together.
-	var raw := 0.0
-	for k in rigs.keys():
-		raw += _mine_raw(k) * price(k)
+	## All mining pays at most mine_cap() of hourly income.
+	var raw := _mine_raw_value()
 	if raw <= 0.0:
 		return 1.0
 	return minf(1.0, maxf(income_per_hour, 0.0) * mine_cap() / raw)
@@ -842,15 +863,14 @@ func mine_cap() -> float:
 
 
 func mine_per_hour(sym: String) -> float:
-	## Coins this coin's rigs mine per hour, after the cap.
-	return _mine_raw(sym) * _mine_scale()
+	## Coins of this kind mined per hour (only the target coin is mined).
+	if sym != mine_target or price(sym) <= 0.0:
+		return 0.0
+	return mining_value_per_hour() / price(sym)
 
 
 func mining_value_per_hour() -> float:
-	var v := 0.0
-	for k in rigs.keys():
-		v += mine_per_hour(k) * price(k)
-	return v
+	return _mine_raw_value() * _mine_scale()
 
 
 func mining_capped() -> bool:
@@ -1083,10 +1103,10 @@ func _news_event() -> void:
 				prices[st[0]] = price(st[0]) * f
 		var tmpl: Array = Data.NEWS_SECTOR_UP if up else Data.NEWS_SECTOR_DOWN
 		item = {"text": tmpl[randi() % tmpl.size()] % sec, "sym": sec}
-	elif r < 0.85 and not rigs.is_empty() and _news_rng.randf() < 0.5:
-		# Mining news: a coin's mining speeds up or slows down for a while.
-		var keys := rigs.keys()
-		var ms: String = keys[_news_rng.randi() % keys.size()]
+	elif r < 0.85 and rigs_total() > 0 and _news_rng.randf() < 0.5:
+		# Mining news: a coin's mining speeds up or slows down for a while
+		# (any coin, so it can be worth switching your miners).
+		var ms: String = Data.COINS[_news_rng.randi() % Data.COINS.size()][0]
 		var mup := _news_rng.randf() < 0.5
 		var eff0 := float(mine_eff.get(ms, 1.0))
 		mine_eff[ms] = clampf(eff0 * (1.5 if mup else 0.5), 0.25, 2.0)
@@ -2051,7 +2071,7 @@ func apply_offline(seconds: float) -> void:
 
 func _accrue(dt: float) -> void:
 	## Dividends earned so far, staking rewards and mining (both paid in coins).
-	for sym in rigs.keys():
+	for sym in ([mine_target] if mine_target != "" else []):
 		var got := mine_per_hour(sym) * dt / 3600.0
 		if got > 0.0:
 			if not coins.has(sym):
@@ -2095,7 +2115,7 @@ func to_dict() -> Dictionary:
 		"ibost_until": ibost_until, "ibost_ready_at": ibost_ready_at,
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
-		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "rigs": rigs, "mine_eff": mine_eff, "achieved": achieved, "home": home,
+		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "mine_eff": mine_eff, "achieved": achieved, "home": home,
 		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
 		"deal_wait": deal_wait, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
@@ -2203,6 +2223,7 @@ func restore_code(text: String) -> bool:
 	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
 	if f == null:
 		return false
+	d = _migrate(d)   # old codes: convert coins at their own saved prices first
 	d["saved_at"] = now()  # no time passes on restore, so it can't re-roll the market
 	# Keep today's market and deal, so a restore can't rewind prices or re-roll a deal.
 	var live := to_dict()
@@ -2268,8 +2289,59 @@ func _migrate(d: Dictionary) -> Dictionary:
 		d["rigs"] = d.get("rigs", {})
 		d["mine_eff"] = d.get("mine_eff", {})
 		v = 9
+	if v < 10:
+		_migrate_v10(d)
+		v = 10
 	d["version"] = v
 	return d
+
+
+func _migrate_v10(d: Dictionary) -> void:
+	## 1.1: made-up coins became real ones, and miners moved to one pool that
+	## mines one coin. Holdings keep their value in £ at the saved price.
+	var ren: Dictionary = Data.COIN_RENAME
+	var old_prices: Dictionary = d.get("prices", {})
+	var new_coins := {}
+	for old in (d.get("coins", {}) as Dictionary).keys():
+		var c: Dictionary = d["coins"][old]
+		var nsym: String = ren.get(old, old)
+		var nc := Data.coin(nsym)
+		var po := float(old_prices.get(old, 0.0))
+		var pn := float(nc[2]) if not nc.is_empty() else 0.0
+		var f := po / pn if po > 0.0 and pn > 0.0 else 0.0
+		var out := c.duplicate()
+		out["qty"] = float(c.get("qty", 0.0)) * f
+		if c.has("staked"):
+			out["staked"] = float(c.get("staked", 0.0)) * f
+		new_coins[nsym] = out
+	d["coins"] = new_coins
+	# Coin prices and charts start fresh at the new coins' prices.
+	for key in ["prices", "price_hist", "hist_q", "hist_h", "fair_log", "trends", "coin_shift", "moods"]:
+		var store: Dictionary = d.get(key, {})
+		for old in ren.keys():
+			store.erase(old)
+		d[key] = store
+	var eff := {}
+	for old in (d.get("mine_eff", {}) as Dictionary).keys():
+		eff[ren.get(old, old)] = d["mine_eff"][old]
+	d["mine_eff"] = eff
+	# Old per-coin rigs become one pool; it mines the coin that had the most.
+	var n := 0
+	var h := 0.0
+	var best := ""
+	var best_h := -1.0
+	for old in (d.get("rigs", {}) as Dictionary).keys():
+		var r: Dictionary = d["rigs"][old]
+		n += int(r.get("n", 0))
+		h += float(r.get("hash", 0.0))
+		if float(r.get("hash", 0.0)) > best_h:
+			best_h = float(r.get("hash", 0.0))
+			best = ren.get(old, old)
+	d["miners"] = {"n": n, "hash": h}
+	d["mine_target"] = best
+	d.erase("rigs")
+	# Old headlines named the old coins; start the news afresh.
+	d["news"] = []
 
 
 func _reset_state() -> void:
@@ -2302,7 +2374,8 @@ func _reset_state() -> void:
 	items = {}
 	mergers = {}
 	synergies = {}
-	rigs = {}
+	miners = {"n": 0, "hash": 0.0}
+	mine_target = ""
 	mine_eff = {}
 	achieved = {}
 	counters = {}
@@ -2363,7 +2436,10 @@ func load_game() -> void:
 	home = clampi(int(d.get("home", 0)), 0, Data.HOMES.size() - 1)
 	mergers = d.get("mergers", {})
 	synergies = d.get("synergies", {})
-	rigs = d.get("rigs", {})
+	miners = d.get("miners", {"n": 0, "hash": 0.0})
+	mine_target = String(d.get("mine_target", ""))
+	if not mine_target.is_empty() and _coin(mine_target).is_empty():
+		mine_target = ""
 	mine_eff = d.get("mine_eff", {})
 	achieved = d.get("achieved", {})
 	counters = d.get("counters", {})

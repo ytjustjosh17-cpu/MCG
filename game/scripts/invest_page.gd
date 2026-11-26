@@ -25,7 +25,8 @@ var _my_coins_l: Label
 var _all_coins_l: Label
 var _mine_sum: Row
 var _mine_note: Label
-var _mine_list: VBoxContainer
+var _mine_target: Row
+var _mine_target_sym := ""
 var _rig_btn: Button
 var _mine_sig := ""
 var _hint: Label
@@ -277,7 +278,7 @@ func refresh() -> void:
 	if _seg == null:
 		return
 	var hints := ["Shares pay you every hour. Tap one to buy.", "Homes and offices pay rent every hour.", "Coins go up and down. Miners dig up more for you."]
-	var none: bool = [Game.shares.is_empty(), Game.props.is_empty(), Game.coins.is_empty() and Game.rigs.is_empty()][_seg.index]
+	var none: bool = [Game.shares.is_empty(), Game.props.is_empty(), Game.coins.is_empty() and Game.rigs_total() == 0][_seg.index]
 	_hint.text = hints[_seg.index]
 	_hint.visible = none
 	match _seg.index:
@@ -462,13 +463,15 @@ func _mining_section() -> Control:
 	_mine_sum.disabled = true
 	_mine_sum.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())
 	mc.add_child(_mine_sum)
-	_mine_list = VBoxContainer.new()
-	_mine_list.add_theme_constant_override("separation", 0)
-	mc.add_child(_mine_list)
+	separator(mc, 50)
+	# Which coin every miner digs: tap to switch, free, any time.
+	_mine_target = Row.new()
+	_mine_target.pressed.connect(_on_pick_target)
+	mc.add_child(_mine_target)
 	_mine_note = UI.label("", 13, UI.SUB)
 	_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_mine_note)
-	_rig_btn = UI.pill("Buy rig", UI.TEXT, UI.INK, 17, 24)
+	_rig_btn = UI.pill("Buy miner", UI.TEXT, UI.INK, 17, 24)
 	_rig_btn.custom_minimum_size = Vector2(0, 48)
 	_rig_btn.pressed.connect(_on_buy_rig)
 	Kit.press_fx(_rig_btn)
@@ -478,70 +481,63 @@ func _mining_section() -> Control:
 
 func _refresh_mining() -> void:
 	var n := Game.rigs_total()
-	var coins_mined := Game.rigs.size()
-	_mine_sum.set_texts("Miners · %d of %d" % [n, Data.RIG_MAX], "Earn coins all the time" if n == 0 else "", (Game.money_short(Game.mining_value_per_hour()) + " /h") if coins_mined > 1 else "")
+	_mine_sum.set_texts("Miners · %d of %d" % [n, Data.RIG_MAX], "" if n > 0 else "They dig up coins for you", (Game.money_short(Game.mining_value_per_hour()) + " /h") if n > 0 else "")
+	var tgt := Game.mine_target if Game.mine_target != "" else Game._first_coin_owned()
+	var c := Data.coin(tgt)
+	if _mine_target_sym != tgt:
+		_mine_target_sym = tgt
+		_mine_target.set_lead(AssetTile.new(tgt))
+	var mph := Game.mine_per_hour(tgt)
+	_mine_target.set_texts("Mining " + String(c[1]), ("%s %s /h" % [AssetDetail.qty_text(mph), tgt]) if n > 0 else "Tap to choose the coin", "Change")
 	var notes: Array = ["They keep mining while you're away (8 h max)."]
 	if Game.mining_capped():
 		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
 	_mine_note.text = " ".join(notes)
-	# One line per coin you mine; rebuilt only when that list changes.
-	var sig := ""
-	for sym in Game.rigs.keys():
-		sig += "%s%d," % [sym, Game.rig_count(sym)]
-	if sig != _mine_sig:
-		_mine_sig = sig
-		for ch in _mine_list.get_children():
-			ch.queue_free()
-		for sym in Game.rigs.keys():
-			separator(_mine_list, 50)
-			var r := Row.new()
-			r.set_lead(AssetTile.new(sym))
-			var s2: String = sym
-			r.pressed.connect(func(): _open("coin", s2))
-			_mine_list.add_child(r)
-			r.set_meta("sym", sym)
-	for r in _mine_list.get_children():
-		if r is Row:
-			var sym: String = r.get_meta("sym")
-			var mph := Game.mine_per_hour(sym)
-			var k := Game.rig_count(sym)
-			(r as Row).set_texts(Game._coin(sym)[1], "%d miner%s · %s %s /h" % [k, "" if k == 1 else "s", AssetDetail.qty_text(mph), sym], Game.money_short(mph * Game.price(sym)) + " /h")
 	if n >= Data.RIG_MAX:
 		_rig_btn.text = "All miners bought"
 		Page.set_enabled(_rig_btn, false)
 	else:
-		_rig_btn.text = "Buy miner · " + Game.money_short(Game.rig_price())
+		_rig_btn.text = "Buy miner · %s · +%s /h" % [Game.money_short(Game.rig_price()), Game.money_short(Game.miner_gain())]
 		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price(), false)
 
 
 func _on_buy_rig() -> void:
-	Kit.tick()
+	## One tap buys one miner; it joins the others on the chosen coin.
 	if Game.rigs_total() >= Data.RIG_MAX:
 		return
-	if Game.cash < Game.rig_price():
+	if Game.buy_miner():
+		Kit.haptic("success")
+		Motion.pop(_rig_btn, 1.04)
+		Kit.toast("Miner %d · mining %s" % [Game.rigs_total(), Data.coin(Game.mine_target)[1]], true)
+		Game.flush_changes()
+	else:
 		Kit.haptic("error")
 		Motion.shake(_rig_btn)
 		Kit.toast("Need %s more" % Game.money_short(Game.rig_price() - Game.cash))
-		return
-	# Which coin to mine: the ones you own or mine first, then the rest, each
-	# with what it adds per hour at today's price.
-	var mine_first: Array = []
-	var others: Array = []
+
+
+func _on_pick_target() -> void:
+	## A compact grid of coins (3 across): tap one and every miner switches to it.
+	Kit.tick()
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
 	for c in Data.COINS:
-		var owned: bool = Game.rigs.has(c[0]) or Game.holding(Game.coins, c[0]) + Game.staked(c[0]) > 0.0
-		var opt := [c[0], "%s · +%s /h" % [c[1], Game.money_short(Game.rig_gain(c[0]))], Game.rig_gain(c[0])]
-		(mine_first if owned else others).append(opt)
-	others.sort_custom(func(a, b): return float(a[2]) > float(b[2]))
-	var shown: Array = []
-	for o in mine_first + others:
-		shown.append([o[0], o[1]])
-	Kit.pick("Which coin? · " + Game.money_short(Game.rig_price()), shown, "", func(v):
-		if Game.buy_rig(String(v)):
-			Kit.haptic("success")
-			Kit.toast("Now mining " + String(Game._coin(String(v))[1]), true)
-			Game.flush_changes()
-		else:
-			Kit.haptic("error"), "A miner digs up coins for you every hour.")
+		var sym: String = c[0]
+		var on := sym == Game.mine_target
+		var b := UI.pill(sym, UI.TEXT if on else UI.RAISED, UI.INK if on else UI.TEXT, 15, 14)
+		b.custom_minimum_size = Vector2(0, 48)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func():
+			Kit.close_top()
+			if Game.set_mine_target(sym):
+				Kit.haptic("selection")
+				Kit.toast("Miners now mine " + String(c[1]), true)
+				Game.flush_changes())
+		Kit.press_fx(b)
+		grid.add_child(b)
+	Kit.sheet("Mine which coin?", "All coins earn the same, unless news speeds one up.", [{"text": "Close", "style": "plain"}], true, grid)
 
 
 func _property(i: int) -> void:

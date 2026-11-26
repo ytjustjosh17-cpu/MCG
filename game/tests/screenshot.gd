@@ -36,9 +36,9 @@ func _run() -> void:
 	g.start_expansion("shipping")
 	g.buy_asset("share", "NRV", 4.0e5)
 	g.buy_asset("share", "LMG", 2.0e5)
-	g.buy_asset("coin", "KRV", 1.5e5)
-	g.buy_asset("coin", "LMN", 6.0e4)
-	g.stake("LMN", 1.0)
+	g.buy_asset("coin", "SOL", 1.5e5)
+	g.buy_asset("coin", "XRP", 6.0e4)
+	g.stake("XRP", 1.0)
 	for i in 6:
 		g._news_event()
 	g.buy_property(0)
@@ -59,10 +59,10 @@ func _run() -> void:
 			g.biz[b["id"]]["stage"] = 10
 			g.biz[b["id"]]["units"] = 50
 		g.cash = 9.87654e14
-		g.buy_asset("coin", "HLO", 3.0e14)
+		g.buy_asset("coin", "LTC", 3.0e14)
 		g.cash = 9.87654e14
 		for k in 12:
-			g.buy_rig("VLT")
+			g.buy_rig("AVAX")
 		g.cash = 9.87654e14
 	if OS.get_environment("SHOT_SCI") == "1":
 		g.sci = true
@@ -92,7 +92,7 @@ func _run() -> void:
 	await _shot("07_invest_property")
 	inv._seg.select(2, true)
 	await _shot("08_invest_crypto")
-	main.push(AssetDetail.new("coin", "LMN"))
+	main.push(AssetDetail.new("coin", "XRP"))
 	await _shot("09_coin")
 	main._stack[-1].scroll.scroll_vertical = 600
 	await _shot("09b_coin_staking")
@@ -230,11 +230,11 @@ func _run() -> void:
 	g.rush_until = 0.0
 	g.cash = 1.0e8
 	for k in 3:
-		g.buy_rig("VLT")
+		g.buy_rig("AVAX")
 	g.sim_time = g.now()
 	g.advance(3 * 3600.0)
 	g.sim_time = -1.0
-	main.push(AssetDetail.new("coin", "VLT"))
+	main.push(AssetDetail.new("coin", "AVAX"))
 	await create_timer(0.8).timeout
 	main._stack[-1].scroll.scroll_vertical = 420
 	await _shot("30_mining")
@@ -245,5 +245,9 @@ func _run() -> void:
 	await create_timer(0.4).timeout
 	main._pages[2].scroll.scroll_vertical = 330
 	await _shot("31_crypto_mining")
+	main._pages[2]._on_pick_target()
+	await _shot("32_mine_pick")
+	root.get_node("Kit").close_top()
+	await create_timer(0.4).timeout
 	g.reset_game()
 	quit()
