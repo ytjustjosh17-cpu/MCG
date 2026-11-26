@@ -41,7 +41,7 @@ func _ready() -> void:
 	margin.add_child(body)
 	# Back lives in the bottom bar now (main.gd), so every page starts with the same gap.
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 28 if has_back else 44)
+	gap.custom_minimum_size = Vector2(0, 48)   # room for the cash pill at the top right
 	body.add_child(gap)
 	if title != "":
 		_title_label = UI.display(title, 40)

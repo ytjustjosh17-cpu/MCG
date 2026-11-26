@@ -17,6 +17,8 @@
 - Battery: 60 frames a second at most, 5 while the game is out of focus
   (it also saves then). Tips from Godot mobile guides found online.
 - Every button is now at least 48 px (Android's standard), up from 44.
+- Your cash shows at the top right on every screen (not just Earn), and
+  stays there while you scroll.
 
 ## 1.1 update: tester feedback
 

@@ -9,6 +9,8 @@ var _current := 0
 var _back_armed := false
 var _stack: Array = []
 var back_btn: Button   # bottom right, under the thumb; shown while a page is open
+var cash_pill: Control  # top right on every screen but Earn: what you can spend
+var _cash_l: Label
 var _last_push_ms := -10000
 
 
@@ -120,6 +122,20 @@ func _ready() -> void:
 			_pop_from(_stack.back()))
 	Kit.press_fx(back_btn)
 	add_child(back_btn)
+	# Cash you can spend, always in view (Earn already shows it big).
+	cash_pill = GlassPanel.new(20.0, Color(0.035, 0.133, 0.145, 0.85), 10.0)
+	cash_pill.name = "CashPill"
+	cash_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cash_pill.anchor_left = 1.0
+	cash_pill.anchor_right = 1.0
+	_cash_l = UI.label("", 15, UI.TEXT, true)
+	_cash_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cash_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cash_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cash_l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cash_pill.add_child(_cash_l)
+	add_child(cash_pill)
+	Game.changed.connect(_update_cash)
 
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
@@ -241,6 +257,7 @@ func show_page(i: int) -> void:
 	GameLog.info("ui", "Tab %s" % NavBar.TABS[i][1])
 	var dir := 1.0 if i > _current else -1.0
 	_current = i
+	_update_cash()
 	_nav.set_active(i)
 	Kit.tick(6)
 	# Old page fades out quickly, new page fades in with a short slide.
@@ -326,6 +343,22 @@ func _apply_safe_area() -> void:
 	back_btn.offset_bottom = _nav.offset_bottom
 	back_btn.offset_top = _nav.offset_top
 	_sync_back()
+	_update_cash()
+
+
+func _update_cash() -> void:
+	## Top-right cash pill: hidden on Earn (the big number is there already).
+	if cash_pill == null:
+		return
+	cash_pill.visible = _current != 0 or not _stack.is_empty()
+	if not cash_pill.visible:
+		return
+	_cash_l.text = Game.cash_text(Game.cash)
+	var w := maxf(96.0, _cash_l.get_theme_font("font").get_string_size(_cash_l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 32.0)
+	cash_pill.offset_right = -16.0
+	cash_pill.offset_left = -16.0 - w
+	cash_pill.offset_top = Kit.top_inset + 8.0
+	cash_pill.offset_bottom = Kit.top_inset + 8.0 + 36.0
 
 
 func _sync_back() -> void:
@@ -334,6 +367,7 @@ func _sync_back() -> void:
 	if back_btn == null:
 		return
 	back_btn.visible = open
+	_update_cash()
 	_nav.offset_right = -(16 + 64 + 8) if open else -16
 
 
