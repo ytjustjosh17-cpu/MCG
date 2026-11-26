@@ -26,13 +26,14 @@ Pages never change state directly.
 | Area | Files |
 |---|---|
 | Content and tuning | `data.gd` (companies, stocks, coins, properties, homes, collections, mergers, rivals, all numbers) |
-| Rules and state | `game_state.gd` (money, tapping, companies, markets, deals, managers, goals, achievements, saving) |
+| Rules and state | `game_state.gd` (money, tapping and big taps, companies, milestones, partners, markets, miners, locking, deals, managers, golden sun buffs, goals, achievements, saving) |
 | Tabs | `earn_page.gd`, `business_page.gd`, `invest_page.gd`, `items_page.gd`, `profile_page.gd` |
-| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `ItemsPage.CollectionPage` |
+| Detail pages | `business_detail.gd`, `start_business_page.gd`, `mergers_page.gd`, `asset_detail.gd`, `news_page.gd`, `property_detail.gd`, `goals_page.gd`, `rivals_page.gd`, `achievements_page.gd`, `settings_page.gd`, `stats_page.gd`, `ItemsPage.CollectionPage` |
 | Building blocks | `page.gd`, `row.gd`, `segmented.gd`, `icon.gd`, `icon_button.gd`, `glass_panel.gd`, `count_label.gd`, `goal_card.gd`, `asset_tile.gd` |
-| Drawing | `art.gd` (buildings and vehicles), `tower_card.gd`, `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
+| Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
-| Platform | `main.gd` (navigation, back gesture, safe area, deal and welcome-back cards), `updater.gd`, `game_log.gd` |
+| Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |
+| Platform | `main.gd` (navigation, back button and cash pill, safe area, deal and welcome-back cards), `updater.gd`, `game_log.gd` |
 
 ## Signals from Game
 
@@ -52,7 +53,7 @@ Pages never change state directly.
 - One JSON file, `user://save.json`, written every 5 s when something changed and when the app is paused or closed.
 - Written safely: temp file, keep a `.bak`, then rename. If the main file is broken, the backup loads.
 - `SAVE_VERSION` and `_migrate()` upgrade old saves step by step. Rule R7 checks every saved field is loaded back.
-- Backup codes (`backup_code()`, `restore_code()`) are the save, gzipped and base64, minus price history and news.
+- Backup codes (`backup_code()`, `restore_code()`) are the save, gzipped and base64, minus price history and news. A code can't rewind the game it came from (`user://restore_guard.json`).
 - Time away is applied on load and on resume (`apply_offline()`), capped at 8 hours of income.
 
 ## Adding a feature (checklist)
@@ -68,6 +69,6 @@ Pages never change state directly.
 
 `.github/workflows/android.yml`:
 1. `rules` job: `python3 tools/check_rules.py`.
-2. `android` job (Godot 4.4.1 container): download fonts, import, smoke, stress and touch tests, export and sign `Sol.apk`, publish release `v1.1.<run>` (retries once if GitHub errors).
+2. `android` job (Godot 4.4.1 container): download fonts, import, smoke, stress, market and touch tests, export and sign `Sol.apk`, publish release `v1.1.<run>` (retries once if GitHub errors).
 
 The in-game updater checks the latest release every 30 minutes and on resume, downloads `Sol.apk` and opens the Android installer.

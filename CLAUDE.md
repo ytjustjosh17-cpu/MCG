@@ -70,6 +70,13 @@ Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 - Agent play-testers found real exploits each time (market trading, backup re-rolls, boost double pay). Re-run the exploit persona after economy changes.
 - For big batches, split builder agents by file (no two agents touch the same script), have each commit in its own worktree on the branch commit, then cherry-pick. Keep `game_state.gd`, `data.gd`, `main.gd` and `ui_kit.gd` with one owner.
 
+## Keep the docs current (owner's rule)
+
+With every change the player can see, in the same commit:
+- Add a line to `CHANGELOG.md` (top section).
+- Update the doc for that area (DESIGN, BALANCE, TESTING, ARCHITECTURE).
+- If a screen in the README changed, refresh its picture in `docs/screenshots/` from a fresh `tests/screenshot.gd` run (no toasts or pop-ups in shot). Keep the README short: 6 pictures, a few bullets.
+
 ## Releasing
 
 1. All checks above pass.

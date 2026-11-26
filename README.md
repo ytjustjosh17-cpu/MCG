@@ -4,15 +4,24 @@ A personal idle tycoon game for Android, made for one phone.
 Tap to earn, start companies, trade made-up shares and well-known crypto coins, buy property and build a holding company.
 
 <p>
-  <img src="docs/screenshots/01_earn.png" width="200" alt="Earn screen with the tower">
-  <img src="docs/screenshots/06_invest_shares.png" width="200" alt="Shares list">
-  <img src="docs/screenshots/09c_share.png" width="200" alt="A company page with a price chart">
+  <img src="docs/screenshots/01_earn.png" width="200" alt="Earn: tap the tower, cash to the penny">
+  <img src="docs/screenshots/03_taxi.png" width="200" alt="A company: units, expand, manager">
+  <img src="docs/screenshots/06_invest_shares.png" width="200" alt="Shares: yours and the market">
 </p>
 <p>
-  <img src="docs/screenshots/02_business.png" width="200" alt="Business list">
-  <img src="docs/screenshots/08_invest_crypto.png" width="200" alt="Crypto list with market mood">
-  <img src="docs/screenshots/13_profile.png" width="200" alt="Profile screen">
+  <img src="docs/screenshots/31_crypto_mining.png" width="200" alt="Crypto: your coins and miners">
+  <img src="docs/screenshots/09c_share.png" width="200" alt="A share with its price chart">
+  <img src="docs/screenshots/13_profile.png" width="200" alt="Profile: net worth and progress">
 </p>
+
+## What's in it
+
+- 17 companies to open, fill and expand, with milestones and partner boosts
+- Shares, property and crypto (with miners and locking)
+- Daily and weekly goals, golden suns, rivals, achievements
+- Built to take weeks, not days
+
+Latest changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Please read
 

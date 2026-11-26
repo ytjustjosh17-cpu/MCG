@@ -37,6 +37,8 @@ Screenshots of a mid-game save, every tab, sheets and popups:
 xvfb-run -a -s "-screen 0 1280x1024x24" $G --path . --rendering-driver opengl3 \
   --resolution 390x844 -s res://tests/screenshot.gd -- /some/output/folder
 ```
+README pictures live in `docs/screenshots/` and come from this run (01_earn, 03_taxi, 06_invest_shares, 31_crypto_mining, 09c_share, 13_profile). Copy fresh ones in when those screens change.
+
 Lines saying `Identifier not found: Game` at the start are harmless (scripts compiling before the autoloads load).
 
 ## Writing tests
