@@ -91,6 +91,11 @@ func _run() -> void:
 	var pg = load("res://scripts/asset_detail.gd").new("share", "NRV")
 	main.push(pg)
 	await create_timer(0.8).timeout
+	# The page is short now; add room below so there is something to scroll.
+	var room_pad := Control.new()
+	room_pad.custom_minimum_size = Vector2(0, 700)
+	pg.body.add_child(room_pad)
+	await create_timer(0.2).timeout
 	var ch: Control = pg._chart
 	var cs: Vector2 = ch.get_global_rect().get_center()
 	_ev_button(cs, true)

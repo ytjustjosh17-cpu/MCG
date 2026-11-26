@@ -49,6 +49,7 @@ func build() -> void:
 	_more = Kit.drop_pill("More")
 	_more.add_theme_font_size_override("font_size", 17)
 	_more.custom_minimum_size = Vector2(0, 48)
+	UI.paint(_more, UI.PANEL, UI.TEXT, 24)
 	_more.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_more.pressed.connect(_on_more)
 	Kit.press_fx(_more)
@@ -95,7 +96,6 @@ func refresh() -> void:
 		_boost.set_texts("×2 income", "", "Ready in " + Game.clock(Game.ibost_cooldown_left()))
 	_boost.value_l.add_theme_color_override("font_color", UI.TEXT)
 	_count.text = "%d of %d" % [Game.companies(), Game.businesses().size()]
-	UI.paint(_more, UI.PANEL, UI.TEXT, 24)
 	_deal_card.visible = not Game.deal.is_empty() and bool(Game.ui.get("deals_quiet", false))
 	if _deal_card.visible:
 		_deal_row.set_texts(String(Game.deal.get("title", "Deal")), String(Game.deal.get("text", "")))
@@ -268,6 +268,8 @@ class BizCard extends Button:
 		_fill.position = _track.position
 		refresh()
 
+	var _fit_key := ""
+
 	func refresh() -> void:
 		if not Game.biz.has(id):
 			return
@@ -303,5 +305,9 @@ class BizCard extends Button:
 		else:
 			_fill.size.x = want
 		# Name gets all the room the income doesn't need.
-		var iw := _income.get_theme_font("font").get_string_size(_income.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
-		_name.size.x = maxf(40.0, size.x - 16.0 - iw - 12.0 - _name.position.x)
+		# Measuring text is slow: only when the income text or width changed.
+		var key := "%s|%d" % [_income.text, int(size.x)]
+		if key != _fit_key:
+			_fit_key = key
+			var iw := _income.get_theme_font("font").get_string_size(_income.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x
+			_name.size.x = maxf(40.0, size.x - 16.0 - iw - 12.0 - _name.position.x)

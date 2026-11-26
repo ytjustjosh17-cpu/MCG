@@ -1,5 +1,25 @@
 # Changelog
 
+## Hourly dividends, a simpler game, smoother running
+
+- Shares now pay dividends once an hour, on the hour, at a set rate per
+  share that differs by company (it no longer moves with the price). Invest
+  shows when the next one lands; time away pays the hours you missed.
+- Earn: the "Open ... / Buy now" card is gone, so the tower has more room.
+- Welcome back and the daily gift are one card with one Claim button.
+- Achievements no longer pop a message; the round dot on Profile says one
+  is waiting. Messages sit under your cash, never on top of it.
+- Trade pop-up: the amount shows once, "Type an amount" opens the box, the
+  fee is shown. Coin and share pages are shorter; Buy and Sell sit higher.
+- Invest: empty news hides; Property has Yours and Market; miners are one
+  row with the payback on the button; picking a coin shows logos.
+- Claim rewards by tapping the row; New company folds owned kinds away;
+  Profile puts Rebirth, Achievements and Rivals first with a compact money
+  bar; Rivals shows the ones just above you; calmer item colours.
+- Casino, roulette, blackjack and rebirth screens tidied; nothing cut off.
+- Faster: screens refresh at most 4 times a second, and the Business tab
+  does about 10 times less work each time (better battery).
+
 ## Sun Forge: a modern slot
 
 - New machine at the top of the casino: a 6 x 5 grid where symbols pay

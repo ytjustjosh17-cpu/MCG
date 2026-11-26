@@ -373,4 +373,5 @@ const WHATS_NEW := [
 	"Convert coins, and watch your miners work.",
 	"Rebirth for RBP and grow the RBP tree.",
 	"Tree unlocks: casino, Frontier, islands, relics.",
+	"Shares pay dividends every hour, on the hour.",
 ]

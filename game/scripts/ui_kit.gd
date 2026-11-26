@@ -420,7 +420,7 @@ func _present_toast(pill: Control, l: Label, red_mark: bool) -> void:
 	var scr := screen()
 	var w := l.get_minimum_size().x + (52.0 if red_mark else 40.0)
 	pill.size = Vector2(w, 44)
-	var y := top_inset + 10.0
+	var y := top_inset + 62.0   # under the cash pill, never on top of it
 	pill.position = Vector2((scr.x - w) / 2.0, y - 60.0)
 	var tw := pill.create_tween()
 	tw.set_parallel(true)
