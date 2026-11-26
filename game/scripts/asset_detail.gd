@@ -136,7 +136,9 @@ static func price_text(p: float) -> String:
 	if p <= 0.0:
 		return Game.CUR + "0.00"
 	if p < 0.01:
-		return Game.CUR + "%.5f" % p
+		# Tiny prices (Shiba Inu, Pepe): three significant figures.
+		var dec := clampi(int(ceil(-log(p) / log(10.0))) + 2, 3, 12)
+		return Game.CUR + ("%." + str(dec) + "f") % p
 	if p < 1.0:
 		return Game.CUR + "%.3f" % p
 	return Game.money(p)

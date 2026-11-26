@@ -94,23 +94,27 @@ const STOCK_GROWTH := 0.000004  # slow long-run rise per minute
 
 # ---- crypto ------------------------------------------------------------
 # symbol, name, price, volatility per minute, staking reward per hour
-const COINS := [
-	["KRV", "Korva coin", 115.23, 0.012, 0.0012], ["LMN", "Lumen token", 2.41, 0.018, 0.0024],
-	["ASH", "Ashcoin", 0.083, 0.025, 0.0036], ["MRC", "Meridian coin", 41000.0, 0.008, 0.0006],
-	["TDE", "Tide", 9.12, 0.015, 0.0018], ["EMB", "Ember", 0.0042, 0.03, 0.0045],
-	["NVA", "Nova", 1.84, 0.02, 0.003], ["PBL", "Pebble", 0.31, 0.022, 0.003],
-	["GLT", "Glint", 640.0, 0.012, 0.0015], ["DRF", "Drift", 0.0009, 0.035, 0.006],
-	# 1.1: new coins go at the end so old saves line up.
-	["VLT", "Volt", 12.4, 0.02, 0.0027], ["QRT", "Quartz", 0.56, 0.024, 0.0033],
-	["HLO", "Halo", 88.0, 0.014, 0.0018],
+const COINS := [ # symbol, name, base price (rough real price in £), volatility, lock rate per hour
+	["SOL", "Solana", 140.0, 0.012, 0.0012], ["XRP", "XRP", 2.1, 0.018, 0.0024],
+	["DOGE", "Dogecoin", 0.15, 0.025, 0.0036], ["BTC", "Bitcoin", 75000.0, 0.008, 0.0006],
+	["LINK", "Chainlink", 14.0, 0.015, 0.0018], ["SHIB", "Shiba Inu", 0.000015, 0.03, 0.0045],
+	["ADA", "Cardano", 0.6, 0.02, 0.003], ["TRX", "Tron", 0.2, 0.022, 0.003],
+	["ETH", "Ethereum", 2800.0, 0.012, 0.0015], ["PEPE", "Pepe", 0.000008, 0.035, 0.006],
+	["AVAX", "Avalanche", 25.0, 0.02, 0.0027], ["DOT", "Polkadot", 5.0, 0.024, 0.0033],
+	["LTC", "Litecoin", 80.0, 0.014, 0.0018],
 ]
+# 1.1 switched to real coins. Old saves are moved over by _migrate (v10),
+# keeping each holding's value in £.
+const COIN_RENAME := {"KRV": "SOL", "LMN": "XRP", "ASH": "DOGE", "MRC": "BTC", "TDE": "LINK", "EMB": "SHIB",
+	"NVA": "ADA", "PBL": "TRX", "GLT": "ETH", "DRF": "PEPE", "VLT": "AVAX", "QRT": "DOT", "HLO": "LTC"}
+
 const STAKE_LOCK_H := 24.0
 # Mining (1.1): buy rigs for a coin; they mine that coin all the time.
 # Rig prices climb across ALL coins (spreading out doesn't dodge it).
 const RIG_BASE := 25000.0
 const RIG_GROWTH := 1.45
 const RIG_MAX := 60              # miners in total (the last ones are late-game buys)
-const MINE_YIELD := 0.018        # a rig mines 1.8% of its price per hour, at the coin's base price
+const MINE_YIELD := 0.03         # a miner earns 3% of its price per hour (before the cap)
 const MINE_CAP := 0.02           # all mining pays at most 2% of hourly income...
 const MINE_CAP_PER_RIG := 0.0015 # ...plus 0.15% per miner owned (11% with all 60), so every miner counts
 const NEWS_MINE_UP := ["%s mining gets faster", "%s miners earn more"]
@@ -294,6 +298,13 @@ static func synergy(id: String) -> Array:
 	return []
 
 
+static func coin(sym: String) -> Array:
+	for c in COINS:
+		if c[0] == sym:
+			return c
+	return []
+
+
 static func business(id: String) -> Dictionary:
 	for b in BUSINESSES:
 		if b["id"] == id:
@@ -308,6 +319,6 @@ const WHATS_NEW := [
 	"Buy ×1, ×10, ×100 or Max.",
 	"More units and Partners raise income.",
 	"Big taps, and golden sun bonuses.",
-	"Crypto miners dig up coins for you.",
+	"Real coins; miners dig the one you pick.",
 	"Sound, a Stats page and a growing tower.",
 ]

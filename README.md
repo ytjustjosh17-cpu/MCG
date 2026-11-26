@@ -1,7 +1,7 @@
 # Sol
 
 A personal idle tycoon game for Android, made for one phone.
-Tap to earn, start companies, trade made-up shares and coins, buy property and build a holding company.
+Tap to earn, start companies, trade made-up shares and well-known crypto coins, buy property and build a holding company.
 
 <p>
   <img src="docs/screenshots/01_earn.png" width="200" alt="Earn screen with the tower">
@@ -20,7 +20,7 @@ This is a personal project, not a product. There is no support, and no promise i
 
 If you install it, you do so at your own risk (see [LICENSE](LICENSE)).
 
-It's only a game. There's no real money, no real shares and no real crypto. Every company, coin and place is made up, and nothing here is financial advice. No ads, no payments, no accounts.
+It's only a game. There's no real money, no real shares and no real crypto. Companies and places are made up. Coin names are used only to describe them; the game is not linked to or endorsed by any of them, and the prices are a simulation, not real market data. Nothing here is financial advice. No ads, no payments, no accounts.
 
 ## Privacy
 

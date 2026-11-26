@@ -12,10 +12,10 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 9.3 |
-| 50% complete | 15 to 21 | 19.5 |
+| 25% complete | 7 to 10 | 8.5 to 11.3 (seed noise; 11.5 without mining) |
+| 50% complete | 15 to 21 | 18.8 to 19.5 |
 | 75% complete | 28 to 38 | 32.5 to 32.9 |
-| 90% complete | 33 to 46 | 39.3 |
+| 90% complete | 33 to 46 | 40.3 to 40.5 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
@@ -38,7 +38,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
 | Shares | dividends; prices drift slowly back to a fair value; news moves them at once | `STOCK_DIV_SCALE`, `_market_tick()` |
 | Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
-| Mining | rigs mine a coin all the time; rig price ×1.45 per rig across all coins, 60 max (robot: 5 to 8% of income from day 10 to 50); 1.8% of rig price an hour at base price; all mining capped at 2% of income plus 0.15% per miner (11% with all 60), so every miner counts; news can speed it up or slow it down for a couple of days | `RIG_*`, `MINE_*` |
+| Mining | one pool of miners that all mine one coin you choose (switch free, any time); a miner earns 3% of its price an hour in £ whichever coin it mines, so switching never changes earnings, only which coin you collect (mining news can speed a coin up for a few days); miner price ×1.45 each, 60 max; all mining capped at 2% of income plus 0.15% per miner | `RIG_*`, `MINE_*` |
 | Golden sun | cash, Frenzy (taps ×5 for 20 s, not on top of ×3) or Rush (×2 income for 10 min, only while open) | `SUN_*`, `FRENZY_*`, `RUSH_S` |
 | Crits | 4% + 0.2% per level, ×5 | `CRIT_*` |
 | Time away | full income, capped at 8 hours | `OFFLINE_CAP_H` |

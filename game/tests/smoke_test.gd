@@ -91,7 +91,7 @@ func _run() -> void:
 	_check(game.buy_asset("share", "NRV", 1000.0), "buy shares")
 	_check(game.dividends_per_hour() > 0.0, "shares pay dividends")
 	_check(game.sell_asset("share", "NRV", 1.0) > 0.0, "sell shares")
-	_check(game.buy_asset("coin", "KRV", 500.0), "buy coins")
+	_check(game.buy_asset("coin", "SOL", 500.0), "buy coins")
 	_check(game.buy_property(0), "buy a property")
 	_check(game.rent_per_hour() > 0.0, "property pays rent")
 	_check(game.improve_property(0, 0), "improve a property")
@@ -99,10 +99,10 @@ func _run() -> void:
 	_check(game.buy_item("watches", 0), "buy a watch")
 	_check(game.collection_count("watches") == 1, "collection counts")
 	game.advance(600.0)
-	_check(game.price_hist["KRV"].size() > 60, "markets tick")
+	_check(game.price_hist["SOL"].size() > 60, "markets tick")
 	# Week and day charts, news and market mood.
 	_check(game.hist_h["NRV"].size() >= 160 and game.hist_q["NRV"].size() >= 90, "day and week charts filled")
-	_check(game.series("KRV", "1W").size() > 100, "week series for coins")
+	_check(game.series("SOL", "1W").size() > 100, "week series for coins")
 	var mood: float = game.market_mood()
 	_check(mood >= 0.0 and mood <= 100.0, "market mood in range")
 	var n0 := int(game.counters.get("news_total", 0))
@@ -116,15 +116,15 @@ func _run() -> void:
 	_check(not bad, "no broken prices after news")
 	# Staking: lock, cannot unlock early, earns coins, unlocks after 24 h.
 	game.cash += 1000.0
-	game.buy_asset("coin", "LMN", 1000.0)
-	var q0: float = game.holding(game.coins, "LMN")
-	_check(game.stake("LMN", 1.0) and game.holding(game.coins, "LMN") == 0.0, "stake locks coins")
-	_check(not game.unstake("LMN"), "cannot unlock early")
-	_check(game.sell_asset("coin", "LMN", 1.0) == 0.0, "locked coins cannot be sold")
+	game.buy_asset("coin", "XRP", 1000.0)
+	var q0: float = game.holding(game.coins, "XRP")
+	_check(game.stake("XRP", 1.0) and game.holding(game.coins, "XRP") == 0.0, "stake locks coins")
+	_check(not game.unstake("XRP"), "cannot unlock early")
+	_check(game.sell_asset("coin", "XRP", 1.0) == 0.0, "locked coins cannot be sold")
 	game.sim_time += 25 * 3600.0
 	game.advance(3600.0)
-	_check(game.staked("LMN") > q0, "staking earns coins")
-	_check(game.unstake("LMN") and game.holding(game.coins, "LMN") > q0, "unlock after 24 h")
+	_check(game.staked("XRP") > q0, "staking earns coins")
+	_check(game.unstake("XRP") and game.holding(game.coins, "XRP") > q0, "unlock after 24 h")
 	_check(float(game.counters.get("dividends_earned", 0.0)) >= 0.0, "dividends counter exists")
 	# Selling part keeps the average price the same.
 	game.cash += 2000.0
@@ -132,7 +132,7 @@ func _run() -> void:
 	var avg0: float = game.avg_price(game.shares, "QSF")
 	game.sell_asset("share", "QSF", 0.5)
 	_check(absf(game.avg_price(game.shares, "QSF") - avg0) < avg0 * 1e-6, "average price stays after part sale")
-	game.stake("LMN", 0.5)
+	game.stake("XRP", 0.5)
 	# Homes and the next goal.
 	var h0: int = game.home
 	var m0: float = game.global_mult()
@@ -208,6 +208,8 @@ func _run() -> void:
 	var na: Dictionary = game.next_achievement()
 	_check(not na.is_empty() and float(na["progress"]) < 1.0, "next achievement found (%s)" % na.get("title", ""))
 	game.ui["deals_quiet"] = true
+	game.away_unseen = false   # a leftover welcome-back card would count as a pop-up
+	game.streak_unseen = []
 	game.deal = {"kind": "order", "id": game.biz.keys()[0], "value": 1.0, "title": "T", "text": "x", "yes": "Y"}
 	main._show_deal()
 	await create_timer(0.3).timeout
@@ -279,7 +281,7 @@ func _run() -> void:
 	_check(inv_after == inv_before, "a 1p investment doesn't count for goals")
 	_check(game._stake_scale() <= 1.0, "staking cap is shared across coins")
 	# A version 2 save upgrades cleanly.
-	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"KRV": [1.0]}})
+	var old: Dictionary = game._migrate({"version": 2, "cash": 5.0, "price_hist": {"SOL": [1.0]}})
 	_check(int(old["version"]) == game.SAVE_VERSION and old["price_hist"].is_empty() and int(old["home"]) == 0, "v2 save upgrades")
 	_check(game.completion() > 0.0 and game.completion() < 0.2, "completion is a small share")
 	var st: Array = game.need_status(["biz", "shop", 5])
@@ -294,7 +296,7 @@ func _run() -> void:
 	await process_frame
 
 	# New invest screens build and their sheets open without errors.
-	for spec in [["share", "NRV"], ["share", "QSF"], ["coin", "LMN"], ["coin", "DRF"]]:
+	for spec in [["share", "NRV"], ["share", "QSF"], ["coin", "XRP"], ["coin", "PEPE"]]:
 		var pg = load("res://scripts/asset_detail.gd").new(spec[0], spec[1])
 		main.push(pg)
 		await create_timer(0.5).timeout
@@ -402,14 +404,14 @@ func _run() -> void:
 	_check(game.level == 2, "save/load keeps level")
 	_check(game.owns("shop") and game.biz["shop"]["stage"] == 2, "save/load keeps businesses")
 	_check(game.props_owned() == 1, "save/load keeps property")
-	_check(game.staked("LMN") > 0.0 and game.stake_left("LMN") > 0.0, "save/load keeps staking")
+	_check(game.staked("XRP") > 0.0 and game.stake_left("XRP") > 0.0, "save/load keeps staking")
 	_check(game.news.size() >= 30 and game.hist_h["NRV"].size() >= 160, "save/load keeps news and charts")
 	# Backup code: round trip, small, and bad codes are refused safely.
 	var code: String = game.backup_code()
 	_check(code.begins_with("SOL1:") and code.length() < 60000, "backup code is small (%d chars)" % code.length())
 	var keep_cash: float = game.cash
 	var keep_props: int = game.props_owned()
-	var keep_staked: float = game.staked("LMN")
+	var keep_staked: float = game.staked("XRP")
 	game.cash = 1.0
 	_check(not game.restore_code("hello"), "junk code refused")
 	_check(not game.restore_code(code.substr(0, code.length() - 40)), "cut-off code refused")
@@ -417,7 +419,7 @@ func _run() -> void:
 	_check(game.cash == 1.0, "failed restore changes nothing")
 	game.restore_guard = false   # these tests restore into the same game on purpose
 	_check(game.restore_code(code), "backup restores")
-	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("LMN") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("LMN"), keep_staked])
+	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("XRP") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("XRP"), keep_staked])
 	_check(game.hist_h["NRV"].size() >= 160, "charts rebuilt after restore")
 
 	# Offline earnings are capped at 8 hours (goals off, so a goal reward
@@ -509,10 +511,10 @@ func _run() -> void:
 	game.buy_unit(bid2)
 	_check(game.cash - cash_b < game.unit_price(bid2) * 0.2, "selling an outlet to a buyer and rebuying isn't a money loop")
 	var code2: String = game.backup_code()
-	var p1: float = game.price("DRF")
+	var p1: float = game.price("PEPE")
 	game.sim_time += 8 * 3600.0
 	game.restore_code(code2)
-	_check(absf(game.price("DRF") - p1) < p1 * 0.001, "restoring a backup doesn't re-roll prices")
+	_check(absf(game.price("PEPE") - p1) < p1 * 0.001, "restoring a backup doesn't re-roll prices")
 	game.sim_time = -1.0
 	game.reset_game()
 	# Bulk buy: the cost shown is exactly what is spent; Max never overspends.
@@ -594,35 +596,38 @@ func _run() -> void:
 		while game.buy_unit(mbid):
 			pass
 	var rp0: float = game.rig_price()
-	_check(game.buy_rig("KRV") and game.buy_rig("VLT") and absf(game.rig_price() - rp0 * Data.RIG_GROWTH * Data.RIG_GROWTH) < 1.0, "rig prices climb across all coins")
+	_check(game.buy_rig("SOL") and game.buy_rig("AVAX") and absf(game.rig_price() - rp0 * Data.RIG_GROWTH * Data.RIG_GROWTH) < 1.0, "rig prices climb across all coins")
 	game.recalc()
-	var mph: float = game.mine_per_hour("KRV")
-	var kq0: float = game.holding(game.coins, "KRV")
+	var mph: float = game.mine_per_hour("SOL")
+	var kq0: float = game.holding(game.coins, "SOL")
 	game.advance(3600.0)
-	_check(mph > 0.0 and absf(game.holding(game.coins, "KRV") - kq0 - mph) < mph * 0.05 + 1e-9, "a rig mines its coin each hour (%.4f)" % mph)
+	_check(mph > 0.0 and absf(game.holding(game.coins, "SOL") - kq0 - mph) < mph * 0.05 + 1e-9, "a rig mines its coin each hour (%.4f)" % mph)
 	for k in 30:
 		game.cash = 1.0e15
-		game.buy_rig("HLO")
+		game.buy_rig("LTC")
 	game.recalc()
 	_check(game.mining_capped() and game.mining_value_per_hour() <= game.income_per_hour * game.mine_cap() * 1.01 + 1.0, "all mining together is capped (2% + 0.15% per miner)")
-	_check(not game.buy_rig("KRV") or game.rigs_total() <= Data.RIG_MAX, "never more than %d rigs" % Data.RIG_MAX)
+	_check(not game.buy_rig("SOL") or game.rigs_total() <= Data.RIG_MAX, "never more than %d rigs" % Data.RIG_MAX)
 	var mv0: float = float(game.counters.get("mined_value", 0.0))
 	game.sim_time = game.now()
 	game.apply_offline(48.0 * 3600.0)
 	var mined_away: float = float(game.counters.get("mined_value", 0.0)) - mv0
 	_check(mined_away <= game.mining_value_per_hour() * 8.0 * 1.3 + 1.0, "mining away counts at most 8 h (%.1f h)" % (mined_away / maxf(1.0, game.mining_value_per_hour())))
 	var mcode: String = game.backup_code()
-	var mq: float = game.holding(game.coins, "HLO")
+	var mq: float = game.holding(game.coins, "SOL")
 	game.sim_time += 24.0 * 3600.0
 	game.restore_code(mcode)
-	_check(absf(game.holding(game.coins, "HLO") - mq) <= mq * 0.001 + 1e-9, "restoring a backup mines nothing")
+	_check(absf(game.holding(game.coins, "SOL") - mq) <= mq * 0.001 + 1e-9, "restoring a backup mines nothing")
+	# Switching the coin keeps the earnings the same, and moves new coins to it.
+	var mv1: float = game.mining_value_per_hour()
+	_check(game.set_mine_target("ETH") and absf(game.mining_value_per_hour() - mv1) <= mv1 * 0.001 + 1e-9 and game.mine_per_hour("SOL") == 0.0 and game.mine_per_hour("ETH") > 0.0, "switching miners to another coin keeps the same earnings")
 	# Reset then restore can't re-roll the market.
-	var pr0: float = game.price("DRF")
+	var pr0: float = game.price("PEPE")
 	var rcode: String = game.backup_code()
 	game.reset_game()
-	_check(absf(game.price("DRF") - pr0) < pr0 * 0.001, "a reset keeps the live market")
+	_check(absf(game.price("PEPE") - pr0) < pr0 * 0.001, "a reset keeps the live market")
 	game.restore_code(rcode)
-	_check(absf(game.price("DRF") - pr0) < pr0 * 0.001 and game.rigs_total() > 0, "reset then restore brings back rigs and keeps prices")
+	_check(absf(game.price("PEPE") - pr0) < pr0 * 0.001 and game.rigs_total() > 0, "reset then restore brings back rigs and keeps prices")
 	for c in Data.COINS:
 		if game.price(c[0]) <= 0.0:
 			_check(false, "coin %s has a price" % c[0])
@@ -652,10 +657,13 @@ func _run() -> void:
 	ff.store_string(JSON.stringify(fd))
 	ff.close()
 	game.load_game()
-	_check(game.biz.size() == 4 and game.props_owned() == 2 and game.staked("KRV") > 0.0 and game.level == 2 and game.taps >= 300, "old v7 save loads with companies, property, staking and level")
+	_check(game.biz.size() == 4 and game.props_owned() == 2 and game.staked("SOL") > 0.0 and game.level == 2 and game.taps >= 300, "old v7 save loads with companies, property, staking and level")
 	_check(game.cash >= 1234567.0 and game.shares.size() == 1, "old v7 save keeps cash and shares (%.2f)" % game.cash)
-	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION and game.synergies.is_empty() and game.rigs.is_empty(), "old save is upgraded to the current version")
-	_check(game.price("VLT") > 0.0 and game.price("HLO") > 0.0 and game.series("QRT", "1D").size() > 0, "old save gets prices and history for the new coins")
+	var fx_val: float = float(fd["coins"]["KRV"]["qty"]) * float(fd["prices"]["KRV"]) + float(fd["coins"]["KRV"].get("staked", 0.0)) * float(fd["prices"]["KRV"])
+	var now_val: float = (game.holding(game.coins, "SOL") + game.staked("SOL")) * game.price("SOL")
+	_check(absf(now_val - fx_val) <= fx_val * 0.02, "old coins become real ones and keep their value (%.0f vs %.0f)" % [now_val, fx_val])
+	_check(int(game.to_dict()["version"]) == game.SAVE_VERSION and game.synergies.is_empty() and game.rigs_total() == 0, "old save is upgraded to the current version")
+	_check(game.price("AVAX") > 0.0 and game.price("LTC") > 0.0 and game.series("DOT", "1D").size() > 0, "old save gets prices and history for the new coins")
 	for ti in 5:
 		main.show_page(ti)
 		await process_frame
