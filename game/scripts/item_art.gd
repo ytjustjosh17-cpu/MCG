@@ -27,7 +27,9 @@ func _draw() -> void:
 	var o := (size - Vector2(s, s)) * 0.5
 	var k := maxi(idx, 0)
 	var ink := UI.TEXT if owned else UI.DIM
-	var acc: Color = UI.COIN_COL[(k * 5 + col.length()) % UI.COIN_COL.size()] if owned else UI.TRACK
+	# Calm accents from the palette (bright brand colours clashed with the teal).
+	var tones := [UI.SUB, UI.FLASH, UI.UP, UI.GOLD, UI.DOWN, UI.TEXT]
+	var acc: Color = tones[(k * 5 + col.length()) % tones.size()] if owned else UI.TRACK
 	match col:
 		"watches": _watch(o, s, k, ink, acc)
 		"art": _painting(o, s, k, ink, acc)

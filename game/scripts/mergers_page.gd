@@ -24,9 +24,6 @@ func build() -> void:
 		c.add_child(row)
 		var p := padded(c, 16, 6)
 		p.get_parent().add_theme_constant_override("margin_top", 0)
-		var eff := UI.label(_effect(m), 15, UI.SUB)
-		eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		p.add_child(eff)
 		var rows: Array = []
 		for n in m["needs"]:
 			var r := HBoxContainer.new()
@@ -51,11 +48,11 @@ func build() -> void:
 
 func _effect(m: Dictionary) -> String:
 	if m["boost"].is_empty():
-		return "×2 income on everything"
+		return "Boosts everything"
 	var names: Array = []
 	for bid in m["boost"]:
 		names.append(String(Data.business(bid)["name"]))
-	return "×%s income: %s" % [str(snappedf(float(m["mult"]), 0.1)), ", ".join(names)]
+	return "Boosts " + ", ".join(names)
 
 
 func _need(n: Array) -> Array:
@@ -96,9 +93,9 @@ func refresh() -> void:
 		var mult := "×" + str(snappedf(float(m["mult"]), 0.1))
 		(row.lead as Icon).visible = done
 		if done:
-			row.set_texts(m["name"], "", "Merged")
+			row.set_texts(m["name"], _effect(m), "Merged")
 		else:
-			row.set_texts(m["name"], "", "%s · %s" % [mult, Game.money_short(float(m["cost"]))])
+			row.set_texts(m["name"], _effect(m), "%s · %s" % [mult, Game.money_short(float(m["cost"]))])
 		row.title_l.add_theme_font_override("font", UI.SEMI)
 		(entry[2] as Control).visible = m["id"] == open
 		for r in entry[3]:

@@ -7,6 +7,8 @@ var _stats: Label
 var _pct: Label
 var _bar: ProgressBar
 var _rows := {}
+var _mbar: MoneyBar
+const PARTS := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items"], ["cash", "Cash"]]
 var _reb_row: Row
 var _ach_row: Row
 var _rival_row: Row
@@ -85,18 +87,6 @@ func build() -> void:
 	_bar.add_theme_stylebox_override("fill", UI.box(UI.RED, 4))
 	cp.add_child(_bar)
 
-	section("Money")
-	var bc := card()
-	var parts := [["biz", "Businesses"], ["props", "Property"], ["shares", "Shares"], ["coins", "Crypto"], ["items", "Items"], ["cash", "Cash"]]
-	for i in range(parts.size()):
-		if i > 0:
-			separator(bc)
-		var r := Row.new("", "", false)
-		r.custom_minimum_size = Vector2(0, 48)
-		r.set_texts(parts[i][1])
-		bc.add_child(r)
-		_rows[parts[i][0]] = r
-
 	var ac := card()
 	_reb_row = Row.new("sparkle")
 	_reb_row.pressed.connect(func():
@@ -115,25 +105,53 @@ func build() -> void:
 		Kit.tick()
 		push_page.emit(RivalsPage.new()))
 	ac.add_child(_rival_row)
-	separator(ac, 50)
+	# Money: one stacked bar and a two-column legend (compact, readable).
+	section("Money")
+	var bc := card()
+	var mp := padded(bc, 16, 12)
+	_mbar = MoneyBar.new()
+	mp.add_child(_mbar)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 6)
+	mp.add_child(grid)
+	for i in range(PARTS.size()):
+		var cell := HBoxContainer.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_theme_constant_override("separation", 8)
+		var dot := Panel.new()
+		dot.custom_minimum_size = Vector2(8, 8)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		dot.add_theme_stylebox_override("panel", UI.box(MoneyBar.COLS[i], 4))
+		cell.add_child(dot)
+		var nl := UI.label(PARTS[i][1], 13, UI.SUB)
+		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_child(nl)
+		var vl := UI.label("", 13, UI.TEXT, true)
+		cell.add_child(vl)
+		grid.add_child(cell)
+		_rows[PARTS[i][0]] = vl
+
+	var lc := card()
 	var stats_row := Row.new("stats")
 	stats_row.set_texts("Stats")
 	stats_row.pressed.connect(func():
 		Kit.tick()
 		push_page.emit(StatsPage.new()))
-	ac.add_child(stats_row)
-	separator(ac, 50)
+	lc.add_child(stats_row)
+	separator(lc, 50)
 	var new_row := Row.new("info")
 	new_row.set_texts("What's new", "", "v" + Updater.current_version())
 	new_row.pressed.connect(_show_whats_new)
-	ac.add_child(new_row)
-	separator(ac, 50)
+	lc.add_child(new_row)
+	separator(lc, 50)
 	var set_row := Row.new("gear")
 	set_row.set_texts("Settings")
 	set_row.pressed.connect(func():
 		Kit.tick()
 		push_page.emit(SettingsPage.new()))
-	ac.add_child(set_row)
+	lc.add_child(set_row)
 
 
 func refresh() -> void:
@@ -150,9 +168,11 @@ func refresh() -> void:
 		"biz": Game.business_value(), "props": Game.props_value(), "shares": Game.book_value(Game.shares),
 		"coins": Game.book_value(Game.coins), "items": Game.items_value() + Game.home_value(), "cash": Game.cash,
 	}
-	for k in vals.keys():
-		var r: Row = _rows[k]
-		r.value_l.text = Game.money_short(vals[k])
+	var parts: Array = []
+	for p in PARTS:
+		(_rows[p[0]] as Label).text = Game.money_short(vals[p[0]])
+		parts.append(maxf(0.0, float(vals[p[0]])))
+	_mbar.set_parts(parts)
 	var na := Game.next_achievement()
 	var waiting := Game.unclaimed("ach")
 	_ach_row.set_texts("Achievements", ("%d to claim" % waiting) if waiting > 0 else (("Next: %s · %d%%" % [na["title"], int(float(na["progress"]) * 100.0)]) if not na.is_empty() else "All done"), "%d/%d" % [Game.achieved.size(), Game.achievements().size()])
@@ -201,3 +221,32 @@ static func _show_whats_new() -> void:
 	for l in Data.WHATS_NEW:
 		lines.append("·  " + l)
 	Kit.sheet("What's new in %s" % Data.RELEASE, "\n".join(lines), [{"text": "Nice", "style": "primary"}])
+
+
+
+class MoneyBar extends Control:
+	## One bar split by where your money is.
+	const COLS := [UI.TEXT, UI.SUB, UI.HAZE, UI.DIM, UI.FLASH, UI.TRACK]
+	var parts: Array = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 12)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func set_parts(p: Array) -> void:
+		parts = p
+		queue_redraw()
+
+	func _draw() -> void:
+		var total := 0.0
+		for v in parts:
+			total += float(v)
+		draw_rect(Rect2(Vector2.ZERO, size), UI.WINDOW)
+		if total <= 0.0:
+			return
+		var x := 0.0
+		for i in range(parts.size()):
+			var w := size.x * float(parts[i]) / total
+			if w > 0.5:
+				draw_rect(Rect2(x, 0, maxf(1.0, w - 1.0), size.y), COLS[i % COLS.size()])
+			x += w

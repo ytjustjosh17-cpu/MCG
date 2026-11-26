@@ -179,34 +179,34 @@ func refresh() -> void:
 		sq.color = UI.RED if i < units else UI.TRACK
 	var per_unit := Game.biz_income(id) / float(maxi(1, units))
 	var nm := Game.next_milestone(id)
-	_mile.visible = not nm.is_empty()
-	if not nm.is_empty():
-		_mile.text = "At %d %s: income ×%s" % [int(nm[0]), b.get("units", "units"), str(nm[1])]
+	_mile.visible = false   # folded into the one hint line below
+	var mile_txt := "" if nm.is_empty() else "at %d: ×%s" % [int(nm[0]), str(nm[1])]
 	_refresh_synergies()
 	var cut := int(round(Game.manager_cut() * 100.0))
 	# A fully expanded company has nothing left for a manager to do.
 	_mgr.get_parent().get_parent().visible = stage < Data.MAX_STAGE
 	if Game.has_manager(id):
-		_mgr.set_texts("Manager hired", "Starts each expansion for you · takes %d%%" % cut, "What they do")
+		_mgr.set_texts("Manager hired", "Auto-expands · takes %d%%" % cut, "Info")
 		if not _mgr.has_meta("hired"):
 			_mgr.set_meta("hired", true)
 			_mgr.set_lead(Icon.new("check", UI.TEXT, 22.0))
 	else:
 		var mc := Game.manager_cost(id)
-		_mgr.set_texts("Hire a manager", "Starts each expansion for you · takes %d%%" % cut, Game.money_short(mc))
+		_mgr.set_texts("Hire a manager", "Auto-expands · takes %d%%" % cut, Game.money_short(mc))
 		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= mc else UI.SUB)
 	if units >= cap:
 		_units_value.text = "%d / %d · Full" % [units, cap]
 		_buy_row.visible = false
 		_mult_seg.visible = false
-		_unit_note.visible = false
+		_unit_note.visible = mile_txt != ""
+		_unit_note.text = "Next milestone " + mile_txt
 	else:
 		var p := Game.unit_price(id)
 		_units_value.text = "%d / %d" % [units, cap]
 		_buy_row.visible = true
 		_mult_seg.visible = true
 		_unit_note.visible = true
-		_unit_note.text = "+%s /h each" % Game.money_short(per_unit)
+		_unit_note.text = "+%s /h each" % Game.money_short(per_unit) + ("" if mile_txt == "" else " · " + mile_txt)
 		var n := _buy_n()
 		var shown := maxi(n, 1)
 		var cost := Game.bulk_cost(id, shown)

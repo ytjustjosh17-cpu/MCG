@@ -20,7 +20,7 @@ func build() -> void:
 	body.add_child(_place)
 	var sc := Art.Scene.new(p[3], 22.0)
 	sc.seed_id = String(p[0])
-	sc.custom_minimum_size = Vector2(0, 190)
+	sc.custom_minimum_size = Vector2(0, 140)   # compact, so Sell sits above the bottom bar
 	body.add_child(sc)
 	_rent = UI.label("", 22, UI.TEXT, true)
 	body.add_child(_rent)
@@ -37,7 +37,12 @@ func build() -> void:
 			if Game.improve_property(index, kk):
 				Kit.tick(20)
 				Kit.toast(String(Data.IMPROVEMENTS[kk][0]) + " done", true)
-				Game.flush_changes())
+				Game.flush_changes()
+			elif not Game.props[str(index)]["imps"][kk]:
+				var need := Game.prop_price(index) * float(Data.IMPROVEMENTS[kk][1]) - Game.cash
+				if need > 0.0:
+					Kit.toast("Need %s more" % Game.money_short(need))
+					Motion.shake(r))
 		c.add_child(r)
 		_imps.append(r)
 	body.add_child(button("Sell", false, _on_sell))
@@ -58,7 +63,7 @@ func refresh() -> void:
 			r.value_l.add_theme_color_override("font_color", UI.SUB)
 			r.mark.visible = false
 		else:
-			r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100), Game.money_short(cost))
+			r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100), "Buy · " + Game.money_short(cost))
 			r.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= cost else UI.SUB)
 			r.mark.visible = false
 
