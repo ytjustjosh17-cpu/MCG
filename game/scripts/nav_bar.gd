@@ -48,9 +48,9 @@ func _ready() -> void:
 		col.add_child(l)
 		b.tooltip_text = TABS[i][1]
 		_buttons.append(b)
-		var dot := ColorRect.new()
-		dot.color = UI.RED
-		dot.size = Vector2(7, 7)
+		var dot := Panel.new()   # a small round dot
+		dot.add_theme_stylebox_override("panel", UI.box(UI.RED, 5))
+		dot.size = Vector2(9, 9)
 		dot.visible = false
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(dot)

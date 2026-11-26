@@ -1,5 +1,15 @@
 # Changelog
 
+## Fewer, rounder dots and smoother pages
+
+- Red dots are now small circles, and there are far fewer of them: only when
+  a reward is waiting to claim or an update is ready. Opening the tab clears
+  the dot until something new arrives. No more dots just for being able to
+  afford something.
+- Smoother page moves: pages slide in and out on the same soft curve, the
+  slide no longer skips its first frames, switching tab with a page open
+  fades it away, and Shares, Property and Crypto fade between each other.
+
 ## Better trading, coin convert, miners you can see
 
 - Buy and Sell open a new pop-up: what you own, a big live amount, a slider

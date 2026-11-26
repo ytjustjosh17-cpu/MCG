@@ -95,7 +95,7 @@ func refresh() -> void:
 		_boost.set_texts("×2 income", "", "Ready in " + Game.clock(Game.ibost_cooldown_left()))
 	_boost.value_l.add_theme_color_override("font_color", UI.TEXT)
 	_count.text = "%d of %d" % [Game.companies(), Data.BUSINESSES.size()]
-	UI.paint(_more, UI.PANEL, UI.RED if _something_ready() else UI.TEXT, 24)
+	UI.paint(_more, UI.PANEL, UI.TEXT, 24)
 	_deal_card.visible = not Game.deal.is_empty() and bool(Game.ui.get("deals_quiet", false))
 	if _deal_card.visible:
 		_deal_row.set_texts(String(Game.deal.get("title", "Deal")), String(Game.deal.get("text", "")))
@@ -113,15 +113,6 @@ func refresh() -> void:
 		if _cards.has(id):
 			(_cards[id] as BizCard).refresh()
 
-
-func _something_ready() -> bool:
-	## Red "More" when an expansion or a merger is ready (same idea as the tab dot).
-	if not Game.expandable().is_empty():
-		return true
-	for m in Data.MERGERS:
-		if not Game.mergers.has(m["id"]) and Game.merger_ready(m) and Game.cash >= float(m["cost"]):
-			return true
-	return false
 
 
 func _fill_plan() -> Array:
