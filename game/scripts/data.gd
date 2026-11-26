@@ -324,12 +324,12 @@ const MERGERS := [
 
 # ---- tapping -----------------------------------------------------------
 static func tap_base(level: int) -> float:
-	return 2.5 * pow(1.64, level - 1)
+	return 2.5 * pow(1.9, level - 1)   # each level nearly doubles the tap (was 1.64)
 
 
 static func level_cost(level: int) -> float:
 	## Price to go from `level` to `level + 1`.
-	return 1000.0 * pow(3.4, level - 1)
+	return 1000.0 * pow(3.1, level - 1)   # was 3.4: levels are better value
 
 
 static func expansion_minutes(b: Dictionary, stage: int) -> float:
