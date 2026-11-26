@@ -53,7 +53,7 @@ func build() -> void:
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 0)
 	head.add_child(hv)
-	var tag_text := "%s · %s · pays %.2f%%/day" % [sym, a[4], float(a[3]) * Data.STOCK_DIV_SCALE * 24.0 * 100.0] if kind == "share" else "%s · Crypto" % sym
+	var tag_text := "%s · %s · %s a share each hour" % [sym, a[4], price_text(Game.dividend_rate(sym))] if kind == "share" else "%s · Crypto" % sym
 	var tag := UI.label(tag_text, 13, UI.asset_color(sym))
 	hv.add_child(tag)
 	_price = UI.display("", 40)
@@ -205,8 +205,7 @@ func refresh() -> void:
 		_profit.text = "No change · avg " + price_text(avg)
 		_profit.add_theme_color_override("font_color", UI.SUB)
 	if kind == "share":
-		var a := _asset()
-		_extra.text = price_text(free * Game.price(sym) * float(a[3]) * Data.STOCK_DIV_SCALE * Game.global_mult()) + " /h"
+		_extra.text = price_text(free * Game.dividend_rate(sym)) + " /h · paid on the hour"
 	else:
 		var earn := Game.stake_earn_per_hour(sym) + Game.mine_per_hour(sym) * Game.price(sym)
 		_extra.text = ("+" + Game.money_short(earn) + " /h") if earn > 0.0 else "Nothing yet"

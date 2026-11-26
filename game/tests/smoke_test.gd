@@ -805,6 +805,32 @@ func _run() -> void:
 	game.recalc()
 	_check(game.prop_rent(Data.PROPERTIES.size() + 2) > 0.0 and game.biz_income("fusion") > 0.0, "and earns")
 	game.reset_game(true)
+	# Dividends: a set rate per company, paid once an hour on the hour.
+	game.reset_game(true)
+	game.cash = 1.0e6
+	game.sim_time = 1.7e9 + 600.0   # 10 minutes past an hour
+	game.div_hour = -1
+	game.buy_asset("share", "NRV", 5.0e5)
+	game.advance(1.0)
+	var dv_rate: float = game.dividend_rate("NRV")
+	game.prices["NRV"] = game.price("NRV") * 3.0
+	_check(absf(game.dividend_rate("NRV") - dv_rate) < 1e-9 and dv_rate > 0.0, "a share's dividend is a set rate (doesn't move with the price)")
+	_check(game.dividend_rate("NRV") != game.dividend_rate("QSF"), "rates differ by company")
+	var dv_cash: float = game.cash
+	game.sim_time += 1500.0
+	game.advance(1500.0, false)
+	_check(absf(game.cash - dv_cash) < 0.001, "nothing paid before the hour")
+	game.sim_time += 1500.0
+	game.advance(1.0, false)
+	var dv_paid: float = game.cash - dv_cash
+	_check(absf(dv_paid - game.dividends_per_hour()) < 0.01 * maxf(1.0, dv_paid), "one hour's dividend paid on the hour (%s)" % game.money_short(dv_paid))
+	dv_cash = game.cash
+	game.sim_time += 30.0 * 3600.0
+	game.apply_offline(30.0 * 3600.0)
+	var dv_div: float = float(game.counters.get("dividends_earned", 0.0))
+	_check(dv_div <= dv_paid * (1.0 + ceil(game.offline_cap_h())) * 1.01, "time away pays at most the away cap in hours")
+	game.sim_time = -1.0
+	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
 	var tk = root.get_node("Kit")
 	tk._toast_q.clear()

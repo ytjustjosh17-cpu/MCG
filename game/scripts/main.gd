@@ -50,6 +50,10 @@ func _ready() -> void:
 		Kit.haptic("success")
 		Kit.toast("Passed %s · now #%d" % [r[0], Data.RIVALS.size() - i], true))
 	Game.deal_ready.connect(func(_d): _show_deal())
+	# Shares pay on the hour: one quiet note when it lands.
+	Game.dividends_paid.connect(func(v: float):
+		if v >= 0.01:
+			Kit.toast("Dividends paid · +" + Game.money_short(v)))
 	var dt := Timer.new()
 	dt.wait_time = 1.0
 	dt.autostart = true
