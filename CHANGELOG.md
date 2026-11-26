@@ -1,5 +1,17 @@
 # Changelog
 
+## Sun Forge: a modern slot
+
+- New machine at the top of the casino: a 6 x 5 grid where symbols pay
+  anywhere (8 or more of a kind), wins tumble away and new symbols drop in,
+  sun orbs (x2 to x100) multiply a winning spin.
+- 4 forge sigils give 15 free spins with a total multiplier that keeps
+  growing; 3 more give +5 spins.
+- Buy free spins (100x bet), an Ante bet (x1.25 stake, about double the
+  chance of free spins), autoplay, big win banners, a paytable.
+- Max win 5,000x the bet (and the casino's limit of about a day of income
+  a round). Payback about 96%.
+
 ## Messages you can actually read
 
 - Catching a golden sun now shows a proper centred card (cash, Frenzy or

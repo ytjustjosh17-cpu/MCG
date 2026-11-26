@@ -37,8 +37,10 @@ python3 tools/check_rules.py
 cd game && $G --headless --path . -s res://tests/smoke_test.gd
 cd game && $G --headless --path . -s res://tests/stress_test.gd
 cd game && $G --headless --path . -s res://tests/casino_test.gd
+cd game && $G --headless --path . -s res://tests/forge_test.gd
 cd game && (printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; for t in scroll_test tables_ui_test; do $G --headless --path . -s res://tests/$t.gd; done; rm override.cfg)
 cd game && (printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-slots-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; $G --headless --path . -s res://tests/slots_ui_test.gd; rm override.cfg)
+cd game && (printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-forge-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; $G --headless --path . -s res://tests/forge_ui_test.gd; rm override.cfg)
 ```
 
 `$G` is the Godot 4.4.1 editor binary. TESTING.md says where to get it.
@@ -59,7 +61,7 @@ If you changed a screen, take screenshots and look at them (TESTING.md).
 | R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`, extra keys) | Clean repo |
 | R9 | No `print()` in game code; use `GameLog.info()` | Logs go in the problem report |
 | R10 | Pushed pages are marked `super(title, true)`; the back button sits in the bottom bar (`main.gd`) | Never trap the player |
-| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, slots UI, tables UI) | CI runs them |
+| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, forge, slots UI, tables UI, forge UI) | CI runs them |
 
 Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 

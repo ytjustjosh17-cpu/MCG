@@ -33,8 +33,8 @@ Pages never change state directly.
 | Drawing | `art.gd` (every scene and building, `Art.SCENES`), `tower_card.gd` (grows with wealth tiers), `golden_sun.gd`, `item_art.gd` (personal items), `miner_rack.gd` (animated miners), `asset_tile.gd` (coin logos, share badges), `price_chart.gd`, `net_chart.gd`, `confetti.gd` |
 | Unlock content | `Data.FRONTIER`, `Data.ISLES` (saved by index after `PROPERTIES`, read with `Data.property(i)`), `Data.RELICS`. Pages and the robot use `Game.businesses()`, `Game.property_count()`, `Game.collections()`; completion and achievement ids use the base lists |
 | Rebirth tree | `rebirth_tree.gd` (`RebirthTree`: every node with a fixed string id, position, links, cost and effects; built once). Effects are summed per stat by `Game.rb(stat)` and used where each rule lives |
-| Casino pages | `casino_page.gd` (lobby: unlock, cage, limits, games; `CasinoPage.CasinoArt` drawings), `slots_page.gd`, `roulette_page.gd`, `blackjack_page.gd`. Money only moves through `Game.casino_stake()` and `Game.casino_pay()` |
-| Casino maths | `casino/slot_math.gd`, `casino/roulette_math.gd`, `casino/blackjack_math.gd`: pure rules, seedable, no UI (`tests/casino_test.gd` checks their payback) |
+| Casino pages | `casino_page.gd` (lobby: unlock, cage, limits, games; `CasinoPage.CasinoArt` drawings), `slots_page.gd`, `forge_page.gd` (Sun Forge, 6x5 tumble), `roulette_page.gd`, `blackjack_page.gd`. Money only moves through `Game.casino_stake()` and `Game.casino_pay()` |
+| Casino maths | `casino/forge_math.gd`, `casino/slot_math.gd`, `casino/roulette_math.gd`, `casino/blackjack_math.gd`: pure rules, seedable, no UI (`tests/casino_test.gd` checks their payback) |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
 | Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |
 | Platform | `main.gd` (navigation, back button and cash pill, safe area, deal and welcome-back cards), `updater.gd`, `game_log.gd` |
