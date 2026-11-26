@@ -10,15 +10,15 @@ const STATS := [
 	["earned", "Earned in total"],
 	["played", "Time played"],
 	["best", "Best income"],
-	["crits", "Critical taps"],
+	["crits", "Big taps (×5)"],
 	["suns", "Golden suns caught"],
 	["units", "Units bought"],
 	["expansions", "Expansions"],
 	["deals", "Deals taken"],
 	["goals", "Goals done"],
 	["achievements", "Achievements"],
-	["mined", "Coins mined (value)"],
-	["staked", "Staking earned"],
+	["mined", "Mined (at the time)"],
+	["staked", "Locked coins earned"],
 	["streak", "Days in a row"],
 ]
 

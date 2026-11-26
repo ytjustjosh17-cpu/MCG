@@ -98,7 +98,7 @@ func build() -> void:
 	var pl: Label = _profit.get_parent().get_child(0)
 	pl.size_flags_horizontal = Control.SIZE_FILL
 	separator(c)
-	_extra = _line(c, "Pays" if kind == "share" else "Earning")
+	_extra = _line(c, "Pays" if kind == "share" else "Earns")
 	if kind == "coin":
 		separator(c)
 		_mine_l = _line(c, "Mining")
@@ -190,7 +190,7 @@ func refresh() -> void:
 	_profit.text = "%s%s (%.1f%%) · avg %s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain)), absf(pct), price_text(avg)]
 	_profit.add_theme_color_override("font_color", UI.change_color(gain))
 	if paid <= 0.0 and worth > 0.0:
-		_profit.text = "All mined or earned · ▲ +" + Game.money_short(worth)
+		_profit.text = "Mined · all profit · ▲ +" + Game.money_short(worth)
 		_profit.add_theme_color_override("font_color", UI.UP)
 	elif absf(pct) < 0.05:
 		_profit.text = "No change · avg " + price_text(avg)
@@ -204,7 +204,8 @@ func refresh() -> void:
 		var nr := Game.rig_count(sym)
 		_mine_line.visible = nr > 0
 		if nr > 0:
-			_mine_l.text = "%d rig%s · %s /h" % [nr, "" if nr == 1 else "s", qty_text(Game.mine_per_hour(sym))]
+			_mine_l.text = "%d miner%s · %s %s /h" % [nr, "" if nr == 1 else "s", qty_text(Game.mine_per_hour(sym)), sym]
+		_lock_row.get_parent().get_parent().visible = total > 0.0   # nothing to lock until you own some
 		var left := Game.stake_left(sym)
 		var rate := "+%.2f%% a day" % (Game.stake_rate(sym) * 2400.0)
 		if locked <= 0.0:
@@ -212,7 +213,7 @@ func refresh() -> void:
 		elif left > 0.0:
 			_lock_row.set_texts("Locked " + qty_text(locked), rate, Game.clock(left))
 		else:
-			_lock_row.set_texts("Locked " + qty_text(locked), "Ready to unlock", "Unlock")
+			_lock_row.set_texts("Locked " + qty_text(locked), "Earning · can unlock", "Unlock")
 	Page.set_enabled(_sell, free > 0.0, false)
 	_sell.modulate.a = 1.0 if free > 0.0 else 0.4
 	var news_n := int(Game.counters.get("news_total", 0))
@@ -249,7 +250,7 @@ func _notification(what: int) -> void:
 
 func _on_buy() -> void:
 	var actions: Array = []
-	var fracs := [0.1, 0.25, 0.5, 1.0]
+	var fracs := [1.0, 0.5, 0.25, 0.1]   # the small, safe one sits nearest the thumb
 	for f in fracs:
 		var ff: float = f
 		var amt := Game.cash * ff
@@ -269,9 +270,18 @@ func _on_buy() -> void:
 
 func _on_sell() -> void:
 	var free := Game.holding(_book(), sym)
+	if free <= 0.0:
+		Kit.haptic("error")
+		if kind == "coin" and Game.staked(sym) > 0.0 and Game.stake_left(sym) > 0.0:
+			Kit.toast("All locked · free in " + Game.clock(Game.stake_left(sym)))
+		elif kind == "coin" and Game.staked(sym) > 0.0:
+			Kit.toast("Unlock them first (tap Locked)")
+		else:
+			Kit.toast("You don't own any yet")
+		return
 	var worth := free * Game.price(sym)
 	var actions: Array = []
-	for f in [0.25, 0.5, 1.0]:
+	for f in [1.0, 0.5, 0.25]:
 		var ff: float = f
 		var label := ("Sell all · " if ff >= 1.0 else "Sell %d%% · " % int(ff * 100)) + Game.money_short(worth * ff)
 		actions.append({"text": label, "style": "secondary", "call": func():
@@ -291,16 +301,17 @@ func _on_stake() -> void:
 	var actions: Array = []
 	if locked > 0.0 and Game.stake_left(sym) <= 0.0:
 		actions.append({"text": "Unlock " + qty_text(locked), "style": "primary", "call": _on_unstake})
-	for f in [0.5, 1.0]:
+	var matured := locked > 0.0 and Game.stake_left(sym) <= 0.0
+	for f in [1.0, 0.5]:
 		var ff: float = f
-		if free > 0.0:
-			var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff)
+		if free > 0.0 and not matured:   # unlock first, so ready coins are never re-locked by mistake
+			var label := ("Lock all · " if ff >= 1.0 else "Lock half · ") + qty_text(free * ff) + " · 24 h"
 			actions.append({"text": label, "style": "secondary", "call": func():
 				if Game.stake(sym, ff):
 					Kit.haptic("success")
 					Kit.toast("Locked for 24 h", true)})
 	actions.append({"text": "Close", "style": "plain"})
-	var body_t := "Locked coins earn %.2f%% a day and stay locked for 24 h." % (Game.stake_rate(sym) * 2400.0)
+	var body_t := "Locked coins earn %.2f%% a day. You can't sell them for 24 h." % (Game.stake_rate(sym) * 2400.0)
 	if free <= 0.0 and locked <= 0.0:
 		body_t = "Buy some %s first, then lock them to earn more." % sym
 	elif locked > 0.0 and Game.stake_left(sym) > 0.0:

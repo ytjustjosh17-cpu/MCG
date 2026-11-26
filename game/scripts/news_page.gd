@@ -64,7 +64,11 @@ static func news_row(item: Dictionary, chevron: bool) -> Row:
 	r.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.title_l.add_theme_font_size_override("font_size", 15)
 	r.set_texts(String(item.get("text", "")), "%s · %s" % [item.get("sym", ""), ago(float(item.get("t", 0.0)))])
-	r.set_change(pct)
+	if item.has("mine"):
+		# Mining news changes how fast coins are mined, not the price.
+		r.value_l.text = "Mining ×%s" % str(snappedf(1.0 + pct / 100.0, 0.1))
+	else:
+		r.set_change(pct)
 	if r.lead is Icon:
 		(r.lead as Icon).set_style(UI.change_color(pct))
 	if not chevron:

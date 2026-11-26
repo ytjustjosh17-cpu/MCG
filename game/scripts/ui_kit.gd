@@ -166,6 +166,10 @@ func _action_button(a: Dictionary, height := 52) -> Button:
 
 func sheet(title: String, body: String, actions: Array, dismissable := true, extra: Control = null) -> Control:
 	## actions: [{"text": String, "style": "primary"|"secondary"|"plain", "call": Callable}]
+	# A fast double tap mustn't stack two copies of the same sheet.
+	for it in _stack:
+		if is_instance_valid(it["root"]) and String(it.get("title", "")) == title and title != "":
+			return it["root"]
 	var scr := screen()
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -276,7 +280,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 				var dy: float = e.global_position.y - float(drag["y0"])
 				# Downwards follows the finger; upwards moves a little and pushes back.
 				panel.position.y = float(geo["rest"]) + (dy if dy >= 0.0 else -sqrt(-dy) * 2.5))
-	_stack.append({"root": root, "close": func(): close.call() if dismissable else null})
+	_stack.append({"root": root, "title": title, "close": func(): close.call() if dismissable else null})
 	return root
 
 
@@ -508,14 +512,15 @@ func _next_celebration() -> void:
 
 # ---- drop-down picker -------------------------------------------------------
 
-func pick(title: String, options: Array, current, on_pick: Callable) -> void:
+func pick(title: String, options: Array, current, on_pick: Callable, body := "") -> void:
 	## A simple drop-down: a sheet listing the choices, the current one lit.
 	## options: [[value, label], ...]
 	var actions: Array = []
 	for o in options:
 		var v = o[0]
 		actions.append({"text": String(o[1]), "style": "primary" if v == current else "secondary", "call": func(): on_pick.call(v)})
-	sheet(title, "", actions)
+	actions.append({"text": "Close", "style": "plain"})   # a clear way out, near the thumb
+	sheet(title, body, actions)
 
 
 static func drop_pill(text: String) -> Button:

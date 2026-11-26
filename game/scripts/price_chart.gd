@@ -126,7 +126,9 @@ func _draw() -> void:
 		draw_line(Vector2(p.x, 0), Vector2(p.x, size.y), UI.SUB, 1.0)
 		draw_circle(p, 5.0, line_col)
 	else:
-		draw_rect(Rect2(pts[pts.size() - 1] - Vector2(5, 5), Vector2(10, 10)), UI.RED, true)
+		# The latest price: a dot in the line's own colour with a dark ring (red stays rare).
+		draw_circle(pts[pts.size() - 1], 6.0, UI.BG)
+		draw_circle(pts[pts.size() - 1], 4.0, line_col)
 
 
 static func change_pct(s: String, back := 60) -> float:

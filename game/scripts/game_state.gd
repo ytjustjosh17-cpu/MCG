@@ -411,7 +411,12 @@ func roll_deal() -> Dictionary:
 	var name := String(biz[id]["name"])
 	var inc := maxf(income_per_hour, 100.0)
 	var kinds := ["order"]
-	if int(biz[id]["units"]) >= 2:
+	# A buyer only if selling one unit doesn't drop you below a milestone.
+	var at_mile := false
+	for ms in Data.MILESTONES:
+		if int(biz[id]["units"]) == int(ms[0]):
+			at_mile = true
+	if int(biz[id]["units"]) >= 2 and not at_mile:
 		kinds.append("buyer")
 	if int(biz[id]["stage"]) < Data.MAX_STAGE and not expanding(id) and float(biz[id].get("discount", 1.0)) >= 1.0:
 		kinds.append("supplier")
@@ -419,7 +424,7 @@ func roll_deal() -> Dictionary:
 		"buyer":
 			var price := unit_price(id) / Data.UNIT_PRICE_GROWTH * 0.95  # a bit under what rebuying costs
 			return {"kind": "buyer", "id": id, "value": price,
-				"title": "A buyer for one outlet", "text": "%s · they pay %s" % [name, money_short(price)],
+				"title": "A buyer for one %s" % Data.business(id).get("unit", "unit"), "text": "%s · they pay %s" % [name, money_short(price)],
 				"yes": "Sell for " + money_short(price)}
 		"supplier":
 			return {"kind": "supplier", "id": id, "value": expansion_cost(id) * 0.25,
@@ -427,7 +432,7 @@ func roll_deal() -> Dictionary:
 				"yes": "Take it"}
 	var cost := inc / 6.0  # ten minutes of income
 	return {"kind": "order", "id": id, "value": cost,
-		"title": "Rush order", "text": "%s · pay %s now, get %s in an hour" % [name, money_short(cost), money_short(cost * 1.3)],
+		"title": "Quick deal", "text": "%s · pay %s now, get %s in 1 h" % [name, money_short(cost), money_short(cost * 1.3)],
 		"yes": "Pay " + money_short(cost)}
 
 
@@ -828,7 +833,12 @@ func _mine_scale() -> float:
 		raw += _mine_raw(k) * price(k)
 	if raw <= 0.0:
 		return 1.0
-	return minf(1.0, maxf(income_per_hour, 0.0) * Data.MINE_CAP / raw)
+	return minf(1.0, maxf(income_per_hour, 0.0) * mine_cap() / raw)
+
+
+func mine_cap() -> float:
+	## Share of income all mining can pay: grows with every miner you own.
+	return Data.MINE_CAP + Data.MINE_CAP_PER_RIG * float(rigs_total())
 
 
 func mine_per_hour(sym: String) -> float:
@@ -1408,9 +1418,7 @@ func tab_badges() -> Array:
 		if not mergers.has(m["id"]) and merger_ready(m) and cash >= float(m["cost"]):
 			business = true
 	var invest := false
-	for sym in coins.keys():
-		if staked(sym) > 0.0 and stake_left(sym) <= 0.0:
-			invest = true
+	# (Locked coins keep earning after the 24 h, so they don't need a dot.)
 	var items := next_home_cost() > 0.0 and cash >= next_home_cost()
 	for c in Data.COLLECTIONS:
 		for i in range(c["items"].size()):
@@ -1619,7 +1627,7 @@ func _build_achievements() -> Array:
 		a.append({"id": "stake_%d" % e, "title": "%s from staking" % money_short(pow(10.0, e)), "m": "stake_earned", "goal": pow(10.0, e)})
 	for n in [1, 3, 6]:
 		a.append({"id": "cols_%d" % n, "title": "%d collection%s done" % [n, "" if n == 1 else "s"], "m": "collections", "goal": float(n)})
-	for n in [1, 25, 100]:
+	for n in [1, 25, 60]:
 		a.append({"id": "suns_%d" % n, "title": "Catch %d golden sun%s" % [n, "" if n == 1 else "s"], "m": "suns", "goal": float(n)})
 	for n in [1, 10, 25]:
 		a.append({"id": "deals_%d" % n, "title": "%d deal%s" % [n, "" if n == 1 else "s"], "m": "deals", "goal": float(n)})
@@ -1982,7 +1990,7 @@ func apply_offline(seconds: float) -> void:
 	_ensure_weekly()
 	# Some of the time away counts towards the next deal (up to 2 h), so
 	# short-session players still get them.
-	deal_wait -= minf(s, 7200.0)
+	deal_wait -= minf(s, 1800.0)
 	var capped := minf(s, Data.OFFLINE_CAP_H * 3600.0)
 	var before := cash
 	var ib_part := 0.0
@@ -1999,6 +2007,7 @@ func apply_offline(seconds: float) -> void:
 	var gained := base * capped / 3600.0 + biz_base * ib_part / 3600.0
 	var exp0 := int(counters.get("expansions", 0))
 	var mined0 := float(counters.get("mined_value", 0.0))
+	var staked0 := float(counters.get("stake_earned", 0.0))
 	var pay0 := payouts.size()
 	advance(s, false)
 	recalc()
@@ -2011,10 +2020,13 @@ func apply_offline(seconds: float) -> void:
 	if done > 0:
 		away_notes.append("%d expansion%s done" % [done, "" if done == 1 else "s"])
 	if pay0 > payouts.size():
-		away_notes.append("Rush orders paid")
+		away_notes.append("Quick deals paid")
 	var mined := float(counters.get("mined_value", 0.0)) - mined0
 	if mined >= 1.0:
 		away_notes.append("Mined %s of crypto" % money_short(mined))
+	var lock_got := float(counters.get("stake_earned", 0.0)) - staked0
+	if lock_got >= 1.0:
+		away_notes.append("Locked coins earned %s" % money_short(lock_got))
 	if s > Data.OFFLINE_CAP_H * 3600.0:
 		away_notes.append("Capped at %d h" % int(Data.OFFLINE_CAP_H))
 	away_unseen = s >= 600.0 and away_earned >= 1.0

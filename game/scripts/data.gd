@@ -95,25 +95,26 @@ const STOCK_GROWTH := 0.000004  # slow long-run rise per minute
 # ---- crypto ------------------------------------------------------------
 # symbol, name, price, volatility per minute, staking reward per hour
 const COINS := [
-	["KRV", "Korva coin", 115.23, 0.012, 0.0004], ["LMN", "Lumen token", 2.41, 0.018, 0.0008],
-	["ASH", "Ashcoin", 0.083, 0.025, 0.0012], ["MRC", "Meridian coin", 41000.0, 0.008, 0.0002],
-	["TDE", "Tide", 9.12, 0.015, 0.0006], ["EMB", "Ember", 0.0042, 0.03, 0.0015],
-	["NVA", "Nova", 1.84, 0.02, 0.001], ["PBL", "Pebble", 0.31, 0.022, 0.001],
-	["GLT", "Glint", 640.0, 0.012, 0.0005], ["DRF", "Drift", 0.0009, 0.035, 0.002],
+	["KRV", "Korva coin", 115.23, 0.012, 0.0012], ["LMN", "Lumen token", 2.41, 0.018, 0.0024],
+	["ASH", "Ashcoin", 0.083, 0.025, 0.0036], ["MRC", "Meridian coin", 41000.0, 0.008, 0.0006],
+	["TDE", "Tide", 9.12, 0.015, 0.0018], ["EMB", "Ember", 0.0042, 0.03, 0.0045],
+	["NVA", "Nova", 1.84, 0.02, 0.003], ["PBL", "Pebble", 0.31, 0.022, 0.003],
+	["GLT", "Glint", 640.0, 0.012, 0.0015], ["DRF", "Drift", 0.0009, 0.035, 0.006],
 	# 1.1: new coins go at the end so old saves line up.
-	["VLT", "Volt", 12.4, 0.02, 0.0009], ["QRT", "Quartz", 0.56, 0.024, 0.0011],
-	["HLO", "Halo", 88.0, 0.014, 0.0006],
+	["VLT", "Volt", 12.4, 0.02, 0.0027], ["QRT", "Quartz", 0.56, 0.024, 0.0033],
+	["HLO", "Halo", 88.0, 0.014, 0.0018],
 ]
 const STAKE_LOCK_H := 24.0
 # Mining (1.1): buy rigs for a coin; they mine that coin all the time.
 # Rig prices climb across ALL coins (spreading out doesn't dodge it).
 const RIG_BASE := 25000.0
 const RIG_GROWTH := 1.45
-const RIG_MAX := 60              # rigs in total (the last ones are late-game buys)
+const RIG_MAX := 60              # miners in total (the last ones are late-game buys)
 const MINE_YIELD := 0.018        # a rig mines 1.8% of its price per hour, at the coin's base price
-const MINE_CAP := 0.08           # all mining together pays at most 8% of hourly income
-const NEWS_MINE_UP := ["%s network upgrade speeds up mining", "Cheap power boosts %s miners"]
-const NEWS_MINE_DOWN := ["%s halving cuts mining rewards", "%s miners hit by power costs"]
+const MINE_CAP := 0.02           # all mining pays at most 2% of hourly income...
+const MINE_CAP_PER_RIG := 0.0015 # ...plus 0.15% per miner owned (11% with all 60), so every miner counts
+const NEWS_MINE_UP := ["%s mining gets faster", "%s miners earn more"]
+const NEWS_MINE_DOWN := ["%s mining pays less", "%s miners earn less"]
 
 # ---- market news ---------------------------------------------------------
 const NEWS_STOCK_UP := ["%s wins a big contract", "%s profits beat forecasts", "%s reports record sales", "%s expands overseas"]
@@ -168,19 +169,19 @@ const MILESTONES := [[5, 1.1], [25, 1.15], [50, 1.25]]
 # id, name, source company, source stage, target company, income multiplier, cost
 const SYNERGIES := [
 	["delivery", "Taxi deliveries", "taxi", 3, "food", 1.3, 6.0e4],
-	["own_fleet", "Own lorry fleet", "shipping", 3, "shop", 1.3, 1.5e5],
+	["own_fleet", "Own lorry fleet", "shipping", 3, "shop", 1.3, 5.0e4],
 	["parts", "Factory parts", "factory", 4, "dealer", 1.25, 6.0e5],
 	["site_gym", "Gyms on site", "construction", 4, "gym", 1.25, 2.0e6],
 	["hotel_tv", "Hotel TV", "tv", 3, "hotel", 1.25, 4.0e7],
 	["tech_desk", "Bank tech desk", "it", 5, "bank", 1.2, 6.0e7],
 	["sponsor", "Club sponsor", "bank", 4, "sports", 1.2, 6.0e8],
-	["ore", "Ore to factory", "mining", 3, "factory", 1.3, 5.0e9],
+	["ore", "Ore to factory", "mining", 3, "factory", 1.3, 4.0e8],
 	["fuel", "Jet fuel deal", "oil", 3, "airline", 1.2, 3.0e11],
-	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 3.0e12],
+	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 1.5e12],
 ]
 # One dial for all company income, set so 1.1's new bonuses keep the same pace.
 const INCOME_SCALE := 0.84
-const ACH_BONUS := 0.0025     # each achievement adds 0.25% to all income
+const ACH_BONUS := 0.002      # each achievement adds 0.2% to all income (cap lands near the last ones)
 const ACH_BONUS_CAP := 0.15   # but never more than +15% in total
 const MANAGER_CUT := 0.10        # share of that company's income they keep
 const MANAGER_COST_X := 1.5      # hire cost = this x the next expansion cost
@@ -220,7 +221,7 @@ const RIVALS := [ # name, what they run, net worth
 	["The Ashgrove Family", "Everything", 5.0e13],
 	["Corvin Hale", "Space", 5.0e14],
 	["Odile Varga", "Shipping lanes", 5.0e15],
-	["The Lantern Trust", "Old money", 5.0e16],
+	["The Lantern Trust", "Old money", 1.5e16],
 ]
 
 # ---- collections -------------------------------------------------------
@@ -303,14 +304,10 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.1"
 const WHATS_NEW := [
-	"Money is now in pounds, exact to the penny.",
-	"Buy ×1, ×10, ×100 or Max on every company.",
-	"Milestones at 5, 25 and 50 units lift income.",
-	"Synergies: one company can boost another.",
-	"Achievements now add a little income each.",
-	"Critical taps, plus Frenzy and Rush from golden suns.",
-	"Crypto mining with rigs, 3 new coins, mining news.",
-	"Sound effects, number format and a Stats page.",
-	"Your tower grows as you get richer.",
-	"Back button sits bottom right; bigger buttons.",
+	"Money in pounds, to the penny.",
+	"Buy ×1, ×10, ×100 or Max.",
+	"More units and Partners raise income.",
+	"Big taps, and golden sun bonuses.",
+	"Crypto miners dig up coins for you.",
+	"Sound, a Stats page and a growing tower.",
 ]

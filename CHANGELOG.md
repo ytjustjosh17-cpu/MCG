@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.1 update: tester feedback
+
+Eight testers (3 reviewers, 5 players including a very confused one) went
+through 1.1. Changes from what they found:
+
+- Invest: "Yours" and "Market" are proper titles with a count. Lists no
+  longer jump while you look (they re-sort when you open the tab).
+- Crypto mining is now "Crypto miners". Buy miner asks which coin (yours
+  first, all coins listed, with a Close button). Every miner now raises the
+  cap a little (2% of income plus 0.15% per miner), so later miners still count.
+- Locked coins pay 3 times more (still capped at 5% of income). Ready coins
+  only offer Unlock, so they can't be re-locked by mistake.
+- Synergies are now "Partners", with a one-line hint and a confirm before buying.
+- Company page: always starts on x1; holding to keep buying only works on x1
+  and needs a longer hold. Manager hidden on a fully expanded company.
+- Buy, Sell and Lock sheets: the small, safe choice sits nearest your thumb.
+  Sell explains why when your coins are locked.
+- Plainer words: "Big tap" (not crit), "Taps x5" and "Income x2" buffs,
+  "Quick deal" (not Rush order), mining news shows "Mining x1.5".
+- The tower grows taller with each wealth tier; brighter searchlights.
+- Chart end is a dot in the line's colour (red stays rare).
+- Deals: no deal waiting on almost every open; a buyer never breaks a milestone.
+- Fewer dead ends late: last rival at £15Qa, 60 golden suns (was 100),
+  cheaper Ore, Own fleet and Rocket fuel partners.
+- Welcome back also says what locked coins earned. Pickers have a Close button.
+
 ## 1.1 (first build: v1.1.36)
 
 Old saves load as before. Saves move from v7 to v9 on first load, and new
