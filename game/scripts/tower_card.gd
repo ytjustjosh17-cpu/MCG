@@ -56,7 +56,7 @@ func _geo() -> Dictionary:
 	var h := size.y
 	var tw := clampf(w * 0.34, 96.0, 170.0)
 	var tx := w * 0.6 - tw / 2.0
-	var top := h * 0.2
+	var top := h * (0.27 - 0.025 * float(tier))   # the tower gets taller with each wealth tier
 	var win_w := tw * 0.125
 	return {"tw": tw, "tx": tx, "top": top, "win_w": win_w, "win_h": win_w * 0.72,
 		"pitch_x": tw * 0.21, "pitch_y": win_w * 1.5, "pad": tw * 0.1}
@@ -113,7 +113,7 @@ func _draw() -> void:
 			var ang := -PI / 2.0 + (0.28 if k == 1 else -0.28)
 			var d := Vector2(cos(ang), sin(ang)) * h
 			var side := Vector2(-d.y, d.x).normalized() * h * 0.09
-			_fill_clipped(PackedVector2Array([o, o + d + side, o + d - side]), clip, Color(UI.TEXT, 0.05))
+			_fill_clipped(PackedVector2Array([o, o + d + side, o + d - side]), clip, Color(UI.TEXT, 0.09))
 	# Roof: plant room, water tank on legs, antenna with a red light.
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw * 0.15, top - tw * 0.12, tw * 0.3, tw * 0.12)), clip, UI.INK)
 	var tank := Rect2(tx + tw * 0.62, top - tw * 0.16, tw * 0.18, tw * 0.1)
@@ -220,7 +220,7 @@ func _process(delta: float) -> void:
 		var tn := _tier_now()
 		if tn != tier:
 			tier = tn
-			queue_redraw()
+			_reshape()
 	# Roof light blinks: redraw only when it switches.
 	var on := fmod(Time.get_ticks_msec() / 1000.0, 2.0) < 1.2
 	if on != _beacon_on and not Game.reduce_motion and is_visible_in_tree():
@@ -339,7 +339,7 @@ func _spawn_crit(pos: Vector2, v: float) -> void:
 		Input.vibrate_handheld(28)
 	if Motion.reduced():
 		return
-	var l := UI.label("CRIT +" + Game.money_short(v), 28, UI.TEXT, true)
+	var l := UI.label("BIG TAP +" + Game.money_short(v), 28, UI.TEXT, true)
 	l.add_theme_font_override("font", UI.DISPLAY)
 	# Dark outline so it reads on the red sun as well as the dark sky.
 	l.add_theme_color_override("font_outline_color", UI.INK)

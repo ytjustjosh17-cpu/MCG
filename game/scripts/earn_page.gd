@@ -153,7 +153,7 @@ func _refresh() -> void:
 	_goal.set_goal(Game.next_goal())
 	if had != _goal.visible:
 		_layout.call_deferred()
-	_hint.visible = Game.taps < 10
+	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
 	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var can := Game.can_level_up()
@@ -174,10 +174,10 @@ func _tick() -> void:
 		return
 	var buffs: Array = []
 	if Game.frenzy_active():
-		buffs.append("FRENZY ×%d · %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())])
+		buffs.append("Taps ×%d · %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())])
 	if Game.rush_active():
-		buffs.append("RUSH ×2 income · %s" % Game.clock(Game.rush_until - Game.now()))
-	_buff.text = "   ".join(buffs)
+		buffs.append("Income ×2 · %s" % Game.clock(Game.rush_until - Game.now()))
+	_buff.text = "     ".join(buffs)
 	_buff.visible = not buffs.is_empty()
 	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult()) + " /tap"
 	if Game.boost_active():

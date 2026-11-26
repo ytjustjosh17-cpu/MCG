@@ -66,7 +66,10 @@ func _ready() -> void:
 			if Game.sector_of(k) == sym:
 				mine = true
 		if mine and not bool(Game.ui.get("news_quiet", false)):
-			Kit.toast("%s · %s" % [item["text"], AssetDetail.change_text(float(item["pct"]))], float(item["pct"]) >= 0.0))
+			if item.has("mine"):
+				Kit.toast("%s · mining ×%s" % [item["text"], str(snappedf(1.0 + float(item["pct"]) / 100.0, 0.1))], bool(item["mine"]))
+			else:
+				Kit.toast("%s · %s" % [item["text"], AssetDetail.change_text(float(item["pct"]))], float(item["pct"]) >= 0.0))
 	Game.expansion_done.connect(func(id: String, stage: int):
 		Kit.haptic("success")
 		Kit.toast("%s · stage %d" % [Game.biz[id]["name"], stage], true))
@@ -345,6 +348,9 @@ func _show_sun() -> void:
 	_sun_pending = false
 	var card = _pages[0].find_child("TowerCard", true, false)
 	if card and card.has_method("spawn_sun"):
+		for ch in card.get_children():
+			if ch.has_method("_catch"):
+				return   # one sun at a time
 		card.spawn_sun()
 		Kit.sound("sun")
 var _deal_forced := false

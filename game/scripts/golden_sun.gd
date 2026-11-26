@@ -67,9 +67,9 @@ func _catch() -> void:
 	Kit.haptic("success")
 	match Game.last_sun:
 		"frenzy":
-			Kit.toast("Frenzy · taps ×%d for %d s" % [int(Data.FRENZY_MULT), int(Data.FRENZY_S)], true)
+			Kit.toast("Frenzy! Taps ×%d for %d s" % [int(Data.FRENZY_MULT), int(Data.FRENZY_S)], true)
 		"rush":
-			Kit.toast("Rush · ×2 income for %d min" % int(Data.RUSH_S / 60.0), true)
+			Kit.toast("Rush! Income ×2 for %d min" % int(Data.RUSH_S / 60.0), true)
 		_:
 			Kit.toast("Golden sun · +" + Game.money_short(v), true)
 	var parent := get_parent()

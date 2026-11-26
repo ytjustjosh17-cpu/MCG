@@ -12,6 +12,7 @@ var _slots: GridContainer
 var _buy: Button
 var _mult_seg: Segmented
 const MULTS := [1, 10, 100, 0]   # 0 = Max
+var _mult := 1
 var _unit_note: Label
 var _exp_title: Label
 var _exp_body: Label
@@ -79,9 +80,10 @@ func build() -> void:
 	up.add_child(_mile)
 	# How many to buy at once: 1, 10, 100 or as many as you can afford.
 	_mult_seg = Segmented.new(["×1", "×10", "×100", "Max"])
-	_mult_seg.select(MULTS.find(int(Game.ui.get("buy_mult", 1))) if MULTS.has(int(Game.ui.get("buy_mult", 1))) else 0)
+	# Starts on ×1 every time, so a big Max from another company can't carry over.
+	_mult_seg.select(0)
 	_mult_seg.changed.connect(func(i: int):
-		Game.ui["buy_mult"] = MULTS[i]
+		_mult = MULTS[i]
 		refresh())
 	up.add_child(_mult_seg)
 	var bh := HBoxContainer.new()
@@ -96,7 +98,9 @@ func build() -> void:
 	add_child(_hold)
 	_buy.button_down.connect(func():
 		_held = 0
-		_hold.start(0.45))
+		# Holding keeps buying, but only on ×1, and only after a clear hold.
+		if _mult == 1:
+			_hold.start(0.7))
 	_buy.button_up.connect(func(): _hold.stop())
 	bh.add_child(_buy)
 
@@ -127,7 +131,10 @@ func build() -> void:
 	# Synergies: another company you own can boost this one.
 	var syns := Game.synergies_for(id)
 	if not syns.is_empty():
-		section("Synergies")
+		section("Partners")
+		var hint := UI.label("Pay once. Another company you own lifts this one.", 13, UI.SUB)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(hint)
 		var sc := card()
 		for i in range(syns.size()):
 			if i > 0:
@@ -174,9 +181,11 @@ func refresh() -> void:
 	var nm := Game.next_milestone(id)
 	_mile.visible = not nm.is_empty()
 	if not nm.is_empty():
-		_mile.text = "%d %s: income ×%s" % [int(nm[0]), b.get("units", "units"), str(nm[1])]
+		_mile.text = "At %d %s: income ×%s" % [int(nm[0]), b.get("units", "units"), str(nm[1])]
 	_refresh_synergies()
 	var cut := int(Data.MANAGER_CUT * 100.0)
+	# A fully expanded company has nothing left for a manager to do.
+	_mgr.get_parent().get_parent().visible = stage < Data.MAX_STAGE
 	if Game.has_manager(id):
 		_mgr.set_texts("Manager hired", "Expands for you · takes %d%%" % cut, "")
 		if not _mgr.has_meta("hired"):
@@ -259,38 +268,40 @@ func _refresh_synergies() -> void:
 	for sid in _syn_rows.keys():
 		var sy := Data.synergy(sid)
 		var r: Row = _syn_rows[sid]
-		var src := Data.business(sy[2])
+		var src_name: String = Game.biz[sy[2]]["name"] if Game.owns(sy[2]) else String(Data.business(sy[2])["name"])
 		var pct := "+%d%% income" % int(round((float(sy[5]) - 1.0) * 100.0))
+		r.value_l.add_theme_color_override("font_color", UI.SUB)
 		if Game.synergies.has(sid):
 			r.set_texts(sy[1], pct, "Owned")
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
-		elif not Game.owns(sy[2]):
-			r.set_texts(sy[1], "Needs %s" % src["name"], Game.money_short(float(sy[6])))
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
 		elif not Game.synergy_ready(sid):
-			r.set_texts(sy[1], "Needs %s stage %d" % [Game.biz[sy[2]]["name"], int(sy[3])], Game.money_short(float(sy[6])))
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
+			r.set_texts(sy[1], "Needs %s at stage %d" % [src_name, int(sy[3])], Game.money_short(float(sy[6])))
 		else:
-			r.set_texts(sy[1], pct, Game.money_short(float(sy[6])))
+			r.set_texts(sy[1], pct, "Buy · " + Game.money_short(float(sy[6])))
 			r.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= float(sy[6]) else UI.SUB)
 
 
 func _on_synergy(sid: String, r: Row) -> void:
+	## Tapping opens a short confirm, so a scroll that lands on a row can't spend.
+	Kit.tick()
 	if Game.synergies.has(sid):
 		return
-	if Game.buy_synergy(sid):
-		Kit.haptic("success")
-		Motion.pop(r, 1.04)
-		Kit.toast("%s · income up" % Data.synergy(sid)[1], true)
-		Game.flush_changes()
-	else:
-		Kit.haptic("error")
-		Motion.shake(r)
-		var sy := Data.synergy(sid)
-		if Game.synergy_ready(sid):
-			Kit.toast("Need %s more" % Game.money_short(float(sy[6]) - Game.cash))
-		else:
-			Kit.toast("Not ready yet")
+	var sy := Data.synergy(sid)
+	var src_name: String = Game.biz[sy[2]]["name"] if Game.owns(sy[2]) else String(Data.business(sy[2])["name"])
+	var pct := int(round((float(sy[5]) - 1.0) * 100.0))
+	if not Game.synergy_ready(sid):
+		Kit.sheet(sy[1], "Get %s to stage %d first. Then this lifts %s by %d%%." % [src_name, int(sy[3]), Game.biz[id]["name"], pct], [{"text": "OK", "style": "plain"}])
+		return
+	var cost := float(sy[6])
+	var can := Game.cash >= cost
+	Kit.sheet(sy[1], "%s income +%d%%, for good." % [Game.biz[id]["name"], pct], [
+		{"text": ("Buy · " + Game.money_short(cost)) if can else "Need %s more" % Game.money_short(cost - Game.cash), "style": "primary", "disabled": not can, "call": func():
+			if Game.buy_synergy(sid):
+				Kit.haptic("success")
+				Motion.pop(r, 1.04)
+				Kit.toast("%s income +%d%%" % [Game.biz[id]["name"], pct], true)
+				Game.flush_changes()},
+		{"text": "Close", "style": "plain"},
+	])
 
 
 func _milestone_check(before: float) -> void:
@@ -300,14 +311,14 @@ func _milestone_check(before: float) -> void:
 	var b := Data.business(id)
 	Kit.sound("fanfare")
 	Kit.haptic("success")
-	Kit.toast("Milestone · %d %s · income ×%.2f" % [int(Game.biz[id]["units"]), b.get("units", "units"), Game.milestone_mult(id) / before], true)
+	Kit.toast("%d %s! Income ×%s" % [int(Game.biz[id]["units"]), b.get("units", "units"), str(snappedf(Game.milestone_mult(id) / before, 0.01))], true)
 	if not Motion.reduced():
 		add_child(Confetti.new(_units_value.global_position - global_position + Vector2(20, 0), 50))
 
 
 func _buy_n() -> int:
 	## Units the buy button gets right now, for the chosen ×1/×10/×100/Max.
-	return Game.bulk_count(id, int(Game.ui.get("buy_mult", 1)))
+	return Game.bulk_count(id, _mult)
 
 
 func _on_hold() -> void:

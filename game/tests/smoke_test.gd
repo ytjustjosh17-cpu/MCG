@@ -604,7 +604,7 @@ func _run() -> void:
 		game.cash = 1.0e15
 		game.buy_rig("HLO")
 	game.recalc()
-	_check(game.mining_capped() and game.mining_value_per_hour() <= game.income_per_hour * Data.MINE_CAP * 1.01 + 1.0, "all mining together is capped at 8 percent of income")
+	_check(game.mining_capped() and game.mining_value_per_hour() <= game.income_per_hour * game.mine_cap() * 1.01 + 1.0, "all mining together is capped (2% + 0.15% per miner)")
 	_check(not game.buy_rig("KRV") or game.rigs_total() <= Data.RIG_MAX, "never more than %d rigs" % Data.RIG_MAX)
 	var mv0: float = float(game.counters.get("mined_value", 0.0))
 	game.sim_time = game.now()
