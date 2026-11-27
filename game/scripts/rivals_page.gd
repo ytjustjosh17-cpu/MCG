@@ -73,14 +73,10 @@ func refresh() -> void:
 		ch.queue_free()
 	var passed := rows.size() - me - 1
 	var first := true
-	# Your row stays in view: only the two just above you, the rest folded.
-	var start := 0 if _top_open else maxi(0, me - 2)
-	if me > 2:
-		var t := Row.new("", "", false)
-		t.custom_minimum_size = Vector2(0, 48)
-		t.set_texts("Richer rivals (%d)" % me, "", "▴" if _top_open else "▾")
-		t.title_l.add_theme_color_override("font_color", UI.SUB)
-		t.value_l.add_theme_color_override("font_color", UI.SUB)
+	# Your row stays in view: the three richest rivals above you, the rest folded.
+	var start := 0 if _top_open else maxi(0, me - 3)
+	if me > 3:
+		var t := _toggle("Hide richer rivals" if _top_open else "Show %d more" % (me - 3), _top_open)
 		t.pressed.connect(func():
 			Kit.tick()
 			_top_open = not _top_open
@@ -101,7 +97,6 @@ func refresh() -> void:
 
 func _add_row(it: Dictionary, i: int, passed: bool) -> void:
 	var r := Row.new("", "", false)
-	r.custom_minimum_size = Vector2(0, 56)
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var num := UI.display(str(i + 1), 22, UI.RED if it["me"] else UI.DIM)
 	num.custom_minimum_size = Vector2(28, 0)
@@ -117,12 +112,28 @@ func _add_row(it: Dictionary, i: int, passed: bool) -> void:
 	_list.add_child(r)
 
 
-func _add_toggle(n: int) -> void:
+func _toggle(text: String, open: bool) -> Row:
+	## A quiet row that folds or unfolds a group; the chevron turns when open.
 	var t := Row.new("", "", false)
-	t.custom_minimum_size = Vector2(0, 48)
-	t.set_texts("Passed (%d)" % n, "", "▴" if _open else "▾")
+	t.set_texts(text)
 	t.title_l.add_theme_color_override("font_color", UI.SUB)
-	t.value_l.add_theme_color_override("font_color", UI.SUB)
+	var chev := Icon.new("chevron", UI.DIM, 16.0)
+	chev.custom_minimum_size = Vector2(16, 16)
+	chev.pivot_offset = Vector2(8, 8)
+	chev.rotation = -PI / 2.0 if open else PI / 2.0
+	chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# A plain holder: containers reset a child's rotation, so turn it inside.
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(16, 16)
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(chev)
+	t.value_l.get_parent().get_parent().add_child(holder)
+	return t
+
+
+func _add_toggle(n: int) -> void:
+	var t := _toggle("Hide passed rivals" if _open else "Passed (%d)" % n, _open)
 	t.pressed.connect(func():
 		Kit.tick()
 		_open = not _open

@@ -53,7 +53,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	if is_instance_valid(_view):
 		var used := _view.global_position.y
-		_view.custom_minimum_size.y = maxf(320.0, get_viewport_rect().size.y - used - 112.0)
+		_view.custom_minimum_size.y = maxf(320.0, get_viewport_rect().size.y - used - 104.0)
 
 
 func refresh() -> void:
@@ -63,7 +63,7 @@ func refresh() -> void:
 	var pend := Game.rebirth_pending()
 	var owned := Game.tree_owned_count()
 	var total := RebirthTree.nodes().size() - 1
-	_sub.text = "Rebirths %d · tree %d of %d" % [Game.rebirths(), owned, total]
+	_sub.text = "Rebirths %d · %d of %d nodes" % [Game.rebirths(), owned, total]
 	# Waiting pays: show what ten times the net worth would give.
 	var nw := maxf(Game.net_worth(), Data.REBIRTH_MIN)
 	var later := int(floor(10.0 * pow(nw * 10.0 / Data.REBIRTH_MIN, 1.0 / 3.0) * (1.0 + minf(0.5, Game.rb("rbp")))))
@@ -131,6 +131,7 @@ func _on_node(id: String) -> void:
 	elif Game.rbp_free() < cost:
 		body += "\n\nCosts %d RBP. You have %d." % [cost, Game.rbp_free()]
 	else:
+		body += "\n\nYou have %d RBP." % Game.rbp_free()
 		actions.append({"text": "Buy · %d RBP" % cost, "style": "primary", "call": func():
 			if Game.buy_node(id):
 				Kit.haptic("success")
@@ -168,8 +169,8 @@ class TreeView extends Control:
 		col.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 		col.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		col.grow_vertical = Control.GROW_DIRECTION_BEGIN
-		col.offset_right = -10
-		col.offset_bottom = -10
+		col.offset_right = -8
+		col.offset_bottom = -8
 		add_child(col)
 		for spec in [["+", 1.25], ["-", 0.8], ["o", 0.0]]:
 			var b := UI.pill("" if spec[0] == "o" else String(spec[0]), Color(UI.RAISED, 0.72), UI.TEXT, 20, 0)
@@ -357,7 +358,7 @@ class TreeView extends Control:
 			closed.append(pts[0])
 			draw_polyline(closed, ring, 2.0 if st >= 0 else 1.0, true)
 			if String(n["kind"]) == "unlock":
-				draw_arc(p, r + 5.0, 0.0, TAU, 40, UI.GOLD if st != 2 else UI.TEXT, 2.0, true)   # unlocks glow gold
+				draw_arc(p, r + 5.0, 0.0, TAU, 40, UI.TEXT if st >= 1 else UI.SUB, 2.0, true)   # unlocks get an outer ring
 			var tex := Icon.texture(Icon.MAP.get(String(n["icon"]), String(n["icon"])), st == 2)
 			if tex and r >= 9.0:
 				var s := r * 1.1
@@ -366,14 +367,42 @@ class TreeView extends Control:
 				draw_arc(p, r + 4.0 + (1.0 - _flash_t) * 18.0, 0.0, TAU, 40, Color(UI.RED, _flash_t), 3.0, true)
 		# Branch names beside each gate, so the map reads at a glance.
 		var f: Font = UI.SEMI
+		var keep_out := Rect2(size.x - 8.0 - 3.0 * 48.0 - 16.0, size.y - 8.0 - 48.0 - 8.0, 3.0 * 48.0 + 24.0, 64.0)   # the zoom buttons
 		for br in RebirthTree.BRANCHES:
-			var g := RebirthTree.node(String(br[0]) + "_t1")
-			var gp := to_screen(g)
-			# Beside the trunk, on its clockwise side, clear of the line.
-			var out := Vector2(float(g["x"]), float(g["y"])).normalized()
-			var side := Vector2(-out.y, out.x)
-			var lp := gp + side * (_radius(g) + 34.0) + Vector2(0, 4)
-			draw_string(f, lp - Vector2(60, 0), String(br[1]).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 11, Color(UI.SUB, 0.9))
+			var txt := String(br[1]).to_upper()
+			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+			# Try beside the first three trunk nodes, on either side, and keep
+			# the spot furthest from every node (and off the buttons).
+			var best_x := 0.0
+			var best_pos := Vector2.ZERO
+			var best_score := -1.0e9
+			for k in [1, 2, 3]:
+				var g := RebirthTree.node("%s_t%d" % [br[0], k])
+				var gp := to_screen(g)
+				var out := Vector2(float(g["x"]), float(g["y"])).normalized()
+				for sd in [1.0, -1.0]:
+					var lp: Vector2 = gp + Vector2(-out.y, out.x) * sd * (_radius(g) + 34.0) + Vector2(0, 4)
+					var x := clampf(lp.x - tw * 0.5, 6.0, maxf(6.0, size.x - tw - 6.0))
+					var box := Rect2(x - 4.0, lp.y - 14.0, tw + 8.0, 20.0)
+					var score := 1.0e6
+					for n in ns:
+						var q := to_screen(n)
+						var cx := clampf(q.x, box.position.x, box.end.x)
+						var cy := clampf(q.y, box.position.y, box.end.y)
+						score = minf(score, Vector2(cx, cy).distance_to(q) - _radius(n))
+					if box.intersects(keep_out):
+						score -= 100.0
+					if box.position.y < 2.0 or box.end.y > size.y - 2.0:
+						score -= 50.0
+					score -= float(k) * 2.0   # nearer the centre wins a tie
+					if score > best_score:
+						best_score = score
+						best_x = x
+						best_pos = lp
+			var tp := Vector2(best_x, best_pos.y)
+			# A dark halo keeps the name readable over lines and nodes.
+			draw_string_outline(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 5, Color(UI.WINDOW, 0.95))
+			draw_string(f, tp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UI.SUB)
 
 	func _shape(kind: String, p: Vector2, r: float) -> PackedVector2Array:
 		## Circle for small, diamond for notable, hexagon for keystones,

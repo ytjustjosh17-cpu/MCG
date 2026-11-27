@@ -2,6 +2,11 @@
 
 ## Dividend %, bigger dividends, news filter, nothing cut off
 
+- To claim lists show a "Claim" pill on each row and the first five, with
+  "Show N more". Goals: one bar edge, no bar when done, streak as a chip,
+  "All done" line with the reset time. Rivals show three above you. Charts
+  have start and end labels. Rebirth tree: readable branch names, quieter
+  rings, "You have N RBP" before Buy.
 - Dividends now pay 1% to 5% a day by company (steady payers more, growth
   companies less), still once an hour. Robot: 90% day 36 to 38, unchanged.
 - News has All, Shares and Crypto filters, and opens on the one for the
