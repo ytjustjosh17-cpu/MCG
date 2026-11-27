@@ -50,6 +50,7 @@ The scale is 40 (display), 28 (big value), 17 (titles, body), 15 (secondary), 13
 ## Layout
 
 - Portrait, designed at 390 × 844. 16 px side gutter everywhere.
+- Landscape (1.2), designed at 844 × 390 so text is the same size on the phone. The tab bar is a 64 px rail on the left with Back under it; pages are a centred column up to 600 px (`Kit.COLUMN_MAX`; a page can set `wide`). Pop-ups are at most 420 px wide (720 for trade sheets) and scroll when taller than the screen. Earn, the casino games, the rebirth tree and the trade sheets have their own side-by-side layouts. Rotation re-lays out live and never rebuilds. Settings > Auto-rotate turns it off.
 - Cards: `PANEL`, radius 16, 12 px between cards. Rows 56 px (60 with a sub-line), dividers inset to the text.
 - Buttons and controls are at least 48 px each way (Android's 48 dp touch target): primary 52, secondary 48, segmented 48, drop-downs 48; the casino's main button is 56.
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.

@@ -410,9 +410,9 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.2"
 const WHATS_NEW := [
+	"Turn your phone: every screen works in landscape.",
 	"Records: your all-time bests, in Profile.",
-	"30 rivals with real-looking fortunes.",
-	"A bigger rebirth tree with a clearer map.",
+	"30 rivals and a bigger rebirth tree.",
 	"Items show what they give you in £ an hour.",
 	"Cheaper late expansions; fairer prices.",
 ]

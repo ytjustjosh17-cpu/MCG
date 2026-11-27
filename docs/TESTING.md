@@ -15,6 +15,8 @@ Run them yourself first. A release with a failing test is never pushed.
 
 ## One command
 
+`SHOT_LAND=1 tools/shots.sh <dir>` renders every screen in landscape (844 x 390). `fit_test -- land` and `landscape_test` check every screen sideways (both run in check_all and CI); `casino12_test`, `scroll_test` and `smoke_test` include landscape and live-rotation checks.
+
 `tools/check_all.sh` runs the rules and every suite in 4 parallel lanes (each in its own copy of the game and user folder), about 2 minutes. `--quick` runs rules, smoke and the touch test. `tools/shots.sh` renders the screenshots. `tools/release.sh` checks, pushes and waits for the build.
 
 ## The checks

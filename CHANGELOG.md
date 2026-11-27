@@ -1,5 +1,16 @@
 # Changelog
 
+## Landscape
+
+- Turn your phone: every screen works sideways as well as upright. The tab
+  bar becomes a rail on the left with Back under it, pages sit in a centred
+  column, Earn puts your money and buttons beside the tower, casino games
+  put the table on the left and the controls on the right, and pop-ups use
+  two columns so their button is always in view.
+- Turning the phone keeps whatever is open: pages, pop-ups, typed amounts
+  and casino rounds.
+- Settings > Auto-rotate (on). Turn it off to keep the game upright.
+
 ## Records, 30 rivals, a bigger tree, clearer items, fairer prices
 
 - Records (Profile): richest you've been, best income, best day, best
