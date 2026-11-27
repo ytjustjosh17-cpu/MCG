@@ -50,8 +50,8 @@ The scale is 40 (display), 28 (big value), 17 (titles, body), 15 (secondary), 13
 ## Layout
 
 - Portrait, designed at 390 × 844. 16 px side gutter everywhere.
-- Cards: `PANEL`, radius 16, 12 px between cards. Rows 56 to 72 px tall, dividers inset to the text.
-- Buttons and controls are at least 48 px each way (Android's 48 dp touch target): primary and secondary 48, segmented 48, drop-downs 48.
+- Cards: `PANEL`, radius 16, 12 px between cards. Rows 56 px (60 with a sub-line), dividers inset to the text.
+- Buttons and controls are at least 48 px each way (Android's 48 dp touch target): primary 52, secondary 48, segmented 48, drop-downs 48; the casino's main button is 56.
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
 - Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
 - Cash you can spend is always shown: big on Earn, and as a small glass pill at the top right on every other screen (`main.gd`), fixed while you scroll.
@@ -147,7 +147,7 @@ One word per idea, everywhere: "units" (not outlets/spaces), "Stage", "Expand", 
 - Text under 13 px. `DIM` as a text colour. Grey text on a grey card. Text over busy art without a panel behind it.
 - Two equal primary buttons stacked. A full-width destructive button as loud as Buy.
 - Normal data that looks disabled. Disabled buttons with no reason shown.
-- Tappable rows with no chevron or trailing pill. A lone chip on its own line. "▾" text as a control (use `Kit.drop_pill` or the chevron icon).
+- Tappable rows with no chevron or trailing pill. A lone chip on its own line. A loose "▾" as a control: drop-downs always use the `Kit.drop_pill` look.
 - Different controls for the same job on similar screens. Per-page row heights and paddings.
 - Empty space over 120 px at the bottom of a screen.
 - Pop-ups that open by themselves during play (deals, offers). Celebrations never block taps.
