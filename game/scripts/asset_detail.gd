@@ -15,6 +15,7 @@ var _own_card: Control
 var _own: Label
 var _profit: Label
 var _tail := ""
+var _div: Label
 var _news_title: Control
 var _sell: Button
 var _convert: Button
@@ -55,7 +56,7 @@ func build() -> void:
 	hv.add_theme_constant_override("separation", 0)
 	head.add_child(hv)
 	# The title already names it: ticker and sector ride on the change line.
-	_tail = (" · %s · %s · pays %s a share /h" % [sym, a[4], price_text(Game.dividend_rate(sym))]) if kind == "share" else " · %s" % sym
+	_tail = (" · %s · %s" % [sym, a[4]]) if kind == "share" else " · %s" % sym
 	_price = UI.display("", 40)
 	hv.add_child(_price)
 	_change = UI.label("", 13)
@@ -63,6 +64,9 @@ func build() -> void:
 	_change.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hv.add_child(_change)
+	if kind == "share":
+		_div = UI.label("", 13, UI.SUB)
+		hv.add_child(_div)
 	_chart = PriceChart.new(sym, "1H", true)
 	_chart.line_col = UI.asset_color(sym)
 	_chart.show_range = true
@@ -184,6 +188,10 @@ func refresh() -> void:
 		var move := Game.change_pct(sym, RANGE_MIN[_seg.index])
 		_change.text = "%s · %s%s" % [change_text(move), RANGES[_seg.index], _tail]
 		_change.add_theme_color_override("font_color", UI.change_color(move))
+		if _div:
+			# A set amount per share each hour; as a % it moves with the price.
+			var pct := Game.dividend_rate(sym) * 24.0 / maxf(Game.price(sym), 0.0001) * 100.0
+			_div.text = "Dividend %.2f%% a day · %s a share /h" % [pct, price_text(Game.dividend_rate(sym))]
 		_chart.queue_redraw()
 	var book := _book()
 	var free := Game.holding(book, sym)

@@ -224,7 +224,7 @@ const UPGRADES := [
 	["lock", "Better vault", "Locked coins earn 25% more", 1.0e8],
 	["mine", "Cooler miners", "Miners earn 25% more", 1.0e9],
 	["away2", "Weekend staff", "Earn while away up to 12 h", 2.0e10],
-	["fast2", "Express permits", "Expansions another 15% quicker", 2.0e11],
+	["fast2", "Express permits", "Expansions 15% quicker again", 2.0e11],
 	["mgr", "Better managers", "Managers take 6%, not 10%", 2.0e12],
 ]
 const MANAGER_CUT := 0.10        # share of that company's income they keep

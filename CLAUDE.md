@@ -30,7 +30,7 @@ Read this file before changing anything. Then read the doc for the area you touc
 
 - Follow the `sol-feature` skill (`.claude/skills/sol-feature/SKILL.md`) for every change request.
 - `tools/check_all.sh --quick` while working (rules, smoke, touch: about 1 minute).
-- `tools/check_all.sh` before committing (rules and all 10 suites in 4 parallel lanes: about 2 minutes). It finds or downloads Godot 4.4.1 itself.
+- `tools/check_all.sh` before committing (rules and all 11 suites in 4 parallel lanes: about 2 minutes). It finds or downloads Godot 4.4.1 itself.
 - `tools/shots.sh` renders every screen to `/tmp/sol-shots`.
 - `tools/release.sh` only after the owner says "push": checks, pushes, waits for the build, prints the version.
 
@@ -70,7 +70,7 @@ If you changed a screen, take screenshots and look at them (TESTING.md).
 | R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`, extra keys) | Clean repo |
 | R9 | No `print()` in game code; use `GameLog.info()` | Logs go in the problem report |
 | R10 | Pushed pages are marked `super(title, true)`; the back button sits in the bottom bar (`main.gd`) | Never trap the player |
-| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, forge, casino 1.2, slots UI, tables UI, forge UI) | CI runs them |
+| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, forge, casino 1.2, fit, slots UI, tables UI, forge UI) | CI runs them |
 
 Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 

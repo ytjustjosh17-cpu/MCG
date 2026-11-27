@@ -1,5 +1,13 @@
 # Changelog
 
+## Dividend %, nothing cut off
+
+- A share's page now shows its dividend as a % a day (it moves with the
+  price) next to the set amount it pays per share each hour.
+- A new check opens every screen with huge numbers and long names and fails
+  if any text is cut off or off screen. Fixed the few it found (Head
+  office, Mergers, the casino row).
+
 ## 1.2.0
 
 - Bank (Profile > Bank): save cash for 0.2% interest an hour (capped), and
