@@ -279,3 +279,57 @@ func _pages() -> void:
 	_ok(not g.wheel_ready() and g.spin_wheel().is_empty(), "wheel: only once a day")
 	g.reduce_motion = false
 	g.reset_game(true)
+
+	# Landscape (1.2): the phone on its side. Every game: the main button fully
+	# on screen and right of the tab rail, the table at least 300 px wide.
+	g.grant_node("u_casino")   # earlier parts of this test start new games
+	g.grant_node("u_tables")
+	g.casino["chips"] = 5.0e5
+	root.size = Vector2i(844, 390)
+	await create_timer(0.6).timeout
+	var lkit = root.get_node("Kit")
+	_ok(lkit.landscape, "landscape: the frame switches when the screen is wider than tall")
+	var lrail: float = main._nav.get_global_rect().end.x
+	var lvr: Rect2 = root.get_visible_rect()
+	for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
+			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
+			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+		var llp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
+		main.push(llp)
+		await create_timer(0.8).timeout
+		var lname: String = pa[0].get_file().get_basename()
+		var llast: Control = llp.dock.get_child(llp.dock.get_child_count() - 1)
+		var lr: Rect2 = llast.get_global_rect()
+		_ok(lr.end.y <= lvr.size.y + 0.5 and lr.position.y >= 0.0 and lr.end.x <= lvr.size.x + 0.5 and lr.position.x >= lrail, "landscape %s: the main button is on screen, right of the rail (%s)" % [lname, str(lr)])
+		_ok(llast.size.y >= 55.5, "landscape %s: the main button is 56 px" % lname)
+		_ok(llp.area.size.x >= 300.0, "landscape %s: the table is at least 300 px wide (%.0f)" % [lname, llp.area.size.x])
+		_ok(llp.info_b.is_visible_in_tree() and llp.info_b.get_global_rect().end.y <= lvr.size.y, "landscape %s: the i button shows" % lname)
+		var lsmall := _small(llp)
+		_ok(lsmall.is_empty(), "landscape %s: every button is at least 48 px %s" % [lname, str(lsmall)])
+		main.pop()
+		await create_timer(0.5).timeout
+	# Turning the phone mid-round never touches the stake or the pay.
+	var lcp = load("res://scripts/crash_page.gd").new()
+	main.push(lcp)
+	await create_timer(0.8).timeout
+	var lc0: float = g.chips()
+	var lb0: float = float(g.counters.get("casino_bet", 0.0))
+	var lw0: float = float(g.counters.get("casino_won", 0.0))
+	lcp.play_button().pressed.emit()   # start a round (the tap itself is tested above)
+	await create_timer(0.2).timeout
+	root.size = Vector2i(390, 844)
+	await create_timer(0.3).timeout
+	root.size = Vector2i(844, 390)
+	await create_timer(0.3).timeout
+	if lcp.has_method("finish_for_test"):
+		await lcp.finish_for_test()
+	await create_timer(0.8).timeout
+	var lbet: float = float(g.counters.get("casino_bet", 0.0)) - lb0
+	var lwon: float = float(g.counters.get("casino_won", 0.0)) - lw0
+	_ok(lbet > 0.0 and absf(g.chips() - (lc0 - lbet + lwon)) < 0.01, "rotating mid-round: one bet, chips exact (bet %s, won %s)" % [g.money_short(lbet), g.money_short(lwon)])
+	_ok(lcp.dock.get_parent() == lcp.side, "after turning back to landscape the dock is in the side column again")
+	main.pop()
+	await create_timer(0.5).timeout
+	root.size = Vector2i(390, 844)
+	await create_timer(0.5).timeout
+	_ok(not lkit.landscape, "portrait again after turning back")

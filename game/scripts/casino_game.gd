@@ -9,6 +9,12 @@ extends Page
 ##                ONE primary button, 56 px, its bottom just above the nav bar
 ## Subclasses write build_game() (not build()) and fill `area` and `dock`.
 ##
+## Landscape (1.2): two columns. The game area on the left takes all the
+## height; title, status and dock stack in a 300 px column on the right with
+## the main button at its foot. Turning the phone only moves these nodes
+## between the two layouts: nothing is rebuilt, so a round in play, its stake
+## and the chips are never touched by a rotation.
+##
 ## Colour rule (design pass): the primary is a TEXT fill; RED only for the one
 ## live action (Cash out while climbing) or the winning thing; GOLD for wins.
 
@@ -19,6 +25,10 @@ var status: StatusRow
 var area: VBoxContainer
 var dock: VBoxContainer
 var info_b: Button
+var title_row: HBoxContainer
+var split: HBoxContainer      # landscape: [area | side]
+var side: VBoxContainer       # landscape: title, status, dock
+const SIDE_W := 300.0
 var auto_on := false         # autoplay (slots), shared so leaving always stops it
 var auto_left := 0
 
@@ -43,7 +53,18 @@ func build() -> void:
 	dock = VBoxContainer.new()
 	dock.add_theme_constant_override("separation", 8)
 	body.add_child(dock)
+	split = HBoxContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_theme_constant_override("separation", 16)
+	split.visible = false
+	body.add_child(split)
+	side = VBoxContainer.new()
+	side.custom_minimum_size.x = SIDE_W
+	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side.add_theme_constant_override("separation", 8)
 	build_game()
+	_apply_layout()
+	Kit.layout_changed.connect(func(_l: bool): _apply_layout())
 	visibility_changed.connect(func():
 		if not is_visible_in_tree():
 			stop_auto())
@@ -59,6 +80,7 @@ func _title_row() -> void:
 		return
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	title_row = row
 	var at := _title_label.get_index()
 	body.remove_child(_title_label)
 	body.add_child(row)
@@ -67,12 +89,7 @@ func _title_row() -> void:
 	_title_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	# Tanker 36, smaller for a long name so it stays on one line.
-	var avail := 358.0 - 56.0
-	var fs := 36
-	while fs > 24 and UI.DISPLAY.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > avail:
-		fs -= 2
-	_title_label.add_theme_font_size_override("font_size", fs)
+	_fit_title()
 	info_b = UI.pill("", UI.RAISED, UI.TEXT, 15, 24)
 	info_b.custom_minimum_size = Vector2(48, 48)
 	info_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -84,6 +101,82 @@ func _title_row() -> void:
 		show_info())
 	Kit.press_fx(info_b)
 	row.add_child(info_b)
+
+
+func _fit_title() -> void:
+	## Tanker 36, smaller for a long name so it stays on one line (in landscape
+	## the title shares the 300 px side column).
+	if _title_label == null:
+		return
+	var avail := (SIDE_W if Kit.landscape else 358.0) - 56.0
+	var fs := 36 if not Kit.landscape else 30
+	while fs > 22 and UI.DISPLAY.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > avail:
+		fs -= 2
+	_title_label.add_theme_font_size_override("font_size", fs)
+
+
+func _move(n: Control, to: Control) -> void:
+	if n == null or n.get_parent() == to:
+		return
+	if n.get_parent() != null:
+		n.get_parent().remove_child(n)
+	to.add_child(n)
+
+
+func _apply_layout() -> void:
+	## Portrait: title, status, area, dock down the page. Landscape: area on the
+	## left, the rest in a column on the right. Only re-parents; never rebuilds.
+	if split == null or area == null:
+		return
+	var land := Kit.landscape
+	if land:
+		_move(area, split)
+		_move(side, split)
+		for n in [title_row, status, dock]:
+			_move(n, side)
+		# The dock sits at the foot of the side column.
+		var spacer := side.get_node_or_null("DockSpacer")
+		if spacer == null:
+			spacer = Control.new()
+			spacer.name = "DockSpacer"
+			spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			side.add_child(spacer)
+		side.move_child(spacer, side.get_child_count() - 1)
+		side.move_child(dock, side.get_child_count() - 1)
+		area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		split.visible = true
+	else:
+		var order := [title_row, status, area, dock]
+		for n in order:
+			_move(n, body)
+		var i := 1   # after the gap that keeps clear of the cash pill
+		for n in order:
+			if n != null:
+				body.move_child(n, i)
+				i += 1
+		split.visible = false
+	_fit_title()
+	_fit_column()
+	layout_changed_game(land)
+
+
+func layout_changed_game(_landscape: bool) -> void:
+	## Games that need more than the frame's move (e.g. a fixed board size) override this.
+	pass
+
+
+func _fit_column() -> void:
+	## The table uses the whole width in landscape (no 600 px column), and the
+	## main button sits just above the bottom edge.
+	if _margin == null:
+		return
+	if Kit.landscape:
+		_margin.add_theme_constant_override("margin_left", 16)
+		_margin.add_theme_constant_override("margin_right", 16)
+		_margin.add_theme_constant_override("margin_bottom", 12)
+	else:
+		super()
 
 
 # ---- the "i" sheet ---------------------------------------------------------------

@@ -1,5 +1,5 @@
 class_name WheelSheet
-extends VBoxContainer
+extends BoxContainer
 ## The free daily wheel: eight segments from Data.WHEEL. The prize is worked
 ## out and paid by Game.spin_wheel() first; the wheel then spins to it.
 
@@ -12,20 +12,38 @@ static func open() -> void:
 	Kit.sheet("Daily wheel", "", [{"text": "Close", "style": "plain"}], true, WheelSheet.new())
 
 
+var _right: VBoxContainer
+
+
 func _ready() -> void:
 	add_theme_constant_override("separation", 12)
 	_view = WheelView.new()
-	_view.custom_minimum_size = Vector2(0, 260)
 	add_child(_view)
+	# Prize and button together, so landscape can put them beside the wheel.
+	_right = VBoxContainer.new()
+	_right.add_theme_constant_override("separation", 12)
+	_right.alignment = BoxContainer.ALIGNMENT_CENTER
+	_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(_right)
 	_prize = UI.display("", 32)
 	_prize.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(_prize)
+	_prize.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_right.add_child(_prize)
 	_btn = UI.pill("", UI.TEXT, UI.INK, 17, 24)
 	_btn.custom_minimum_size = Vector2(0, 52)
 	_btn.pressed.connect(_spin)
 	Kit.press_fx(_btn)
-	add_child(_btn)
+	_right.add_child(_btn)
+	_layout()
+	Kit.layout_changed.connect(func(_l: bool): _layout())
 	_show()
+
+
+func _layout() -> void:
+	## Portrait: wheel, prize, button down the card. Landscape (only 390 high):
+	## the wheel on the left, prize and button beside it.
+	vertical = not Kit.landscape
+	_view.custom_minimum_size = Vector2(190, 190) if Kit.landscape else Vector2(0, 260)
 
 
 func _show() -> void:
