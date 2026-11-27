@@ -150,6 +150,14 @@ func _session(active_s: float) -> void:
 	g.ibost_ready() and g.start_ibost()
 	g._check_achievements()
 	g.claim_all()   # claims every waiting reward before spending, like a player would
+	# Season boosts start on claim; the robot's taps are instant, so pay what
+	# they'd give over their real length (as for the golden sun's buffs).
+	if g.rush_active():
+		g._earn(g.income_per_hour * maxf(0.0, g.rush_until - g.now()) / 3600.0)
+		g.rush_until = 0.0
+	if g.frenzy_active():
+		g._earn(g.tap_value() * (Data.FRENZY_MULT - 1.0) * maxf(0.0, g.frenzy_until - g.now()) * 3.0)
+		g.frenzy_until = 0.0
 	_spend()
 	g.claim_all()
 	g._check_achievements()

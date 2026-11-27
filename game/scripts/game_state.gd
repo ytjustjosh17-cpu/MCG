@@ -15,7 +15,7 @@ signal auto_tapped(count: int, amount: float)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 18
+const SAVE_VERSION := 19
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -73,6 +73,7 @@ var achieved := {}     # id -> true
 var counters := {}     # name -> number
 var daily := {}        # {day, tasks: [{id, text, goal, progress, reward, done}]}
 var weekly := {}       # {week, tasks: [...]}, same shape as daily
+var season := {}       # {week, pts, got: [milestone indexes reached]} (v19): weekly points bar
 var deal := {}         # the offer waiting for an answer, if any
 var deal_wait := 1500.0  # seconds of play until the next deal
 var div_hour := -1         # last whole clock hour dividends were paid for (v15)
@@ -363,6 +364,9 @@ func tap(combo_bonus := 1.0) -> float:
 		_bump("crits")
 	var v := tap_value() * mult * clampf(combo_bonus, 1.0, Data.COMBO_MAX_MULT)
 	_record("best_tap", v)
+	if float(counters.get("tap_day", -1.0)) != float(_today()):
+		counters["tap_day"] = float(_today())   # the day's first tap: a few season points, once
+		season_add(Data.SEASON_PTS["first_tap"])
 	taps += 1
 	last_tap_at = now()
 	_task_progress("taps", 1)
@@ -646,6 +650,7 @@ func catch_sun() -> float:
 	## Returns the cash paid (0 for a buff); last_sun says which it was.
 	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	_bump("suns")
+	season_add(Data.SEASON_PTS["sun"])
 	var pick := _tap_rng.randf()
 	if pick >= Data.SUN_CASH_CHANCE:
 		if pick < Data.SUN_CASH_CHANCE + Data.SUN_FRENZY_CHANCE:
@@ -2083,6 +2088,7 @@ func _advance(book: Dictionary, id: String, n: float, scope: String) -> void:
 				t["key"] = "goal:%s:%d:%s" % [scope, period, String(t["id"])]
 				add_reward(String(t["key"]), "goal", String(t["text"]), r)   # waits for a tap
 				_bump("goals_done")
+				season_add(Data.SEASON_PTS["daily"] if scope == "daily" else Data.SEASON_PTS["weekly"])
 				goal_done.emit(scope, String(t["text"]), r)
 
 
@@ -2140,6 +2146,68 @@ func week_left() -> float:
 	return float(_week() + 1) * 7.0 * 86400.0 - 3.0 * 86400.0 - _local_now()
 
 
+# ---- weekly season track (1.2) --------------------------------------------
+# Goals, golden suns and the day's first tap add points to one bar a week.
+# Reaching a milestone puts a reward in the claim list at once, with its
+# amount fixed then (hours of income at that moment), so waiting never pays
+# more. Boost milestones (Rush, Frenzy) start when claimed.
+
+func _ensure_season() -> void:
+	var w := _week()
+	if season.is_empty() or w > int(season.get("week", -1)):
+		season = {"week": w, "pts": 0.0, "got": []}
+
+
+func season_add(pts: float) -> void:
+	_ensure_season()
+	season["pts"] = float(season["pts"]) + pts
+	var got: Array = season["got"]
+	for i in range(Data.SEASON.size()):
+		var m: Array = Data.SEASON[i]
+		if i in got or float(season["pts"]) < float(m[0]):
+			continue
+		got.append(i)
+		var key := "season:%d:%d" % [int(season["week"]), i]
+		var kind := String(m[1])
+		if kind == "cash":
+			var amt := maxf(Data.SEASON_MIN_CASH, income_per_hour * float(m[2]))
+			add_reward(key, "season", "Season · %d pts" % int(m[0]), amt)
+		else:
+			add_reward(key, "season", "Season · %s" % ("Rush" if kind == "rush" else "Frenzy"), 0.0)
+			var r := reward_for(key)
+			if not r.is_empty():
+				r["boost"] = kind
+	_mark()
+
+
+func season_pts() -> float:
+	_ensure_season()
+	return float(season["pts"])
+
+
+func season_week_left_s() -> float:
+	return maxf(0.0, week_left())
+
+
+func season_milestones() -> Array:
+	## [{pts, kind ("cash"/"rush"/"frenzy"), amount (cash: fixed once reached,
+	## else what it would pay now), reached, claimed, key}]
+	_ensure_season()
+	var out: Array = []
+	var got: Array = season["got"]
+	for i in range(Data.SEASON.size()):
+		var m: Array = Data.SEASON[i]
+		var key := "season:%d:%d" % [int(season["week"]), i]
+		var reached: bool = i in got
+		var waiting := reward_for(key)
+		var amt := 0.0
+		if String(m[1]) == "cash":
+			amt = float(waiting.get("amount", 0.0)) if not waiting.is_empty() else maxf(Data.SEASON_MIN_CASH, income_per_hour * float(m[2]))
+		out.append({"pts": float(m[0]), "kind": String(m[1]), "amount": amt, "reached": reached,
+			"claimed": reached and waiting.is_empty(), "key": key})
+	return out
+
+
 # ---- rewards you claim with a tap -----------------------------------------
 
 func add_reward(key: String, kind: String, title: String, amount: float) -> void:
@@ -2165,6 +2233,11 @@ func claim(key: String) -> float:
 		if String(r.get("key", "")) == key:
 			rewards.remove_at(i)
 			var v := float(r.get("amount", 0.0))
+			match String(r.get("boost", "")):
+				"rush":
+					rush_until = maxf(rush_until, now()) + Data.RUSH_S
+				"frenzy":
+					frenzy_until = maxf(frenzy_until, now()) + Data.FRENZY_S
 			if String(r.get("kind", "")) == "ach":
 				_earn(v)
 			else:
@@ -2583,7 +2656,7 @@ func to_dict() -> Dictionary:
 		"biz": biz, "shares": shares, "coins": coins, "prices": prices, "price_hist": price_hist,
 		"hist_q": hist_q, "hist_h": hist_h, "moods": moods, "coin_shift": coin_shift, "trends": trends, "fair_log": fair_log, "news": news,
 		"props": props, "items": items, "mergers": mergers, "synergies": synergies, "miners": miners, "mine_target": mine_target, "upgrades": upgrades, "auto_level": auto_level, "bank": bank, "rewards": rewards, "rebirth": rebirth, "casino": casino, "mine_eff": mine_eff, "achieved": achieved, "home": home,
-		"counters": counters, "daily": daily, "weekly": weekly, "history": history,
+		"counters": counters, "daily": daily, "weekly": weekly, "season": season, "history": history,
 		"deal_wait": deal_wait, "div_hour": div_hour, "payouts": payouts, "deal": deal,
 		"ui": ui, "streak": streak, "streak_day": streak_day,
 		"sun_wait": sun_wait, "sun_day": sun_day, "sun_count": sun_count,
@@ -2834,6 +2907,12 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 			cs["rivals"] = float(passed)
 			d["counters"] = cs
 		v = 18
+	if v < 19:
+		# v19: the weekly season bar starts empty. (Company upgrade paths, term
+		# savings and days played live inside biz, bank and counters with
+		# defaults, so they need nothing here.)
+		d["season"] = d.get("season", {})
+		v = 19
 	d["version"] = v
 	return d
 
@@ -2935,6 +3014,7 @@ func _reset_state() -> void:
 	counters = {}
 	daily = {}
 	weekly = {}
+	season = {}
 	deal = {}
 	ui = {}
 	streak = 0
@@ -3007,6 +3087,7 @@ func load_game() -> void:
 	counters = d.get("counters", {})
 	daily = d.get("daily", {})
 	weekly = d.get("weekly", {})
+	season = d.get("season", {})
 	deal_wait = float(d.get("deal_wait", 1500.0))
 	div_hour = int(d.get("div_hour", -1))
 	deal = d.get("deal", {})
@@ -3228,7 +3309,7 @@ const REBIRTH_RESET := ["cash", "level", "boost_until", "boost_ready_at", "ibost
 	"upgrades", "auto_level", "bank", "rewards", "home", "deal", "payouts", "history"]
 const REBIRTH_KEEP := ["total_earned", "taps", "boosts_used", "prices", "price_hist", "hist_q", "hist_h",
 	"moods", "coin_shift", "trends", "fair_log", "news", "mine_eff", "achieved", "counters", "daily",
-	"weekly", "deal_wait", "div_hour", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
+	"weekly", "season", "deal_wait", "div_hour", "ui", "streak", "streak_day", "sun_wait", "sun_day", "sun_count", "vibrate",
 	"reduce_motion", "started_at", "rebirth", "casino"]   # casino: the unlock stays, chips are cleared
 
 
@@ -3339,6 +3420,7 @@ func do_rebirth() -> int:
 	counters = keep["counters"]
 	daily = keep["daily"]
 	weekly = keep["weekly"]
+	season = keep["season"]
 	deal_wait = float(keep["deal_wait"])
 	div_hour = int(keep["div_hour"])
 	ui = keep["ui"]

@@ -283,6 +283,11 @@ const SUN_CASH_CHANCE := 0.5
 const SUN_FRENZY_CHANCE := 0.3       # the rest is a Rush
 const FRENZY_MULT := 5.0             # taps ×5 (instead of the ×3 boost, not on top)
 const FRENZY_S := 20.0
+# Weekly season bar (1.2): points per thing done, and the milestones.
+# cash = hours of income fixed when reached; rush / frenzy start when claimed.
+const SEASON_PTS := {"daily": 10.0, "weekly": 25.0, "sun": 2.0, "first_tap": 5.0}
+const SEASON := [[30, "cash", 1.5], [70, "rush"], [120, "cash", 3.0], [180, "frenzy"], [250, "cash", 6.0]]
+const SEASON_MIN_CASH := 2000.0
 const RUSH_S := 600.0                # +1× income for 10 minutes, only while playing
 const CRIT_BASE := 0.04              # chance of a critical tap, +0.2% per level
 const CRIT_PER_LEVEL := 0.002

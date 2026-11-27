@@ -977,6 +977,44 @@ func _run() -> void:
 	bk_old["version"] = 16
 	bk_old.erase("bank")
 	_check(game._migrate(bk_old).has("bank"), "v16 saves load with an empty bank")
+	# 1.2 season bar: points from goals, suns and the day's first tap; milestones
+	# land in the claim list with the amount fixed; it resets each week.
+	game.reset_game(true)
+	game.sim_time = 1.9e9
+	game.recalc()
+	game.income_per_hour = 1000.0
+	game.season_add(25.0)
+	_check(game.season_pts() == 25.0 and game.unclaimed("season") == 0, "season: 25 points, no milestone yet")
+	game.season_add(10.0)
+	var sm: Array = game.season_milestones()
+	_check(sm[0]["reached"] and not sm[0]["claimed"] and game.unclaimed("season") == 1, "season: 30 points reaches the first milestone")
+	var fixed: float = float(sm[0]["amount"])
+	game.income_per_hour = 1.0e9
+	_check(is_equal_approx(float(game.season_milestones()[0]["amount"]), fixed), "season: a reached prize is fixed (waiting can't pay more)")
+	game.season_add(40.0)
+	game.rush_until = 0.0
+	game.claim_all("season")
+	_check(game.rush_active() and game.unclaimed("season") == 0 and game.season_milestones()[1]["claimed"], "season: claiming the Rush milestone starts Rush")
+	game.rush_until = 0.0
+	game.season_add(500.0)
+	game.season_add(500.0)
+	_check(game.unclaimed("season") == 3, "season: each milestone pays once")
+	var sd: Dictionary = game.to_dict()
+	game.sim_time += 8.0 * 86400.0
+	_check(game.season_pts() == 0.0 and game.season_milestones()[0]["reached"] == false, "season: a new week starts an empty bar")
+	game.sim_time -= 8.0 * 86400.0
+	_check(game.season_week_left_s() > 0.0 and game.season_week_left_s() <= 7.0 * 86400.0, "season: time left this week")
+	var s18: Dictionary = sd.duplicate(true)
+	s18["version"] = 18
+	s18.erase("season")
+	_check(game._migrate(s18).has("season"), "v18 saves load with an empty season bar")
+	var td0 := int(game.counters.get("tap_day", -1))
+	var sp0: float = game.season_pts()
+	game.tap()
+	game.tap()
+	_check(game.season_pts() <= sp0 + 5.0 and int(game.counters.get("tap_day", -1)) != td0 or game.season_pts() == sp0, "season: the day's first tap adds 5 once, more taps add nothing")
+	game.sim_time = -1.0
+	game.reset_game(true)
 	# 1.2 records and rivals.
 	_check(Data.RIVALS.size() >= 30, "at least 30 rivals")
 	var round_worths := 0
