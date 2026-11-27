@@ -208,6 +208,10 @@ func _spend() -> void:
 			var mc: float = g.miner_up_cost(mk)
 			if g.rigs_total() > 0 and mc > 0.0 and mc < g.cash * 0.1 and (mk == "speed" or g.mining_capped()):
 				g.buy_miner_up(mk); bought = true
+		# Fixed terms: a careful saver locks spare cash for 7 days when cash
+		# is well above what's left under the cap.
+		if g.term_cap_left() > 1000.0 and g.cash > g.term_cap_left() * 4.0:
+			g.open_term(7, g.term_cap_left())
 		# Company upgrade steps when ready and under a fifth of cash (they are
 		# priced to pay back no faster than units, so this is a fair buy).
 		for bid in g.biz.keys():

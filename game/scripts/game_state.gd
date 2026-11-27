@@ -1903,7 +1903,7 @@ func business_value() -> float:
 
 
 func net_worth() -> float:
-	return cash + chips() + savings() - loan_owed() + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
+	return cash + chips() + savings() + terms_total() - loan_owed() + business_value() + book_value(shares) + book_value(coins) + props_value() + items_value() + home_value()
 
 
 func business_per_hour() -> float:
@@ -2307,6 +2307,9 @@ func claim(key: String) -> float:
 					frenzy_until = maxf(frenzy_until, now()) + Data.FRENZY_S
 			if String(r.get("kind", "")) == "ach":
 				_earn(v)
+			elif String(r.get("kind", "")) == "term":
+				cash += v   # your own money back plus interest: not "earned"
+				_mark()
 			else:
 				_pay(v)
 			GameLog.info("game", "Claimed %s (%s)" % [key, money(v)])
@@ -2669,6 +2672,7 @@ func repay_loan() -> bool:
 func _bank_tick(dt: float) -> void:
 	## Interest into savings, and loan payments when they fall due (cash may
 	## go into the minus; income then pays that off first).
+	_tick_terms()
 	if savings() > 0.0 and dt > 0.0:
 		var got := savings_per_hour() * dt / 3600.0
 		bank["saved"] = savings() + got
@@ -2682,6 +2686,98 @@ func _bank_tick(dt: float) -> void:
 		if int(l["left"]) <= 0:
 			bank["loan"] = {}
 			l = {}
+
+
+# ---- fixed-term savings (1.2) -----------------------------------------------
+# bank["terms"]: [{amount, days, rate, start, ends}]. Terms run on the wall
+# clock, like real deposits (not the 8 h away cap): the total locked is capped
+# at a day of base income and the rate is fixed, so even a phone clock moved
+# forward can win only a few hours of income. A clock moved back just delays
+# them. When one ends, principal plus interest waits in the claim list.
+
+func terms() -> Array:
+	## [{index, amount, days, rate, payout, start, ends, left_s, progress}]
+	var out: Array = []
+	var t := now()
+	var list: Array = bank.get("terms", [])
+	for i in range(list.size()):
+		var d: Dictionary = list[i]
+		var span := maxf(1.0, float(d["ends"]) - float(d["start"]))
+		out.append({"index": i, "amount": float(d["amount"]), "days": int(d["days"]), "rate": float(d["rate"]),
+			"payout": float(d["amount"]) * (1.0 + float(d["rate"])), "start": float(d["start"]), "ends": float(d["ends"]),
+			"left_s": maxf(0.0, float(d["ends"]) - t), "progress": clampf((t - float(d["start"])) / span, 0.0, 1.0)})
+	return out
+
+
+func term_rates() -> Array:
+	## [{days, rate}] on offer.
+	var out: Array = []
+	for r in Data.TERMS:
+		out.append({"days": int(r[0]), "rate": float(r[1])})
+	return out
+
+
+func terms_total() -> float:
+	var v := 0.0
+	for d in bank.get("terms", []):
+		v += float(d["amount"])
+	return v
+
+
+func term_cap() -> float:
+	return maxf(Data.TERM_CAP_MIN, base_income() * Data.TERM_CAP_H)
+
+
+func term_cap_left() -> float:
+	return maxf(0.0, term_cap() - terms_total())
+
+
+func open_term(days: int, amount: float) -> bool:
+	var rate := -1.0
+	for r in Data.TERMS:
+		if int(r[0]) == days:
+			rate = float(r[1])
+	amount = minf(amount, minf(cash, term_cap_left()))
+	if rate < 0.0 or amount < 1.0:
+		return false
+	_save_soon = true
+	cash -= amount
+	if not bank.has("terms"):
+		bank["terms"] = []
+	var t := now()
+	bank["terms"].append({"amount": amount, "days": days, "rate": rate, "start": t, "ends": t + float(days) * 86400.0})
+	_bump("terms_opened")
+	GameLog.info("bank", "Fixed term %s for %d days at %.1f%%" % [money(amount), days, rate * 100.0])
+	recalc()
+	return true
+
+
+func break_term(i: int) -> float:
+	## Ends a term early: what you locked back, minus a small fee; no interest.
+	var list: Array = bank.get("terms", [])
+	if i < 0 or i >= list.size():
+		return 0.0
+	_save_soon = true
+	var d: Dictionary = list[i]
+	list.remove_at(i)
+	var back := float(d["amount"]) * (1.0 - Data.TERM_BREAK_FEE)
+	cash += back
+	GameLog.info("bank", "Fixed term broken early, %s back" % money(back))
+	recalc()
+	return back
+
+
+func _tick_terms() -> void:
+	var list: Array = bank.get("terms", [])
+	var t := now()
+	for i in range(list.size() - 1, -1, -1):
+		var d: Dictionary = list[i]
+		if t >= float(d["ends"]):
+			list.remove_at(i)
+			var pay := float(d["amount"]) * (1.0 + float(d["rate"]))
+			var gain := pay - float(d["amount"])
+			counters["interest_earned"] = float(counters.get("interest_earned", 0.0)) + gain
+			add_reward("term:%d:%d" % [int(d["start"]), i], "term", "%d-day term" % int(d["days"]), pay)
 
 
 func in_minus() -> bool:

@@ -1040,6 +1040,44 @@ func _run() -> void:
 	game.biz["shop"].erase("ups")
 	_check(game.biz_up_level("shop") == 0, "upgrade path: old saves (no steps saved) start at 0")
 	game.reset_game(true)
+	# 1.2 fixed-term savings: capped, fixed rate, pays into the claim list when
+	# it ends; breaking early returns principal minus 5%; never beats a loan.
+	game.reset_game(true)
+	game.sim_time = 1.9e9
+	game.cash = 1.0e9
+	game.recalc()
+	var cap: float = game.term_cap()
+	_check(not game.open_term(5, 1000.0), "terms: only the offered lengths")
+	_check(game.open_term(7, cap * 10.0) and is_equal_approx(game.terms_total(), cap) and game.term_cap_left() < 1.0, "terms: locking is capped")
+	var nw_t: float = game.net_worth()
+	_check(absf(nw_t - (game.cash + cap)) < 1.0 or nw_t > game.cash, "terms: locked cash still counts in net worth")
+	game.sim_time += 3.0 * 86400.0
+	game._bank_tick(0.0)
+	_check(game.terms().size() == 1 and float(game.terms()[0]["progress"]) > 0.4, "terms: halfway through")
+	game.sim_time -= 5.0 * 86400.0
+	game._bank_tick(0.0)
+	_check(game.terms().size() == 1 and game.unclaimed("term") == 0, "terms: a clock set back never pays early")
+	game.sim_time += 9.0 * 86400.0
+	game._bank_tick(0.0)
+	_check(game.terms().is_empty() and game.unclaimed("term") == 1, "terms: an ended term waits in the claim list")
+	var c_t: float = game.cash
+	var paid_t: float = game.claim_all("term")
+	_check(is_equal_approx(paid_t, cap * 1.20) and is_equal_approx(game.cash, c_t + cap * 1.20), "terms: 7 days pays 20%")
+	game.open_term(1, 1000.0)
+	game.restore_guard = false
+	var code_t: String = game.backup_code()
+	_check(game.restore_code(code_t) and game.terms().size() == 1 and is_equal_approx(float(game.terms()[0]["amount"]), 1000.0), "terms: a backup restore keeps an open term as it was")
+	var c_b: float = game.cash
+	_check(is_equal_approx(game.break_term(0), 950.0) and is_equal_approx(game.cash, c_b + 950.0) and game.terms().is_empty(), "terms: breaking early returns 95%, no interest")
+	var best_rate: float = 0.0
+	for tr in game.term_rates():
+		best_rate = maxf(best_rate, float(tr["rate"]))
+	_check(best_rate < Data.LOAN_FEE, "terms: borrowing to lock can't pay (best rate under the loan fee)")
+	var t17: Dictionary = game.to_dict()
+	t17["bank"] = {"saved": 0.0, "loan": {}}
+	_check(game._migrate(t17).has("bank"), "saves without terms still load")
+	game.sim_time = -1.0
+	game.reset_game(true)
 	# 1.2 records and rivals.
 	_check(Data.RIVALS.size() >= 30, "at least 30 rivals")
 	var round_worths := 0

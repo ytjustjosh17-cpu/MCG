@@ -275,6 +275,13 @@ const LOAN_MIN := 5000.0          # or at least this much
 const LOAN_FEE := 0.25            # repay 125% of what you borrowed
 const LOAN_PAYMENTS := 5          # in 5 equal payments
 const LOAN_EVERY_H := 4.0         # one every 4 hours
+# Fixed-term savings (1.2): lock cash for a set time at a set rate. Below the
+# loan fee over the same days, so borrowing to lock never pays. The total
+# locked is capped at TERM_CAP_H hours of base income.
+const TERMS := [[1, 0.025], [3, 0.08], [7, 0.20]]   # days, total interest
+const TERM_CAP_H := 24.0
+const TERM_CAP_MIN := 10000.0
+const TERM_BREAK_FEE := 0.05      # break early: no interest, and 5% of what you locked
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
 const RBP_SOFT_CAP := 1000.0         # past this a rebirth's RBP grows much more slowly (1.2)
 const SUN_PER_DAY := 4                # never more than this a day
