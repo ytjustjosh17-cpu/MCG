@@ -1,5 +1,5 @@
 class_name ForgePage
-extends Page
+extends CasinoGame
 ## Sun Forge: the flagship 6 x 5 slot. Symbols pay anywhere (8 or more),
 ## winners burst and the grid tumbles, sun orbs multiply the win, free spins
 ## keep a total multiplier, plus an ante bet and Buy free spins.
@@ -20,21 +20,15 @@ var _tm_box: PanelContainer
 var _tm_l: Label          # total multiplier
 var _buy_b: Button
 var _ante_b: Button
-var _credits: Label
-var _bet_l: Label
-var _win_l: Label
-var _minus: Button
-var _plus: Button
+var _bet: BetBar
+var _win_l: Label         # the status row's win (tests read it)
 var _spin_b: Button
 var _auto_b: Button
-var _info_b: Button
 var _ladder: Array = []
 var _bet_i := 0
 var ante := false
 var _busy := false
 var _fast := false        # tap Spin while playing: hurry the rest
-var _auto_on := false
-var _auto_left := 0
 var _shown_chips := 0.0
 var _last: Dictionary = {}   # last round, for tests: the ForgeMath result plus "paid"
 
@@ -43,17 +37,14 @@ func _init(_arg := "") -> void:
 	super("Sun Forge", true)
 
 
-func build() -> void:
+func build_game() -> void:
 	math = ForgeMath.new()
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # the machine never scrolls while you play
-	body.add_theme_constant_override("separation", 10)
-	if _title_label:
-		_title_label.add_theme_font_size_override("font_size", 32)
+	_win_l = status.win_l
 	# Header: free spins left, tumble win, total multiplier.
 	var hh := HBoxContainer.new()
 	hh.add_theme_constant_override("separation", 6)
 	hh.custom_minimum_size = Vector2(0, 40)
-	body.add_child(hh)
+	area.add_child(hh)
 	_fs_box = _chip_box(hh)
 	_fs_l = _fs_box.get_child(0) as Label
 	_head = UI.label("", 15, UI.GOLD, true)
@@ -65,63 +56,43 @@ func build() -> void:
 	_tm_box = _chip_box(hh)
 	_tm_l = _tm_box.get_child(0) as Label
 	_grid = ForgeGrid.new()
-	body.add_child(_grid)
-	# Feature row: Buy free spins and the ante bet.
-	var fr := HBoxContainer.new()
-	fr.add_theme_constant_override("separation", 8)
-	body.add_child(fr)
-	_buy_b = UI.pill("", UI.RED, UI.TEXT, 15, 12)
-	_buy_b.custom_minimum_size = Vector2(0, 52)
-	_buy_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_buy_b.pressed.connect(_on_buy)
-	Kit.press_fx(_buy_b)
-	fr.add_child(_buy_b)
-	_ante_b = UI.pill("", UI.RAISED, UI.TEXT, 15, 12)
-	_ante_b.custom_minimum_size = Vector2(0, 52)
-	_ante_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ante_b.pressed.connect(func(): set_ante(not ante))
-	Kit.press_fx(_ante_b)
-	fr.add_child(_ante_b)
-	# Meters: credit, bet, win.
-	var meters := PanelContainer.new()
-	meters.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16, 14, 6))
-	body.add_child(meters)
-	var mh := HBoxContainer.new()
-	mh.add_theme_constant_override("separation", 6)
-	meters.add_child(mh)
-	_credits = _meter(mh, "CREDIT", HORIZONTAL_ALIGNMENT_LEFT)
-	_bet_l = _meter(mh, "BET", HORIZONTAL_ALIGNMENT_CENTER)
-	_win_l = _meter(mh, "WIN", HORIZONTAL_ALIGNMENT_RIGHT)
-	# Controls: info, -, SPIN, +, auto.
-	var cr := HBoxContainer.new()
-	cr.add_theme_constant_override("separation", 8)
-	cr.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(cr)
-	_info_b = _small("", _show_info)
-	var ic := Icon.new("info", UI.TEXT, 22.0)
-	ic.position = Vector2(13, 13)
-	_info_b.add_child(ic)
-	cr.add_child(_info_b)
-	_minus = _small("-", func(): _step_bet(-1))
-	cr.add_child(_minus)
-	_spin_b = UI.pill("SPIN", UI.TEXT, UI.INK, 20, 32)
-	_spin_b.custom_minimum_size = Vector2(112, 60)
-	_spin_b.pressed.connect(_on_spin_pressed)
-	Kit.press_fx(_spin_b)
-	cr.add_child(_spin_b)
-	_plus = _small("+", func(): _step_bet(1))
-	cr.add_child(_plus)
-	_auto_b = _small("Auto", _on_auto)
-	_auto_b.custom_minimum_size = Vector2(72, 48)
-	cr.add_child(_auto_b)
+	_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	area.add_child(_grid)
+	# Dock: the bet, then Buy free spins / Ante / Auto, then SPIN.
+	_bet = BetBar.new()
+	_bet.external = true
+	_bet.stepped.connect(_step_bet)
+	_bet.maxed.connect(func():
+		if _busy:
+			return
+		_bet_i = _ladder.size() - 1
+		_refresh_bet())
+	dock.add_child(_bet)
+	_buy_b = quiet("", _on_buy)
+	_ante_b = quiet("", func(): set_ante(not ante))
+	_auto_b = quiet("Auto", _on_auto)
+	_auto_b.size_flags_horizontal = Control.SIZE_FILL
+	_auto_b.custom_minimum_size.x = 72
+	dock_row([_buy_b, _ante_b, _auto_b])
+	_spin_b = primary("SPIN", _on_spin_pressed)
+	_spin_b.add_theme_font_size_override("font_size", 20)
+	dock.add_child(_spin_b)
 	_shown_chips = Game.chips()
 	_build_ladder()
 	_bet_i = _default_bet()
 	_grid.show_idle(math)
-	visibility_changed.connect(func():
-		if not is_visible_in_tree():
-			_stop_auto())
-	tree_exiting.connect(_stop_auto)
+
+
+func show_info() -> void:
+	_show_info()
+
+
+func auto_spin() -> bool:
+	return spin()
+
+
+func is_busy() -> bool:
+	return _busy
 
 
 func _chip_box(parent: Control) -> PanelContainer:
@@ -134,29 +105,6 @@ func _chip_box(parent: Control) -> PanelContainer:
 	pc.add_child(l)
 	parent.add_child(pc)
 	return pc
-
-
-func _meter(parent: Control, cap: String, align: HorizontalAlignment) -> Label:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(v)
-	var c := UI.label(cap, 13, UI.GOLD, true)
-	c.horizontal_alignment = align
-	v.add_child(c)
-	var l := UI.label("", 17, UI.TEXT, true)
-	l.horizontal_alignment = align
-	l.clip_text = true
-	v.add_child(l)
-	return l
-
-
-func _small(text: String, cb: Callable) -> Button:
-	var b := UI.pill(text, UI.RAISED, UI.TEXT, 20, 12)
-	b.custom_minimum_size = Vector2(48, 48)
-	b.pressed.connect(cb)
-	Kit.press_fx(b)
-	return b
 
 
 # ---- bets ---------------------------------------------------------------------
@@ -195,10 +143,11 @@ func stake() -> float:
 
 func _step_bet(d: int) -> void:
 	if _busy:
+		Motion.shake(_bet.plus if d > 0 else _bet.minus)
 		return
 	var ni := clampi(_bet_i + d, 0, _ladder.size() - 1)
 	if ni == _bet_i:
-		Motion.shake(_plus if d > 0 else _minus)
+		Motion.shake(_bet.plus if d > 0 else _bet.minus)
 		if d > 0:
 			Kit.toast("Table limit: %s a spin" % Game.money_short(Game.casino_max_bet()))
 		return
@@ -220,15 +169,15 @@ func set_ante(on: bool) -> void:
 
 
 func _refresh_bet() -> void:
-	_bet_l.text = Game.money_short(stake())
-	_buy_b.text = "BUY FREE SPINS\n" + Game.money_short(math.buy_cost(bet()))
-	_ante_b.text = "ANTE ×1.25\nDouble chance · " + ("ON" if ante else "OFF")
-	UI.paint(_ante_b, UI.GOLD if ante else UI.RAISED, UI.INK if ante else UI.TEXT, 12)
+	_bet.show_text(Game.money_short(stake()), "with ante ×1.25" if ante else "")
+	_buy_b.text = "Buy spins · " + Game.money_short(math.buy_cost(bet()))
+	_ante_b.text = "Ante · on" if ante else "Ante · off"
+	UI.paint(_ante_b, UI.RAISED, UI.GOLD if ante else UI.TEXT, 24)
 	_update_buttons()
 
 
 func refresh() -> void:
-	if _credits == null:
+	if _spin_b == null:
 		return
 	var keep := bet() if not _ladder.is_empty() else 0.0
 	_build_ladder()
@@ -237,7 +186,7 @@ func refresh() -> void:
 		_bet_i = idx
 	if not _busy:
 		_shown_chips = Game.chips()
-		_credits.text = Game.money_short(_shown_chips)
+		status.set_chips(_shown_chips)
 		if not _grid.in_feature():
 			_head.text = "PAYS ANYWHERE · 8 OR MORE"
 	_refresh_bet()
@@ -246,13 +195,13 @@ func refresh() -> void:
 func _update_buttons() -> void:
 	if _spin_b == null:
 		return
-	_spin_b.text = "SKIP" if _busy else ("STOP" if _auto_on else "SPIN")
-	Page.set_enabled(_spin_b, _busy or _auto_on or Game.chips() >= stake())
-	_auto_b.text = ("%d" % _auto_left if _auto_left > 0 else "Stop") if _auto_on else "Auto"
-	UI.paint(_auto_b, UI.RED if _auto_on else UI.RAISED, UI.TEXT, 12)
+	_spin_b.text = "SKIP" if _busy else ("STOP AUTO" if auto_on else "SPIN")
+	set_go(_spin_b, _busy or auto_on or Game.chips() >= stake())
+	_auto_b.text = ("%d left" % auto_left if auto_left > 0 else "Stop") if auto_on else "Auto"
+	UI.paint(_auto_b, UI.RAISED, UI.GOLD if auto_on else UI.TEXT, 24)
 	var idle := not _busy
-	for b in [_minus, _plus, _ante_b]:
-		(b as Button).modulate.a = 1.0 if idle else 0.45
+	_bet.locked = not idle
+	_ante_b.modulate.a = 1.0 if idle else 0.4
 	_buy_b.modulate.a = 1.0 if (idle and not ante) else 0.4
 	var inf := _grid.in_feature()
 	_fs_box.visible = inf
@@ -266,8 +215,8 @@ func _on_spin_pressed() -> void:
 		_fast = true
 		_grid.hurry()
 		return
-	if _auto_on:
-		_stop_auto()
+	if auto_on:
+		stop_auto()
 		return
 	spin()
 
@@ -283,10 +232,10 @@ func spin() -> bool:
 		Kit.toast("Bet lowered to the table limit")
 		return false
 	if Game.chips() < st - 0.001:
-		_stop_auto()
+		stop_auto()
 		Motion.shake(_spin_b)
 		Kit.toast("Not enough chips")
-		_offer_chips()
+		offer_chips()
 		return false
 	var before := Game.chips()
 	if not Game.casino_stake(st):
@@ -321,8 +270,8 @@ func _play_round(res: Dictionary) -> void:
 	_last = res
 	_busy = true
 	_fast = Motion.reduced()
-	_win_l.text = "-"
-	_credits.text = Game.money_short(_shown_chips)
+	status.clear_win()
+	status.set_chips(_shown_chips)
 	_update_buttons()
 	_run_round(res)
 
@@ -339,12 +288,13 @@ func _run_round(res: Dictionary) -> void:
 	if not feat.is_empty():
 		var sig_money := float(res["sigil_x"]) * b
 		shown_win += sig_money
-		_set_win(shown_win)
+		_win_l.text = Game.money_short(shown_win)
+		_win_l.add_theme_color_override("font_color", UI.GOLD)
 		Kit.sound("sun")
 		Kit.haptic("success")
 		_grid.banner("%d FREE SPINS" % ForgeMath.FREE_SPINS, "Orbs build a total multiplier", 1.8)
-		if _auto_on:
-			_stop_auto()
+		if auto_on:
+			stop_auto()
 			Kit.toast("Autoplay stopped for free spins")
 		await _wait(1.6)
 		if not is_inside_tree():
@@ -357,7 +307,7 @@ func _run_round(res: Dictionary) -> void:
 		_update_buttons()
 		for fs in spins:
 			left -= 1
-			_fs_l.text = "FREE SPINS\n%d" % maxi(left, 0)
+			_fs_l.text = "%d SPINS" % maxi(left, 0)
 			_tm_l.text = _tm_text(tm)
 			var money := await _play_spin(fs["spin"], b, tm, true, int(fs["added"]))
 			if not is_inside_tree():
@@ -365,7 +315,7 @@ func _run_round(res: Dictionary) -> void:
 			tm = int(fs["total_mult"])
 			left = int(fs["left"])
 			_tm_l.text = _tm_text(tm)
-			_fs_l.text = "FREE SPINS\n%d" % left
+			_fs_l.text = "%d SPINS" % left
 			var sx := float(fs["x"]) * b
 			if int(fs["extra"]) > 0:
 				_grid.banner("+%d FREE SPINS" % int(fs["extra"]), "", 1.2)
@@ -373,7 +323,8 @@ func _run_round(res: Dictionary) -> void:
 				await _wait(1.0)
 			fw += sx
 			shown_win = minf(shown_win + sx, float(res["total"]))
-			_set_win(shown_win)
+			_win_l.text = Game.money_short(shown_win)
+			_win_l.add_theme_color_override("font_color", UI.GOLD)
 			_head.text = "FEATURE WIN %s" % Game.money_short(fw)
 			if money <= 0.0:
 				await _wait(0.15)
@@ -428,16 +379,16 @@ func _play_spin(g: Dictionary, b: float, tm_before: int, free: bool, added := 0)
 
 
 func _tm_text(tm: int) -> String:
-	return "TOTAL\n×%d" % tm if tm > 0 else "TOTAL\nnone yet"
+	return "TOTAL ×%d" % tm if tm > 0 else "TOTAL ×0"
 
 
 func _finish(res: Dictionary) -> void:
 	var paid := float(res.get("paid", 0.0))
 	var b := float(res["bet"])
 	var x := paid / maxf(b, 0.0001)
+	var st := math.buy_cost(b) if bool(res.get("bought", false)) else float(res.get("stake", b))
+	win_fx(paid, st, INF)   # the forge has its own big-win banner below
 	if paid > 0.0:
-		_set_win(paid)
-		Kit.haptic("success")
 		if x >= BIG_X:
 			var tier := "EPIC WIN" if x >= EPIC_X else ("MEGA WIN" if x >= MEGA_X else "BIG WIN")
 			_grid.big_win(tier, paid, _fast)
@@ -449,9 +400,9 @@ func _finish(res: Dictionary) -> void:
 			Kit.toast("Round capped at the casino limit, %s" % Game.money_short(Game.casino_max_win()))
 		if bool(res.get("capped", false)):
 			Kit.toast("Max win reached: 5,000× the bet")
-	else:
-		_win_l.text = "-"
-	_tween_credits()
+	var to := Game.chips()
+	status.tween_chips(_shown_chips, to)
+	_shown_chips = to
 	if not bool(res.get("bought", false)) and (res.get("feature", {}) as Dictionary).is_empty() and paid <= 0.0:
 		_head.text = "PAYS ANYWHERE · 8 OR MORE"
 	await _wait(0.5 if paid > 0.0 else 0.05)
@@ -461,20 +412,20 @@ func _finish(res: Dictionary) -> void:
 	_fast = false
 	_update_buttons()
 	_refresh_bet()
-	if _auto_on:
+	if auto_on:
 		if x >= AUTO_STOP_X:
-			_stop_auto()
+			stop_auto()
 			Kit.toast("Autoplay stopped on a big win")
 			return
-		if _auto_left > 0:
-			_auto_left -= 1
-		if _auto_left <= 0:
-			_stop_auto()
+		if auto_left > 0:
+			auto_left -= 1
+		if auto_left <= 0:
+			stop_auto()
 		elif is_visible_in_tree():
 			await _wait(0.35)
-			if _auto_on and not _busy and is_inside_tree():
+			if auto_on and not _busy and is_inside_tree():
 				if not spin():
-					_stop_auto()
+					stop_auto()
 	_update_buttons()
 
 
@@ -482,26 +433,11 @@ func _wait(t: float) -> void:
 	await get_tree().create_timer(0.01 if _fast else Motion.d(t)).timeout
 
 
-func _set_win(v: float) -> void:
-	_win_l.text = Game.money_short(v)
-
-
-func _tween_credits() -> void:
-	var to := Game.chips()
-	var from := _shown_chips
-	_shown_chips = to
-	if Motion.reduced() or absf(to - from) < 0.005:
-		_credits.text = Game.money_short(to)
-		return
-	var t := create_tween()
-	t.tween_method(func(f: float): _credits.text = Game.money_short(f), from, to, 0.6).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-
-
 # ---- autoplay, buy, info --------------------------------------------------------
 
 func _on_auto() -> void:
-	if _auto_on:
-		_stop_auto()
+	if auto_on:
+		stop_auto()
 		return
 	if _busy:
 		return
@@ -512,32 +448,6 @@ func _on_auto() -> void:
 		acts.append({"text": "%d spins" % nn, "style": "secondary", "call": func(): _start_auto(nn)})
 	acts.append({"text": "Close", "style": "plain"})
 	Kit.sheet("Autoplay", "Spins at %s each. Stops on free spins, a win of %d× or more, when chips run out, or when you leave." % [Game.money_short(stake()), int(AUTO_STOP_X)], acts)
-
-
-func _start_auto(n: int) -> void:
-	_auto_on = true
-	_auto_left = n
-	_update_buttons()
-	if not _busy:
-		if not spin():
-			_stop_auto()
-
-
-func _stop_auto() -> void:
-	if not _auto_on:
-		return
-	_auto_on = false
-	_auto_left = 0
-	_update_buttons()
-
-
-func is_auto() -> bool:
-	return _auto_on
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
-		_stop_auto()
 
 
 func _on_buy() -> void:
@@ -560,13 +470,7 @@ func _on_buy() -> void:
 	Kit.sheet("Buy free spins", body, acts)
 
 
-func _offer_chips() -> void:
-	if Game.cash >= 0.01:
-		TradeSheet.open("chips", "", "chips_in")
-
-
 func _show_info() -> void:
-	Kit.tick()
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	var b := bet()
@@ -577,10 +481,7 @@ func _show_info() -> void:
 		box.add_child(_pay_row(s, "%s  %s · %s · %s" % [ForgeMath.NAMES[s], Game.money_short(float(p[0]) * b), Game.money_short(float(p[1]) * b), Game.money_short(float(p[2]) * b)]))
 	box.add_child(_pay_row(ForgeMath.SIGIL, "Forge sigil  4: %s · 5: %s · 6: %s, and free spins" % [Game.money_short(3.0 * b), Game.money_short(5.0 * b), Game.money_short(100.0 * b)]))
 	box.add_child(_pay_row(ForgeMath.ORB, "Sun orb ×2 to ×100: added up, they multiply a winning spin"))
-	var note := UI.label("Winners burst and new symbols tumble in until nothing more pays. 4 or more sigils give 15 free spins; there every orb in a win adds to a total multiplier for the whole feature, and 3 sigils give 5 more spins. Ante bet: 1.25× the bet, about twice the chance of free spins. Buy free spins: 100× the bet.\n\nPays back about 96.2%% over time (ante 96.1%%, buy 95.7%%). Max win 5,000× the bet, and the casino caps a round at %s." % Game.money_short(Game.casino_max_win()), 13, UI.SUB)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = 330
-	box.add_child(note)
+	box.add_child(note("Winners burst and new symbols tumble in until nothing more pays. 4 or more sigils give 15 free spins; there every orb in a win adds to a total multiplier for the whole feature, and 3 sigils give 5 more spins. Ante bet: 1.25× the bet, about twice the chance of free spins. Buy free spins: 100× the bet.\n\nPays back about 96.2%% over time (ante 96.1%%, buy 95.7%%). Max win 5,000× the bet, and the casino caps a round at %s." % Game.money_short(Game.casino_max_win())))
 	Kit.sheet("Sun Forge", "", [{"text": "Close", "style": "plain"}], true, box)
 
 
@@ -643,6 +544,7 @@ class ForgeGrid extends Control:
 	var _big_life := 0.0
 	var _feature := false
 	var _glow := 0.0
+	var _was_active := true
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(0, CELL * 5.0 + PAD * 2.0 + 4.0)
@@ -681,7 +583,8 @@ class ForgeGrid extends Control:
 		_hurry = true
 
 	func _origin() -> Vector2:
-		return Vector2((size.x - CELL * 6.0) * 0.5, PAD + 2.0)
+		# Centred in whatever height the page gives the grid.
+		return Vector2((size.x - CELL * 6.0) * 0.5, maxf(PAD + 2.0, (size.y - CELL * 5.0) * 0.5))
 
 	func cell_center(i: int) -> Vector2:
 		var c := i / 5
@@ -709,15 +612,20 @@ class ForgeGrid extends Control:
 					_orb_k = k
 			if _phase_t >= _dur:
 				_phase = ""
-		for lb in _labels:
-			lb[2] = float(lb[2]) - delta
-		_labels = _labels.filter(func(lb): return float(lb[2]) > 0.0)
+		if not _labels.is_empty():
+			for lb in _labels:
+				lb[2] = float(lb[2]) - delta
+			_labels = _labels.filter(func(lb): return float(lb[2]) > 0.0)
 		if _banner_life > 0.0:
 			_banner_life -= delta
 		if _big_life > 0.0:
 			_big_life -= delta
 			_big_shown = lerpf(_big_shown, _big_amt, minf(1.0, delta * 4.0))
-		queue_redraw()
+		# Redraw only while something moves or glows; a grid at rest stays still (battery).
+		var active := _phase != "" or not _labels.is_empty() or _banner_life > 0.0 or _big_life > 0.0 or _feature or hl.has(1)
+		if active or _was_active:
+			queue_redraw()
+		_was_active = active
 
 	static func _ease_out_bounce(x: float) -> float:
 		if x < 0.85:
@@ -835,7 +743,7 @@ class ForgeGrid extends Control:
 		var frame := win.grow(PAD)
 		draw_rect(frame, UI.SIDE)
 		draw_rect(frame, UI.TRACK, false, 2.0)
-		var seam := Color(UI.RED, 0.55 + 0.35 * _glow) if _feature else Color(UI.RED, 0.75)
+		var seam := Color(UI.RED, 0.55 + 0.35 * _glow) if _feature else Color(UI.GOLD, 0.5)   # molten red only in the feature
 		draw_rect(Rect2(frame.position + Vector2(0, -2), Vector2(frame.size.x, 4)), seam)
 		draw_rect(Rect2(Vector2(frame.position.x, frame.end.y - 2), Vector2(frame.size.x, 2)), Color(UI.GOLD, 0.5))
 		for k in 8:
@@ -913,8 +821,8 @@ class ForgeGrid extends Control:
 			var ga := clampf(_big_life / 0.4, 0.0, 1.0)
 			var gr2 := Rect2(Vector2(win.position.x - 4.0, win.get_center().y - 70.0), Vector2(win.size.x + 8.0, 140.0))
 			draw_rect(gr2, Color(UI.INK, 0.92 * ga))
-			draw_rect(Rect2(gr2.position, Vector2(gr2.size.x, 6.0)), Color(UI.RED, ga))
-			draw_rect(Rect2(Vector2(gr2.position.x, gr2.end.y - 6.0), Vector2(gr2.size.x, 6.0)), Color(UI.RED, ga))
+			draw_rect(Rect2(gr2.position, Vector2(gr2.size.x, 6.0)), Color(UI.GOLD, ga))
+			draw_rect(Rect2(Vector2(gr2.position.x, gr2.end.y - 6.0), Vector2(gr2.size.x, 6.0)), Color(UI.GOLD, ga))
 			draw_rect(gr2.grow(-10.0), Color(UI.GOLD, 0.6 * ga), false, 1.5)
 			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 56.0), _big, HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 40, Color(UI.GOLD, ga))
 			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 108.0), Game.money_short(_big_shown), HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 38, Color(UI.TEXT, ga))

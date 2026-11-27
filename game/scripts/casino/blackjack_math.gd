@@ -25,7 +25,6 @@ var dealer: Array = []
 var active := 0
 var phase := "idle"           # idle, player, done
 var _split_done := false
-var _base_bet := 0.0
 
 
 func _init(rng_seed := -1) -> void:
@@ -98,7 +97,6 @@ func _draw() -> Dictionary:
 func deal(bet: float) -> Dictionary:
 	## Starts a hand with a fresh shoe. Ends at once if either side has blackjack.
 	_new_shoe()
-	_base_bet = bet
 	_split_done = false
 	hands = [{"cards": [], "bet": bet, "done": false, "doubled": false, "split_aces": false, "bust": false, "from_split": false}]
 	dealer = []

@@ -1,5 +1,5 @@
 class_name PlinkoPage
-extends Page
+extends CasinoGame
 ## Plinko: drop a ball through 12 rows of pegs into a slot. Each drop is bet,
 ## worked out (PlinkoMath) and paid at once; the ball then falls along that
 ## path. Several balls can be in the air; the chips shown catch up as they land.
@@ -9,8 +9,7 @@ const MAX_BALLS := 8
 
 var _pm := PlinkoMath.new()
 var _board: Board
-var _status: Label
-var _bet: CasinoPage.BetBar
+var _bet: BetBar
 var _go: Button
 var _seg: Segmented
 var _hidden_win := 0.0
@@ -24,43 +23,59 @@ func play_button() -> Button:
 	return _go
 
 
-func build() -> void:
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_seg = Segmented.new(["Low", "Medium", "High"])
+func build_game() -> void:
+	_board = Board.new()
+	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_board.landed.connect(_on_landed)
+	area.add_child(_board)
+	_bet = BetBar.new()
+	dock.add_child(_bet)
+	_seg = Segmented.new(["Low risk", "Medium", "High risk"])
 	_seg.index = clampi(int(Game.ui.get("plinko_risk", 1)), 0, 2)
+	_seg.select(_seg.index)
 	_seg.changed.connect(func(i: int):
 		Game.ui["plinko_risk"] = i
 		_board.risk = RISKS[i]
 		_board.queue_redraw())
-	body.add_child(_seg)
-	_board = Board.new()
-	_board.custom_minimum_size = Vector2(0, 380)
+	dock.add_child(_seg)
 	_board.risk = RISKS[_seg.index]
-	_board.landed.connect(_on_landed)
-	body.add_child(_board)
-	_status = CasinoPage.status_row(body)
-	_bet = CasinoPage.BetBar.new()
-	body.add_child(_bet)
-	_go = CasinoPage.game_button("Drop", true, _on_drop)
-	body.add_child(_go)
+	_go = primary("Drop", _on_drop)
+	dock.add_child(_go)
+
+
+func info_content() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	box.add_child(note("Each drop bets once. The ball bounces left or right off 12 rows of pegs and pays the multiplier of the slot it lands in. Drop again while balls are still falling.", UI.TEXT))
+	for i in RISKS.size():
+		var t: Array = PlinkoMath.TABLES[RISKS[i]]
+		box.add_child(pay_line(["Low risk", "Medium", "High risk"][i], "edges ×%s · middle ×%s" % [_num(float(t[0])), _num(float(t[6]))], i == _seg.index))
+	box.add_child(note("Pays back about 97 to 98% over time."))
+	return box
+
+
+static func _num(m: float) -> String:
+	return ("%d" % int(m)) if m >= 10.0 or is_equal_approx(m, roundf(m)) else str(m)
 
 
 func refresh() -> void:
-	if _status == null:
+	if _go == null:
 		return
 	_bet.refresh()
-	_status.text = "Chips %s · limit %s" % [Game.money(Game.chips() - _hidden_win), Game.money_short(Game.casino_max_bet())]
+	status.set_chips(Game.chips() - _hidden_win)
 	_go.text = "Drop · " + Game.money_short(_bet.value)
 
 
 func _on_drop() -> void:
 	if _board.balls.size() >= MAX_BALLS:
+		Motion.shake(_go)
 		return
 	_bet.refresh()
 	var bet := _bet.value
 	if bet > Game.chips() + 0.001:
 		Kit.toast("Not enough chips")
 		Motion.shake(_go)
+		offer_chips()
 		return
 	if not Game.casino_stake(bet):
 		Kit.toast("Over the table limit")
@@ -82,11 +97,10 @@ func _on_drop() -> void:
 func _on_landed(slot: int, paid: float, bet: float) -> void:
 	_hidden_win = maxf(0.0, _hidden_win - paid)
 	_board.flash(slot)
+	# Balls land quickly one after another: only a real win gets a buzz.
+	status.set_win(paid)
 	if paid > bet * 1.01:
-		Kit.haptic("success" if paid >= bet * 5.0 else "light")
-		if paid >= bet * 10.0:
-			Kit.sound("fanfare")
-			Kit.toast("Plinko x%s · +%s" % [str(PlinkoMath.mult(RISKS[_seg.index], slot)), Game.money_short(paid)], true)
+		win_fx(paid, bet, 10.0, _board.slot_center(slot))
 	refresh()
 
 
@@ -98,6 +112,9 @@ class Board extends Control:
 	var balls: Array = []     # {path, slot, paid, bet, t}
 	var _flash := {}          # slot -> time left
 
+	func _init() -> void:
+		set_process(false)
+
 	func add_ball(path: Array, slot: int, paid: float, bet: float) -> void:
 		balls.append({"path": path, "slot": slot, "paid": paid, "bet": bet, "t": 0.0})
 		set_process(true)
@@ -106,6 +123,12 @@ class Board extends Control:
 		_flash[slot] = 0.6
 		set_process(true)
 		queue_redraw()
+
+	func slot_center(slot: int) -> Vector2:
+		var g := _geo()
+		var slots := PlinkoMath.ROWS + 1
+		var x := float(g["cx"]) + (float(slot) - float(slots - 1) * 0.5) * float(g["gap"])
+		return global_position + Vector2(x, float(g["top"]) + float(PlinkoMath.ROWS) * float(g["gap"]) + 20.0)
 
 	func _process(delta: float) -> void:
 		var done: Array = []
@@ -127,7 +150,7 @@ class Board extends Control:
 	func _geo() -> Dictionary:
 		var slots := PlinkoMath.ROWS + 1
 		var gap := minf((size.x - 16.0) / float(slots), (size.y - 70.0) / float(PlinkoMath.ROWS + 1))
-		var top := 22.0
+		var top := 22.0 + maxf(0.0, (size.y - 70.0 - gap * float(PlinkoMath.ROWS + 1)) * 0.5)
 		return {"gap": gap, "top": top, "cx": size.x * 0.5}
 
 	func _peg(row: int, k: int, g: Dictionary) -> Vector2:
@@ -154,12 +177,12 @@ class Board extends Control:
 		return Vector2(x, y)
 
 	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), UI.INK)
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), 16.0), UI.PANEL)
 		var g := _geo()
 		for row in PlinkoMath.ROWS:
 			for k in row + 3:
 				draw_circle(_peg(row, k, g), 3.0, UI.SUB)
-		# Slots along the bottom.
+		# Slots along the bottom: tonal, brighter as they pay more; gold for 10x and up.
 		var slots := PlinkoMath.ROWS + 1
 		var gap := float(g["gap"])
 		var sy := float(g["top"]) + float(PlinkoMath.ROWS) * gap + 8.0
@@ -167,17 +190,21 @@ class Board extends Control:
 		for k in slots:
 			var x := float(g["cx"]) + (float(k) - float(slots - 1) * 0.5) * gap - gap * 0.5 + 1.0
 			var m := PlinkoMath.mult(risk, k)
-			var col: Color = UI.RAISED
+			var col: Color = UI.INK
+			var fg: Color = UI.SUB
 			if m >= 10.0:
-				col = UI.RED
-			elif m >= 2.0:
 				col = UI.GOLD
+				fg = UI.INK
+			elif m >= 2.0:
+				col = Color(UI.GOLD, 0.35)
+				fg = UI.TEXT
 			elif m >= 1.0:
-				col = UI.FELT
+				col = UI.RAISED
+				fg = UI.TEXT
 			if _flash.has(k):
 				col = col.lerp(UI.TEXT, clampf(float(_flash[k]) / 0.6, 0.0, 1.0) * 0.6)
-			draw_rect(Rect2(Vector2(x, sy), Vector2(gap - 2.0, 30)), col)
-			var t := ("%d" % int(m)) if m >= 10.0 else str(m)
-			draw_string(f, Vector2(x, sy + 20), t, HORIZONTAL_ALIGNMENT_CENTER, gap - 2.0, 10 if t.length() > 3 else 11, UI.INK if m >= 1.0 else UI.SUB)
+			draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(x, sy), Vector2(gap - 2.0, 30)), 6.0), col)
+			var t := PlinkoPage._num(m)
+			draw_string(f, Vector2(x, sy + 20), t, HORIZONTAL_ALIGNMENT_CENTER, gap - 2.0, 13, fg)
 		for b in balls:
-			draw_circle(_ball_pos(b, g), gap * 0.24, UI.RED)
+			draw_circle(_ball_pos(b, g), gap * 0.24, UI.TEXT)

@@ -107,15 +107,6 @@ func _init(theme := "classic", rng_seed := -1) -> void:
 		strips.append(_build_strip(t["reels"][r], 1000 + r))
 
 
-static func themes() -> Array:
-	## [{id, name, volatility, blurb}] for the machine picker.
-	var out: Array = []
-	for id in THEMES.keys():
-		var t: Dictionary = THEMES[id]
-		out.append({"id": id, "name": t["name"], "volatility": t["volatility"], "blurb": t["blurb"]})
-	return out
-
-
 func total_bet(bet_per_line: float) -> float:
 	return bet_per_line * LINES
 
