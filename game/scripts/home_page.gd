@@ -175,6 +175,18 @@ class Room extends Control:
 		# Wall and floor.
 		draw_rect(Rect2(Vector2.ZERO, size), UI.WINDOW if tier < 4 else UI.PANEL, true)
 		draw_rect(Rect2(0, fy, w, h - fy), UI.SIDE, true)
+		# Floor: boards in small homes, wide tiles in big ones; a skirting board.
+		if tier < 4:
+			var by := fy + 6.0
+			while by < h:
+				draw_rect(Rect2(0, by, w, 1.0), Color(UI.INK, 0.35), true)
+				by += 7.0
+		else:
+			var tx2 := 0.0
+			while tx2 < w:
+				draw_line(Vector2(tx2, fy), Vector2(tx2 - 18.0, h), Color(UI.INK, 0.3), 1.0)
+				tx2 += 34.0
+		draw_rect(Rect2(0, fy - 5.0, w, 5.0), Color(UI.INK, 0.45), true)
 		draw_rect(Rect2(0, fy, w, 3.0), UI.INK, true)
 		# The window: a small sash at first, a glass wall in the penthouse,
 		# arches in the villa and the palace.
@@ -198,6 +210,12 @@ class Room extends Control:
 				draw_rect(Rect2(px - 1.5, win.position.y, 3.0, win.size.y), UI.INK, true)
 			draw_rect(Rect2(win.position.x, win.position.y + win.size.y * 0.55, win.size.x, 2.0), UI.INK, true)
 		draw_rect(win, UI.INK, false, 4.0)
+		draw_rect(Rect2(win.position.x - 6.0, win.end.y, win.size.x + 12.0, 4.0), UI.INK, true)   # the sill
+		# Daylight through the window falls across the floor (gone at night).
+		var day := 1.0 - SkyTime.night()
+		if day > 0.05:
+			var lp := PackedVector2Array([Vector2(win.position.x, fy), Vector2(win.end.x, fy), Vector2(win.end.x + win.size.x * 0.35, h), Vector2(win.position.x + win.size.x * 0.2, h)])
+			draw_colored_polygon(lp, Color(UI.FLASH, 0.07 * day))
 		# A display shelf for models and relics: a back panel and two posts,
 		# so the pieces stand on furniture, not in the window.
 		if _shelf:
@@ -217,10 +235,19 @@ class Room extends Control:
 			draw_rect(Rect2(w * 0.07, fy - 18.0, w * 0.12, 18.0), UI.INK, true)
 			var sw := w * (0.28 + 0.12 * rich)
 			var sx := w * 0.24
-			draw_rect(Rect2(sx, fy - 30.0, sw, 30.0), UI.RAISED, true)
+			draw_rect(Rect2(sx, fy - 30.0, sw, 26.0), UI.RAISED, true)
 			draw_rect(Rect2(sx, fy - 46.0, sw, 18.0), UI.TRACK, true)
-			draw_rect(Rect2(sx - 6.0, fy - 36.0, 8.0, 36.0), UI.TRACK, true)
-			draw_rect(Rect2(sx + sw - 2.0, fy - 36.0, 8.0, 36.0), UI.TRACK, true)
+			draw_rect(Rect2(sx - 6.0, fy - 36.0, 8.0, 32.0), UI.TRACK, true)
+			draw_rect(Rect2(sx + sw - 2.0, fy - 36.0, 8.0, 32.0), UI.TRACK, true)
+			# Cushions with a little light on top, a seam, and short legs.
+			for q in 2:
+				var cx2 := sx + 6.0 + q * (sw - 12.0) * 0.5
+				draw_rect(Rect2(cx2, fy - 44.0, (sw - 18.0) * 0.5, 14.0), UI.RAISED, true)
+				draw_rect(Rect2(cx2, fy - 44.0, (sw - 18.0) * 0.5, 2.0), Color(UI.TEXT, 0.12), true)
+			draw_rect(Rect2(sx + sw * 0.5 - 0.5, fy - 30.0, 1.0, 26.0), Color(UI.INK, 0.35), true)
+			for lx in [sx - 4.0, sx + sw + 2.0]:
+				draw_rect(Rect2(lx, fy - 4.0, 3.0, 4.0), UI.INK, true)
+			draw_rect(Rect2(w * 0.07, fy - 18.0, w * 0.12, 2.0), Color(UI.TEXT, 0.12), true)   # the side table catches the light
 			# A rug in front.
 			draw_rect(Rect2(sx + sw * 0.1, fy + 10.0, sw * 0.8, 10.0), UI.HAZE.lerp(UI.TRACK, rich), true)   # red stays for the sun
 		if tier >= 2:
@@ -250,6 +277,13 @@ class Room extends Control:
 		if tier >= 7:
 			# Gold trim along the ceiling.
 			draw_rect(Rect2(0, 0, w, 4.0), UI.GOLD, true)
+		# Evening: the room dims, and the lamps glow.
+		var n2 := SkyTime.night()
+		if n2 > 0.05:
+			draw_rect(Rect2(Vector2.ZERO, size), Color(UI.INK, 0.28 * n2), true)
+			var glow := Vector2(w * 0.68, fy - 66.0) if tier >= 2 else Vector2(w * 0.3, h * 0.2 + 5.0)
+			for k2 in 5:
+				draw_circle(glow, 70.0 - k2 * 12.0, Color(UI.FLASH, 0.03 * n2))
 
 	func _view(r: Rect2) -> void:
 		## What you see through the window: sky, the sun at its real height,

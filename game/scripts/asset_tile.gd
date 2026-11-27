@@ -79,12 +79,25 @@ func _draw() -> void:
 				poly.append(c + Vector2(cos(a), sin(a)) * r * 1.12)
 		_:
 			poly = UI.circle_poly(c, r, 40)
+	# A soft drop shadow, the badge, then a sheen across its top half.
+	var shadow := PackedVector2Array()
+	for q in poly:
+		shadow.append(q + Vector2(0, maxf(1.0, w * 0.035)))
+	draw_colored_polygon(shadow, Color(UI.INK, 0.45))
 	draw_colored_polygon(poly, col)
+	for piece in Geometry2D.intersect_polygons(poly, UI.rect_poly(Rect2(Vector2.ZERO, Vector2(w, c.y - r * 0.15)))):
+		if piece.size() >= 3:
+			draw_colored_polygon(piece, Color(UI.TEXT, 0.12))
 	var initial := sym.substr(0, 1)
 	for st in Data.STOCKS:
 		if st[0] == sym:
 			initial = String(st[1]).substr(0, 1)
 	var font: Font = UI.DISPLAY
 	var fs := int(r * 1.35)
+	var ly := c.y
+	if shape == "Food":
+		# The bowl shape is the lower half: the letter sits inside it.
+		fs = int(r * 1.0)
+		ly = c.y + r * 0.42
 	var tw := font.get_string_size(initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-	draw_string(font, Vector2(c.x - tw.x * 0.5, c.y + fs * 0.36), initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, cut)
+	draw_string(font, Vector2(c.x - tw.x * 0.5, ly + fs * 0.36), initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, cut)

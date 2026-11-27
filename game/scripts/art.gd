@@ -10,8 +10,43 @@ static func _poly(ci: CanvasItem, o: Vector2, s: float, pts: Array, c: Color) ->
 	ci.draw_colored_polygon(p, c)
 
 
+# Detail for windows (frames, sills, glow) once a picture is big enough to
+# show it. draw() sets these; small list thumbnails stay clean silhouettes.
+static var _detail := false
+static var _lit_col := Color(0, 0, 0, 0)
+
+
 static func _rect(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, w: float, h: float, c: Color) -> void:
-	ci.draw_rect(Rect2(o + Vector2(x, y) * s, Vector2(w, h) * s), c, true)
+	var r := Rect2(o + Vector2(x, y) * s, Vector2(w, h) * s)
+	if not _detail or r.size.x < 5.0 or r.size.y < 3.5:
+		ci.draw_rect(r, c, true)
+		return
+	if c == _lit_col:
+		# A lit window: a soft glow round it, the pane, a brighter top pane.
+		ci.draw_rect(r.grow(maxf(1.5, s * 1.2)), Color(c, 0.18), true)
+		ci.draw_rect(r, c, true)
+		ci.draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.38)), c.lerp(UI.FLASH, 0.28), true)
+	elif c == UI.INK and r.size.x >= 28.0 and r.size.y >= 22.0:
+		# A big wall: faint floor lines and a darker band down the far side,
+		# so it reads as a building with depth, not a flat slab.
+		ci.draw_rect(r, c, true)
+		var fy := r.position.y + maxf(6.0, s * 7.0)
+		while fy < r.end.y - 2.0:
+			ci.draw_rect(Rect2(r.position.x + 1.0, fy, r.size.x - 2.0, 1.0), Color(UI.HAZE, 0.32), true)
+			fy += maxf(6.0, s * 7.0)
+		ci.draw_rect(Rect2(r.end.x - r.size.x * 0.1, r.position.y, r.size.x * 0.1, r.size.y), Color(UI.SIDE, 0.55), true)
+		return
+	elif c == UI.WINDOW:
+		ci.draw_rect(r, c, true)
+		# A faint reflection of the sky across the top corner.
+		ci.draw_rect(Rect2(r.position, Vector2(r.size.x * 0.45, maxf(1.0, r.size.y * 0.22))), Color(UI.HAZE, 0.55), true)
+	else:
+		ci.draw_rect(r, c, true)
+		return
+	# Frame: a thin dark mullion on wider windows, and a lighter sill below.
+	if r.size.x >= 9.0:
+		ci.draw_rect(Rect2(r.position.x + r.size.x * 0.5 - 0.5, r.position.y, 1.0, r.size.y), Color(UI.INK, 0.55), true)
+	ci.draw_rect(Rect2(r.position.x - 1.0, r.end.y, r.size.x + 2.0, maxf(1.0, s * 0.8)), Color(UI.HAZE, 0.7), true)
 
 
 static func _circle(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, r: float, c: Color) -> void:
@@ -30,9 +65,24 @@ static func _car(ci: CanvasItem, o: Vector2, s: float, x: float, ink: Color, gla
 		_rect(ci, o, s, x + 22, 39, 10, 5, ink)
 
 
-static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2, red := UI.RED) -> void:
+static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2, red := UI.RED, flat := Color(0, 0, 0, 0)) -> void:
+	## `flat`: draw the whole silhouette in one colour (used for the sun's rim light).
 	var ink := UI.INK
 	var win := UI.WINDOW
+	var keep_detail := _detail
+	if flat.a > 0.0:
+		ink = flat
+		win = flat
+		red = flat
+		_detail = false
+	else:
+		_detail = s >= 0.9
+		_lit_col = red
+	_draw_kind(ci, kind, o, s, lit, red, ink, win)
+	_detail = keep_detail
+
+
+static func _draw_kind(ci: CanvasItem, kind: String, o: Vector2, s: float, lit: int, red: Color, ink: Color, win: Color) -> void:
 	match kind:
 		"shop":
 			_rect(ci, o, s, 20, 26, 80, 44, ink)
@@ -439,11 +489,29 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 	for i in 5:
 		var y := h * (0.62 + i * 0.08)
 		_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, y), Vector2(w, h - y))), clip, Color(UI.HAZE, 0.10))
-	# Soft glow round the sun, then the sun itself.
-	for i in 4:
-		_fill(ci, UI.circle_poly(sun_c, sun_r * (1.0 + 0.07 * (4 - i)), 96), clip, Color(sun_col, 0.05))
+	# Soft glow round the sun, then the sun itself (finer steps on big
+	# pictures, so the glow is smooth rather than banded).
+	var steps := 10 if rect.size.x >= 220.0 else 4
+	for i in steps:
+		var k2 := float(steps - i) / float(steps)
+		_fill(ci, UI.circle_poly(sun_c, sun_r * (1.0 + 0.3 * k2), 96), clip, Color(sun_col, 0.2 / float(steps)))
 	_fill(ci, UI.circle_poly(sun_c, sun_r, 96), clip, sun_col)
 	var base_y := h - gh
+	var hero := w >= 220.0   # small thumbnails stay simple; big pictures get the detail
+	if hero:
+		# Thin cloud bands drifting across the sun, low in the sky.
+		for k in 2:
+			var cy := sun_c.y + sun_r * (0.25 + 0.32 * k)
+			var cw := sun_r * (2.6 - k * 0.7)
+			var cx := sun_c.x - cw * (0.55 + 0.1 * k)
+			_fill(ci, UI.rounded_rect_poly(Rect2(cx, cy, cw, maxf(2.0, h * 0.012)), 2.0), clip, Color(UI.SKY, 0.85))
+		# A few birds far off.
+		for k in 3:
+			var bp := o + Vector2(w * rng.randf_range(0.1, 0.6), h * rng.randf_range(0.1, 0.32))
+			var bs := h * rng.randf_range(0.012, 0.02)
+			var bird := PackedVector2Array([bp + Vector2(-bs * 1.6, -bs * 0.6), bp, bp + Vector2(bs * 1.6, -bs * 0.6)])
+			for piece in Geometry2D.intersect_polyline_with_polygon(bird, clip):
+				ci.draw_polyline(piece, Color(UI.INK, 0.7), 1.2, true)
 	match sky:
 		"hills":
 			for layer in 2:
@@ -468,6 +536,24 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 					_fill(ci, UI.rect_poly(r), clip, col)
 					if rng.randf() < 0.3:
 						_fill(ci, UI.rect_poly(Rect2(r.position + Vector2(bw * 0.45, -bh * 0.18), Vector2(1.5, bh * 0.18))), clip, col)
+					if hero:
+						# Roof units: a plant box, sometimes a water tank on legs.
+						var ux := r.position.x + bw * rng.randf_range(0.1, 0.55)
+						_fill(ci, UI.rect_poly(Rect2(ux, r.position.y - h * 0.015, bw * 0.28, h * 0.015)), clip, col)
+						if rng.randf() < 0.35:
+							var tx2 := r.position.x + bw * 0.68
+							_fill(ci, UI.rect_poly(Rect2(tx2, r.position.y - h * 0.035, bw * 0.2, h * 0.02)), clip, col)
+							_fill(ci, UI.rect_poly(Rect2(tx2 + 1.0, r.position.y - h * 0.015, 1.0, h * 0.015)), clip, col)
+						if layer == 1 and bw > 10.0:
+							# A faint grid of floors on the nearer row.
+							var fy2 := r.position.y + h * 0.03
+							while fy2 < base_y - 3.0:
+								var fx := r.position.x + 2.0
+								while fx < r.end.x - 3.0:
+									var lit2 := rng.randf() < 0.12
+									_fill(ci, UI.rect_poly(Rect2(fx, fy2, 2.0, 1.5)), clip, Color(red, 0.5) if lit2 else Color(UI.HAZE, 0.8))
+									fx += 5.0
+								fy2 += h * 0.03
 					if layer == 1:
 						for k in rng.randi_range(0, 3):
 							var wp := r.position + Vector2(rng.randf_range(3.0, maxf(4.0, bw - 6.0)), rng.randf_range(6.0, maxf(7.0, bh - 6.0)))
@@ -497,6 +583,13 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 					_fill(ci, UI.rect_poly(Rect2(Vector2(sun_c.x - half, o.y + ry), Vector2(half * 2.0, 1.5))), clip, Color(red, 0.45))
 				ry += maxf(3.0, gh * 0.18)
 				k += 1
+			if hero:
+				# Ripples: short light dashes scattered across the water.
+				for q in 18:
+					var rp := o + Vector2(rng.randf() * w, base_y + 2.0 + rng.randf() * (gh - 3.0))
+					_fill(ci, UI.rect_poly(Rect2(rp, Vector2(rng.randf_range(4.0, 10.0), 1.0))), clip, Color(UI.HAZE, 0.9))
+				# The shoreline: a darker band where the land meets the water.
+				_fill(ci, UI.rect_poly(Rect2(o + Vector2(0, base_y), Vector2(w, 2.0))), clip, Color(UI.INK, 0.5))
 		"runway":
 			var rr := Rect2(o + Vector2(0, h - h * 0.08), Vector2(w, h * 0.08))
 			_fill(ci, UI.rect_poly(rr), clip, UI.INK)
@@ -541,10 +634,19 @@ static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
 	if String(opt.get("ground", "")) == "water":
 		o.y -= rect.size.y * 0.06
+	if s >= 0.6:
+		# Rim light: the silhouette once more, nudged towards the sun in a warm
+		# tint, so the edges facing the sun catch its light.
+		var bc := o + Vector2(60.0, 40.0) * s
+		var toward := (sc - bc).normalized() * maxf(1.0, s * 1.6)
+		draw(ci, kind, o + toward, s, lit, red, Color(red.lerp(UI.FLASH, 0.2), 0.62))
 	draw(ci, kind, o, s, lit, red)
 	if String(opt.get("ground", "")) != "water":
 		var ground := Rect2(rect.position + Vector2(0, rect.size.y - 4.0 * s), Vector2(rect.size.x, 4.0 * s + 1.0))
 		_fill(ci, UI.rect_poly(ground), clip, UI.INK)
+		if s >= 0.9:
+			# A kerb catching the light along the top of the ground.
+			_fill(ci, UI.rect_poly(Rect2(ground.position, Vector2(ground.size.x, 1.0))), clip, Color(UI.HAZE, 0.9))
 
 
 # The sun in small list pictures: red sunk into the teal sky.
@@ -572,13 +674,98 @@ class Scene extends Control:
 				muted = v
 				queue_redraw()
 
+	var _life: Control
+
 	func _init(k := "shop", r := 16.0) -> void:
 		kind = k
 		radius = r
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		resized.connect(queue_redraw)
+		resized.connect(_sync_life)
+
+	func _sync_life() -> void:
+		## Big hero pictures get a little life on top (birds, a car, a boat).
+		if size.x >= 240.0 and size.y >= 100.0 and _life == null:
+			_life = Art.Life.new(self)
+			add_child(_life)
 
 	func _draw() -> void:
 		if size.x < 20.0 or size.y < 20.0:
 			return
 		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, 0.0, lit, seed_id, muted)
+
+
+class Life extends Control:
+	## Small moving things over a hero picture, drawn on their own layer at
+	## 8 frames a second so the picture underneath is never redrawn. Nothing
+	## moves with Less motion on, or while the picture is off screen.
+	const FPS := 8.0
+	var _scene
+	var _t := 0.0
+	var _acc := 0.0
+
+	func _init(sc) -> void:
+		_scene = sc
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		clip_contents = true
+		_t = float(hash(String(sc.seed_id) + String(sc.kind)) % 1000)
+
+	func _still() -> bool:
+		## Less motion on? Looked up at run time: this file must not name the
+		## Game autoload (tests load Art before autoloads exist).
+		var g := get_tree().root.get_node_or_null("Game") if is_inside_tree() else null
+		return g == null or bool(g.get("reduce_motion"))
+
+	func _process(delta: float) -> void:
+		if not is_visible_in_tree() or _still():
+			return
+		_t += delta
+		_acc += delta
+		if _acc >= 1.0 / FPS:
+			_acc = 0.0
+			queue_redraw()
+
+	func _draw() -> void:
+		if _still():
+			return
+		var w := size.x
+		var h := size.y
+		var rad: float = _scene.radius
+		var opt: Dictionary = Art.SCENES.get(String(_scene.kind), Art.SCENES["shop"])
+		var s := minf(w / 150.0, (h - 10.0) / 78.0)
+		# Two birds crossing the sky, wings beating.
+		for i in 2:
+			var span := w + 60.0
+			var x := fmod(_t * (10.0 + 4.0 * i) + i * span * 0.5, span) - 30.0
+			var y := h * (0.16 + 0.07 * i) + sin(_t * 0.8 + i) * 3.0
+			var flap := 0.6 if int(_t * 4.0 + i) % 2 == 0 else -0.1
+			var bs := 3.2 + i
+			draw_polyline(PackedVector2Array([Vector2(x - bs * 1.6, y - bs * flap), Vector2(x, y), Vector2(x + bs * 1.6, y - bs * flap)]), Color(UI.INK, 0.75), 1.3, true)
+		var ground := String(opt.get("ground", ""))
+		if ground == "street" or ground == "runway":
+			# Now and then a car passes along the street, headlights on.
+			var cyc := 11.0
+			var p := fmod(_t, cyc) / cyc
+			if p < 0.55:
+				var x := -40.0 + (w + 80.0) * (p / 0.55)
+				var y := h - 4.0 * s
+				var cw := 22.0 * maxf(0.8, s * 0.6)
+				var ch := cw * 0.32
+				var a := clampf(minf(x - rad, w - rad - x) / 20.0, 0.0, 1.0)
+				if a > 0.0:
+					draw_colored_polygon(PackedVector2Array([Vector2(x, y), Vector2(x, y - ch * 0.6), Vector2(x + cw * 0.25, y - ch), Vector2(x + cw * 0.7, y - ch), Vector2(x + cw, y - ch * 0.5), Vector2(x + cw, y)]), Color(UI.INK, a))
+					draw_rect(Rect2(x + cw - 2.0, y - ch * 0.45, 2.0, 2.0), Color(UI.FLASH, a), true)
+					draw_rect(Rect2(x + cw, y - ch * 0.45, 10.0, 2.0), Color(UI.FLASH, 0.25 * a), true)
+		elif ground == "water":
+			# A small boat drifting slowly across.
+			var span2 := w + 80.0
+			var bx := fmod(_t * 6.0, span2) - 40.0
+			var by := h - h * 0.07
+			var a2 := clampf(minf(bx - rad, w - rad - bx) / 20.0, 0.0, 1.0)
+			if a2 > 0.0:
+				draw_colored_polygon(PackedVector2Array([Vector2(bx, by), Vector2(bx + 18.0, by), Vector2(bx + 14.0, by + 4.0), Vector2(bx + 3.0, by + 4.0)]), Color(UI.INK, a2))
+				draw_rect(Rect2(bx + 6.0, by - 12.0, 1.2, 12.0), Color(UI.INK, a2), true)
+				draw_colored_polygon(PackedVector2Array([Vector2(bx + 7.5, by - 12.0), Vector2(bx + 7.5, by - 2.0), Vector2(bx + 15.0, by - 2.0)]), Color(UI.INK, a2))
+				draw_rect(Rect2(bx - 4.0, by + 5.0, 26.0, 1.0), Color(UI.HAZE, 0.8 * a2), true)
+

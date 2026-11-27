@@ -35,6 +35,9 @@ func _ready() -> void:
 	_sky.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_sky)
 	add_child(SkyTime.Layer.new())   # rain or fog on top, when the weather turns
+	var street := StreetLife.new()
+	street.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(street)   # a car now and then; its own layer, so the tower isn't redrawn
 	tier = _tier_now()
 	Game.changed.connect(_on_game_changed)
 	resized.connect(_reshape)
@@ -148,16 +151,37 @@ func _draw() -> void:
 		draw_rect(Rect2(tx - 2.0, top - 4.0, 4.0, 4.0), UI.RED, true)
 		draw_rect(Rect2(tx + tw - 2.0, top - 4.0, 4.0, 4.0), UI.RED, true)
 	if tier >= 5:
-		# A crown: the top floors lit red all round.
+		# A crown: the top floors lit red all round, and a slim spire.
 		draw_rect(Rect2(tx, top + 6.0, tw, 3.0), UI.RED, true)
+		_fill_clipped(PackedVector2Array([Vector2(tx + tw * 0.62, top - tw * 0.16), Vector2(tx + tw * 0.71, top - tw * 0.85), Vector2(tx + tw * 0.8, top - tw * 0.16)]), clip, UI.INK)
 	# Body with a ledge at the top and the shaded side.
 	_fill_clipped(UI.rect_poly(Rect2(tx - 4.0, top, tw + 8.0, 6.0)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx, top, tw, h)), clip, UI.INK)
 	_fill_clipped(UI.rect_poly(Rect2(tx + tw, top + 8.0, tw * 0.1, h)), clip, UI.SIDE)
-	# Concrete panel seams on the face.
+	# Concrete panel seams on the face, and slim pillars between the window
+	# columns that catch a little light.
 	var seam := Color(UI.HAZE, 0.35)
 	for k in [0.5]:
 		draw_rect(Rect2(tx + tw * k - 0.5, top + 8.0, 1.0, h), seam, true)
+	for c2 in range(1, COLS):
+		var px: float = tx + g["pad"] + c2 * g["pitch_x"] - (g["pitch_x"] - g["win_w"]) * 0.5
+		draw_rect(Rect2(px - 1.0, top + 10.0, 2.0, h), Color(UI.HAZE, 0.22), true)
+	# The sun catches the roof ledge and the corner facing it.
+	draw_rect(Rect2(tx - 4.0, top, tw + 8.0, 1.5), Color(UI.RED, 0.55), true)
+	draw_rect(Rect2(tx + tw + tw * 0.1 - 1.5, top + 8.0, 1.5, h), Color(UI.RED, 0.35), true)
+	# Ground floor: a lit glass lobby under a canopy.
+	var lob := Rect2(tx + tw * 0.18, h - 10.0 - 26.0, tw * 0.64, 26.0)
+	_fill_clipped(UI.rect_poly(lob), clip, Color(UI.FLASH, 0.22))
+	for d in 4:
+		draw_rect(Rect2(lob.position.x + lob.size.x * float(d) / 4.0, lob.position.y, 1.5, lob.size.y), UI.INK, true)
+	_fill_clipped(UI.rect_poly(Rect2(lob.position.x - 6.0, lob.position.y - 4.0, lob.size.x + 12.0, 4.0)), clip, UI.INK)
+	draw_rect(Rect2(lob.position.x - 6.0, lob.position.y - 4.0, lob.size.x + 12.0, 1.0), Color(UI.RED, 0.45), true)
+	if tier >= 2:
+		# A setback crown band of lit glass near the top.
+		draw_rect(Rect2(tx + 3.0, top + 9.0, tw - 6.0, 4.0), Color(UI.FLASH, 0.18), true)
+	if tier >= 3:
+		# A helipad ring on the roof.
+		draw_arc(Vector2(tx + tw * 0.5, top - 2.0), tw * 0.16, PI, TAU, 24, Color(UI.TEXT, 0.35), 1.5, true)
 	var py: float = g["pitch_y"]
 	var fy: float = top + 18.0 - py * 0.25
 	while fy < h:
@@ -185,8 +209,8 @@ func _draw() -> void:
 		lit[_order[k]] = true
 	for i in range(COLS * _rows):
 		var r := _window_rect(i, g)
-		if r.end.y > h - 14.0:
-			continue
+		if r.end.y > h - 42.0:
+			continue   # the ground floor is the lobby
 		var c := UI.WINDOW
 		if lit.has(i):
 			c = UI.RED
@@ -198,7 +222,7 @@ func _draw() -> void:
 			var row_pos := float(i / COLS) / float(maxi(1, _rows))
 			if absf((1.0 - row_pos) - _wave) < 0.12:
 				c = UI.FLASH
-		draw_rect(r, c, true)
+		_window(r, c)
 	var nb := Rect2(w * 0.86, h * 0.46, w * 0.2, h * 0.6)
 	_fill_clipped(UI.rect_poly(nb), clip, UI.WINDOW)
 	_fill_clipped(UI.rect_poly(Rect2(nb.position + Vector2(10, 14), Vector2(8, 7))), clip, UI.RED)
@@ -209,6 +233,20 @@ func _draw() -> void:
 	for m in 4:
 		var my := sign.position.y + 5.0 + m * sign.size.y * 0.23
 		_fill_clipped(UI.rect_poly(Rect2(sign.position.x + 3.0, my, sign.size.x - 6.0 - (m % 2) * 4.0, 2.0)), clip, UI.INK)
+
+
+func _window(r: Rect2, c: Color) -> void:
+	## One window: a soft glow when lit, a brighter top pane, a mullion, a sill;
+	## dark windows show a faint reflection of the sky.
+	if c == UI.RED or c == UI.FLASH:
+		draw_rect(r.grow(2.0), Color(c, 0.16), true)
+		draw_rect(r, c, true)
+		draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.38)), c.lerp(UI.FLASH, 0.3), true)
+	else:
+		draw_rect(r, c, true)
+		draw_rect(Rect2(r.position, Vector2(r.size.x * 0.4, 1.5)), Color(UI.HAZE, 0.6), true)
+	draw_rect(Rect2(r.position.x + r.size.x * 0.5 - 0.5, r.position.y, 1.0, r.size.y), Color(UI.INK, 0.5), true)
+	draw_rect(Rect2(r.position.x - 1.0, r.end.y, r.size.x + 2.0, 1.0), Color(UI.HAZE, 0.75), true)
 
 
 func _process(delta: float) -> void:
@@ -455,3 +493,52 @@ class TowerSky extends Control:
 			var x := 8.0 + area * float(i) / 5.0
 			Art.draw(self, String(front[i]), Vector2(x, base - 70.0 * sf), sf, lit)
 		draw_rect(Rect2(0, base - 70.0 * sf - 18.0, w * 0.45, 70.0 * sf + 22.0), Color(UI.HAZE, 0.08), true)
+
+
+class StreetLife extends Control:
+	## A car drives along the street every so often, headlights on. Drawn at
+	## 10 frames a second on its own layer and only while it is passing; still
+	## with Less motion on. Never takes a tap.
+	var _t := 0.0
+	var _acc := 0.0
+	const CYCLE := 14.0
+	const DRIVE := 5.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		clip_contents = true
+
+	func _process(delta: float) -> void:
+		if not is_visible_in_tree() or Game.reduce_motion:
+			return
+		_t += delta
+		if fmod(_t, CYCLE) > DRIVE + 0.2:
+			return   # nothing on the street: no redraws
+		_acc += delta
+		if _acc >= 0.1:
+			_acc = 0.0
+			queue_redraw()
+
+	func _draw() -> void:
+		if Game.reduce_motion:
+			return
+		var p := fmod(_t, CYCLE) / DRIVE
+		if p > 1.0:
+			return
+		var w := size.x
+		var h := size.y
+		var x := lerpf(w + 30.0, -60.0, p)   # right to left, towards the tower's foot
+		var y := h - 10.0
+		var a := clampf(minf(x - 20.0, w - 20.0 - x) / 24.0, 0.0, 1.0)
+		if a <= 0.0:
+			return
+		var cw := 34.0
+		var ch := 11.0
+		draw_rect(Rect2(x - 24.0, y - 4.0, 24.0, 2.0), Color(UI.FLASH, 0.22 * a), true)   # light on the road ahead
+		draw_colored_polygon(PackedVector2Array([Vector2(x, y), Vector2(x, y - ch * 0.55), Vector2(x + cw * 0.22, y - ch), Vector2(x + cw * 0.7, y - ch), Vector2(x + cw, y - ch * 0.5), Vector2(x + cw, y)]), Color(UI.INK, a))
+		draw_rect(Rect2(x + cw * 0.28, y - ch * 0.85, cw * 0.36, ch * 0.3), Color(UI.WINDOW, a), true)
+		draw_rect(Rect2(x, y - ch * 0.45, 2.5, 2.0), Color(UI.FLASH, a), true)
+		draw_rect(Rect2(x + cw - 2.0, y - ch * 0.45, 2.0, 2.0), Color(UI.RED, a), true)
+		for wx in [x + cw * 0.22, x + cw * 0.78]:
+			draw_circle(Vector2(wx, y), 3.5, Color(UI.INK, a))
+

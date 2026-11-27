@@ -93,16 +93,32 @@ func _draw() -> void:
 			draw_rect(r, UI.TRACK, false, 1.0)
 			continue
 		draw_rect(r, UI.RAISED, true)
-		# Fan: three blades turning.
+		# Case: a lighter top edge, a darker base, vent slats on the left.
+		draw_rect(Rect2(r.position, Vector2(r.size.x, 1.0)), Color(UI.TEXT, 0.18), true)
+		draw_rect(Rect2(r.position.x, r.end.y - 2.0, r.size.x, 2.0), Color(UI.INK, 0.6), true)
+		for v in 3:
+			draw_rect(Rect2(r.position.x + 2.0, r.position.y + 6.0 + v * 4.0, 3.0, 1.0), Color(UI.INK, 0.7), true)
+		# Fan: a grille ring, three blades turning, a hub.
 		var c := Vector2(r.position.x + r.size.x * 0.5, r.get_center().y + 2.0)
 		var rad := minf(r.size.x, r.size.y) * 0.3
 		draw_circle(c, rad + 1.5, UI.INK)
+		draw_arc(c, rad + 1.5, 0.0, TAU, 20, Color(UI.SUB, 0.35), 1.0, true)
 		for b in 3:
 			var a := _t * 9.0 + TAU * float(b) / 3.0 + float(i)
 			draw_line(c, c + Vector2(cos(a), sin(a)) * rad, UI.SUB, 2.0, true)
-		# Status light: blinks while mining (red stays for the sun).
+		draw_circle(c, 1.6, UI.TEXT)
+		# A row of tiny status lights (red stays for the sun): one blinks.
 		var blink := fmod(_t * 2.0 + float(i) * 0.37, 1.0) < 0.55
 		draw_circle(Vector2(r.end.x - 5.0, r.position.y + 5.0), 2.0, UI.TEXT if blink else UI.TRACK)
+		draw_circle(Vector2(r.end.x - 5.0, r.position.y + 10.0), 1.2, Color(UI.GOLD, 0.8))
+		# Heat shimmer rising off the top while it works.
+		if not Game.reduce_motion:
+			var hx := r.position.x + r.size.x * 0.5
+			var hp := PackedVector2Array()
+			for q in 5:
+				var yy := r.position.y - 1.0 - q * 2.2
+				hp.append(Vector2(hx + sin(_t * 6.0 + q * 1.3 + i) * 2.0, yy))
+			draw_polyline(hp, Color(UI.TEXT, 0.12), 1.0, true)
 	# Coins rising out of the machines.
 	if _coins.is_empty():
 		return

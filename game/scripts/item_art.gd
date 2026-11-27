@@ -31,6 +31,9 @@ func _draw() -> void:
 	var k := clampi(idx if idx >= 0 else 5, 0, 5)
 	var ink := UI.TEXT if owned else Color(UI.SUB, 0.55)
 	var acc := UI.GOLD if owned else Color(UI.SUB, 0.3)
+	# A soft shadow on the ground under things that stand or drive.
+	if owned and col in ["cars", "relics", "watches"]:
+		_shadow(o + Vector2(s * 0.5, s * (0.82 if col == "cars" else 0.9)), s * 0.42, s * 0.05)
 	match col:
 		"watches": _watch(o, s, k, ink, acc)
 		"art": _painting(o, s, k, ink, acc)
@@ -54,6 +57,19 @@ func _poly(o: Vector2, s: float, pts: Array, c: Color) -> void:
 
 func _rrect(o: Vector2, s: float, x: float, y: float, w: float, h: float, r: float, c: Color) -> void:
 	draw_colored_polygon(UI.rounded_rect_poly(Rect2(_p(o, s, x, y), Vector2(w, h) * s), r * s), c)
+
+
+func _shadow(c: Vector2, rx: float, ry: float) -> void:
+	var pts := PackedVector2Array()
+	for i in 24:
+		var a := TAU * float(i) / 24.0
+		pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+	draw_colored_polygon(pts, Color(UI.INK, 0.45))
+
+
+func _shine() -> Color:
+	## A soft highlight where the light catches a surface.
+	return Color(UI.FLASH, 0.55) if owned else Color(UI.SUB, 0.12)
 
 
 func _hole() -> Color:
@@ -86,6 +102,11 @@ func _watch(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 		draw_circle(c + Vector2(0, r * 0.38), r * 0.18, acc)
 	if k == 4:   # tourbillon cage
 		draw_arc(c + Vector2(0, r * 0.36), r * 0.18, 0.0, TAU, 16, acc, maxf(1.0, s * 0.03), true)
+	# Light across the glass, and a stitched strap.
+	draw_arc(c, r * 0.66, PI * 1.08, PI * 1.42, 12, Color(UI.TEXT, 0.4) if owned else Color(UI.SUB, 0.12), maxf(1.0, s * 0.03), true)
+	for yy in [0.06, 0.16, 0.8, 0.9]:
+		draw_rect(Rect2(_p(o, s, 0.4, yy), Vector2(0.02, 0.04) * s), Color(UI.SUB, 0.6) if owned else Color(UI.SUB, 0.2))
+		draw_rect(Rect2(_p(o, s, 0.58, yy), Vector2(0.02, 0.04) * s), Color(UI.SUB, 0.6) if owned else Color(UI.SUB, 0.2))
 	var ah := TAU * float(k * 2 + 1) / 12.0 - PI / 2.0
 	var am := TAU * float(k * 7 + 2) / 12.0 - PI / 2.0
 	draw_line(c, c + Vector2(cos(ah), sin(ah)) * r * 0.42, ink, maxf(1.5, s * 0.05), true)
@@ -97,7 +118,12 @@ func _painting(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	# A gilt frame (gold once owned), then a tiny scene per painting.
 	var fr := Rect2(_p(o, s, 0.04, 0.12), Vector2(0.92, 0.76) * s)
 	draw_rect(fr, acc if owned else ink)
+	# A bevelled frame: lighter top and left, darker bottom and right.
+	draw_rect(Rect2(fr.position, Vector2(fr.size.x, maxf(1.0, s * 0.02))), _shine())
+	draw_rect(Rect2(fr.position, Vector2(maxf(1.0, s * 0.02), fr.size.y)), _shine())
+	draw_rect(Rect2(fr.position.x, fr.end.y - maxf(1.0, s * 0.02), fr.size.x, maxf(1.0, s * 0.02)), Color(UI.INK, 0.5))
 	var cv := fr.grow(-s * 0.07)
+	draw_rect(cv.grow(maxf(1.0, s * 0.015)), Color(UI.INK, 0.6))   # the inner shadow of the frame
 	draw_rect(cv, UI.SKY if owned else UI.PANEL)
 	var b := cv.position
 	var w := cv.size
@@ -142,12 +168,19 @@ func _car(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	else:
 		_poly(o, s, [[tail, 0.7], [tail, belt + 0.04], [rs - 0.06, belt], [rs, roof], [re, roof], [re + 0.1, belt], [nose, belt + 0.04], [nose, 0.7]], ink)
 		_poly(o, s, [[rs + 0.03, roof + 0.04], [re - 0.01, roof + 0.04], [re + 0.07, belt - 0.01], [rs - 0.02, belt - 0.01]], _hole())
-	# Gold pin stripe along the side.
+	# Gold pin stripe along the side, a shine along the shoulder, lights.
 	draw_rect(Rect2(_p(o, s, tail + 0.04, 0.59), Vector2(nose - tail - 0.08, 0.03) * s), acc)
+	draw_rect(Rect2(_p(o, s, tail + 0.06, belt + 0.035), Vector2((nose - tail) * 0.55, 0.015) * s), _shine())
+	draw_rect(Rect2(_p(o, s, nose - 0.03, belt + 0.06), Vector2(0.03, 0.035) * s), UI.FLASH if owned else _hole())
+	draw_rect(Rect2(_p(o, s, tail, belt + 0.06), Vector2(0.025, 0.035) * s), UI.RED if owned else _hole())
 	for wx in [0.25, 0.75]:
+		draw_arc(_p(o, s, wx, 0.7), s * 0.125, PI, TAU, 12, Color(UI.INK, 0.8), maxf(1.0, s * 0.02), true)   # wheel arch
 		draw_circle(_p(o, s, wx, 0.7), s * 0.11, _hole())
 		draw_circle(_p(o, s, wx, 0.7), s * 0.075, ink)
-		draw_circle(_p(o, s, wx, 0.7), s * 0.03, _hole())
+		for sp in 5:
+			var a := TAU * float(sp) / 5.0
+			draw_line(_p(o, s, wx, 0.7), _p(o, s, wx, 0.7) + Vector2(cos(a), sin(a)) * s * 0.07, _hole(), maxf(1.0, s * 0.012))
+		draw_circle(_p(o, s, wx, 0.7), s * 0.03, acc)
 
 
 func _jet(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
@@ -161,8 +194,12 @@ func _jet(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	_poly(o, s, [[x0 + 0.02, 0.47], [x0 - 0.02, 0.3], [x0 + 0.07, 0.3], [x0 + 0.12, 0.47]], ink)
 	_poly(o, s, [[x0 + 0.02, 0.53], [x0 - 0.02, 0.7], [x0 + 0.07, 0.7], [x0 + 0.12, 0.53]], ink)
 	_poly(o, s, [[x0, 0.5], [x0 + 0.08, 0.44], [x1 - 0.08, 0.44], [x1, 0.5], [x1 - 0.08, 0.56], [x0 + 0.08, 0.56]], ink)
-	# Gold cheat line down the body, dark cockpit at the nose.
+	# Gold cheat line down the body, cabin windows, dark cockpit at the nose.
 	draw_rect(Rect2(_p(o, s, x0 + 0.1, 0.485), Vector2(len - 0.22, 0.03) * s), acc)
+	var wn := 4 + k
+	for i in wn:
+		draw_rect(Rect2(_p(o, s, x0 + 0.16 + float(i) * (len - 0.34) / float(wn), 0.455), Vector2(0.018, 0.018) * s), _hole())
+	draw_rect(Rect2(_p(o, s, x0 + 0.08, 0.445), Vector2(len - 0.2, 0.01) * s), _shine())
 	_poly(o, s, [[x1 - 0.1, 0.47], [x1 - 0.04, 0.5], [x1 - 0.1, 0.53]], _hole())
 
 
@@ -181,8 +218,12 @@ func _yacht(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	if k <= 1:
 		draw_rect(Rect2(_p(o, s, 0.48, 0.1), Vector2(0.03, 0.5) * s), ink)
 		_poly(o, s, [[0.52, 0.12], [0.52, 0.56], [0.84, 0.56]], ink)
+	# Light along the gunwale, a wake behind and the hull's reflection.
+	draw_rect(Rect2(_p(o, s, 0.06, 0.6), Vector2(0.88, 0.012) * s), _shine())
 	for i in 3:
 		draw_rect(Rect2(_p(o, s, 0.08 + i * 0.3, 0.88), Vector2(0.2, 0.02) * s), Color(UI.SUB, 0.5) if owned else Color(UI.SUB, 0.2))
+	_poly(o, s, [[0.12, 0.8], [0.86, 0.8], [0.8, 0.84], [0.18, 0.84]], Color(ink, 0.18))
+	draw_line(_p(o, s, 0.02, 0.76), _p(o, s, -0.04, 0.8), Color(UI.SUB, 0.5) if owned else Color(UI.SUB, 0.15), maxf(1.0, s * 0.015))
 
 
 func _island(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
@@ -191,6 +232,9 @@ func _island(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	var wid := 0.5 + 0.08 * float(k % 4)
 	var hgt := 0.14 + 0.03 * float(k % 3)
 	_poly(o, s, [[0.5 - wid * 0.5, 0.72], [0.5 - wid * 0.25, 0.72 - hgt], [0.5 + wid * 0.25, 0.72 - hgt * 1.1], [0.5 + wid * 0.5, 0.72]], ink)
+	# Glints on the sea.
+	for g2 in 4:
+		draw_rect(Rect2(_p(o, s, 0.1 + g2 * 0.22, 0.8 + (g2 % 2) * 0.08), Vector2(0.08, 0.012) * s), Color(UI.TEXT, 0.35) if owned else Color(UI.SUB, 0.15))
 	# Gold sand line where the island meets the sea.
 	draw_rect(Rect2(_p(o, s, 0.5 - wid * 0.5, 0.7), Vector2(wid, 0.03) * s), acc)
 	var palms: int = [1, 1, 2, 2, 3, 3][k]
@@ -237,3 +281,8 @@ func _relic(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 			_poly(o, s, [[0.1, 0.72], [0.22, 0.42], [0.78, 0.42], [0.9, 0.72]], acc)
 			_poly(o, s, [[0.22, 0.42], [0.28, 0.34], [0.84, 0.34], [0.78, 0.42]], ink)
 			draw_circle(_p(o, s, 0.5, 0.58), s * 0.07, _hole())
+	# A glint where the light catches the metal.
+	if owned:
+		draw_circle(_p(o, s, 0.36, 0.34), maxf(1.0, s * 0.025), Color(UI.FLASH, 0.8))
+		draw_line(_p(o, s, 0.36, 0.28), _p(o, s, 0.36, 0.4), Color(UI.FLASH, 0.5), 1.0)
+		draw_line(_p(o, s, 0.3, 0.34), _p(o, s, 0.42, 0.34), Color(UI.FLASH, 0.5), 1.0)

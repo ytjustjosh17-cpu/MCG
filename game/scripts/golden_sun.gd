@@ -51,12 +51,17 @@ func _draw() -> void:
 	var c := size * 0.5
 	var pulse := 0.5 + 0.5 * sin(_t * 5.0)
 	var gold := UI.SECTOR_COL["Energy"]
-	draw_circle(c, 30.0, Color(gold, 0.12 + 0.1 * pulse))
-	draw_circle(c, 22.0, Color(gold, 0.25))
-	draw_circle(c, 16.0, gold)
-	for i in 8:
-		var a := TAU * float(i) / 8.0 + _t
-		draw_line(c + Vector2(cos(a), sin(a)) * 20.0, c + Vector2(cos(a), sin(a)) * 27.0, gold, 2.0, true)
+	# A soft glow in fine steps, then long and short rays turning slowly.
+	for k in 6:
+		draw_circle(c, 31.0 - k * 2.0, Color(gold, (0.04 + 0.03 * pulse)))
+	for i in 12:
+		var a := TAU * float(i) / 12.0 + _t * 0.8
+		var r1 := 27.0 if i % 2 == 0 else 23.5
+		draw_line(c + Vector2(cos(a), sin(a)) * 19.0, c + Vector2(cos(a), sin(a)) * r1, gold, 2.0 if i % 2 == 0 else 1.5, true)
+	draw_circle(c, 16.5, gold.darkened(0.25))   # a darker rim
+	draw_circle(c, 15.0, gold)
+	draw_circle(c + Vector2(-4.0, -4.0), 6.0, gold.lightened(0.35))   # where the light hits
+	draw_circle(c + Vector2(-5.5, -5.5), 2.2, Color(UI.TEXT, 0.85))
 
 
 func _catch() -> void:
