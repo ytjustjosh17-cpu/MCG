@@ -128,7 +128,7 @@ func _run() -> void:
 			["res://scripts/home_page.gd", ""], ["res://scripts/news_page.gd", ""],
 			["res://scripts/slots_page.gd", "vault"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
 			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
-			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""], ["res://scripts/tower_page.gd", ""]]:
 		if not ResourceLoader.exists(path_arg[0]):
 			continue
 		var pg = load(path_arg[0]).new(path_arg[1]) if path_arg[1] != "" else load(path_arg[0]).new()

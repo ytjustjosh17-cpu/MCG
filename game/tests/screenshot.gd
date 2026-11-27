@@ -378,6 +378,10 @@ func _run() -> void:
 	await create_timer(2.6).timeout
 	await _shot("39f_races")
 	main.pop()
+	await create_timer(0.4).timeout
+	main.push(load("res://scripts/tower_page.gd").new())
+	await _shot("39g_tower")
+	main.pop()
 	await create_timer(0.6).timeout
 	g.reduce_motion = keep_rm
 	main.pop()
