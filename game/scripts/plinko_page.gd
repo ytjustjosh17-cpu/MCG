@@ -24,6 +24,7 @@ func play_button() -> Button:
 
 
 func build_game() -> void:
+	add_results_strip("plinko")
 	_board = Board.new()
 	_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_board.landed.connect(_on_landed)
@@ -97,6 +98,7 @@ func _on_drop() -> void:
 func _on_landed(slot: int, paid: float, bet: float) -> void:
 	_hidden_win = maxf(0.0, _hidden_win - paid)
 	_board.flash(slot)
+	record_result(bet, paid)
 	# Balls land quickly one after another: only a real win gets a buzz.
 	status.set_win(paid, paid > bet * 1.001)
 	if paid > bet * 1.01:

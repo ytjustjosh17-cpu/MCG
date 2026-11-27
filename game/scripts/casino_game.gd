@@ -11,7 +11,7 @@ extends Page
 ##
 ## Landscape (1.2): two columns. The game area on the left takes all the
 ## height; title, status and dock stack in a 300 px column on the right with
-## the main button at its foot. Turning the phone only moves these nodes
+## the main button at its foot. (Side column 340 px since the bet bar got ½ and ×2.) Turning the phone only moves these nodes
 ## between the two layouts: nothing is rebuilt, so a round in play, its stake
 ## and the chips are never touched by a rotation.
 ##
@@ -28,7 +28,7 @@ var info_b: Button
 var title_row: HBoxContainer
 var split: HBoxContainer      # landscape: [area | side]
 var side: VBoxContainer       # landscape: title, status, dock
-const SIDE_W := 300.0
+const SIDE_W := 340.0   # room for the bet bar's six buttons
 var auto_on := false         # autoplay (slots), shared so leaving always stops it
 var auto_left := 0
 
@@ -277,6 +277,24 @@ func win_fx(paid: float, stake: float, big_x := CONFETTI_X, at := Vector2.INF) -
 		Kit.haptic("light")
 
 
+# ---- the last results strip ---------------------------------------------------------
+
+var results: ResultStrip
+
+
+func add_results_strip(key: String) -> void:
+	## A thin row of the last five rounds (won or lost, after the stake) at the
+	## top of the game area. Kept in Game.ui, so it survives leaving the page.
+	results = ResultStrip.new(key)
+	area.add_child(results)
+	area.move_child(results, 0)
+
+
+func record_result(stake: float, paid: float) -> void:
+	if results != null:
+		results.add(paid - stake)
+
+
 func offer_chips() -> void:
 	if Game.cash >= 0.01:
 		TradeSheet.open("chips", "", "chips_in")
@@ -457,6 +475,54 @@ class StatusRow extends HBoxContainer:
 		set_win(0.0)
 
 
+class ResultStrip extends HBoxContainer:
+	## Up to five small chips, newest first: "+£1.2K" in gold for a win,
+	## "−£500" in grey for a loss. Quiet on purpose: no big numbers to chase.
+	const KEEP := 5
+	var key := ""
+
+	func _init(k := "") -> void:
+		key = k
+		custom_minimum_size = Vector2(0, 28)
+		add_theme_constant_override("separation", 6)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var t := UI.label("Last", 13, UI.SUB)
+		t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		add_child(t)
+		_paint()
+
+	static func _all() -> Dictionary:
+		if typeof(Game.ui.get("casino_last")) != TYPE_DICTIONARY:
+			Game.ui["casino_last"] = {}
+		return Game.ui["casino_last"]
+
+	func add(net: float) -> void:
+		var all := _all()
+		var list: Array = all.get(key, [])
+		list.push_front(snappedf(net, 0.01))
+		while list.size() > KEEP:
+			list.pop_back()
+		all[key] = list
+		_paint()
+
+	func _paint() -> void:
+		for i in range(get_child_count() - 1, 0, -1):
+			var c := get_child(i)
+			remove_child(c)
+			c.queue_free()
+		var list: Array = _all().get(key, [])
+		get_child(0).visible = not list.is_empty()
+		for v in list:
+			var net := float(v)
+			var won := net > 0.004
+			var t := ("+" if won else ("−" if net < -0.004 else "")) + Game.money_short(absf(net))
+			var l := UI.label(t, 13, UI.GOLD if won else UI.SUB, won)
+			l.add_theme_stylebox_override("normal", UI.box(UI.RAISED, 12, 10, 4))
+			l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(l)
+
+
 class BetBar extends HBoxContainer:
 	## The bet: - and + step through round amounts up to the table limit, Max
 	## jumps to the limit. `locked` while a round runs (the amount stays
@@ -468,24 +534,38 @@ class BetBar extends HBoxContainer:
 	var locked := false:
 		set(v):
 			locked = v
-			for b in [minus, plus, mx]:
+			for b in [minus, plus, mx, half, dbl]:
 				if b:
 					(b as Control).modulate.a = 0.4 if v else 1.0
-	var external := false
+	var external := false:
+		set(v):
+			external = v
+			# Slots step through their own line-bet ladders: no ½ / ×2 there.
+			for b in [half, dbl]:
+				if b:
+					(b as Control).visible = not v
 	var minus: Button
 	var plus: Button
 	var mx: Button
+	var half: Button     # ½ and ×2: quick halving and doubling (hidden on slots' own ladders)
+	var dbl: Button
+	var _mid: VBoxContainer
 	var _l: Label
 	var _sub: Label
 	var _ladder: Array = []
 
 	func _init() -> void:
-		add_theme_constant_override("separation", 8)
+		add_theme_constant_override("separation", 6)
 		custom_minimum_size = Vector2(0, 52)
-		minus = _b("-", 52)
+		half = _b("½", 48)
+		half.pressed.connect(func(): _scale(0.5))
+		add_child(half)
+		minus = _b("-", 48)
 		minus.pressed.connect(func(): _step(-1))
 		add_child(minus)
 		var mid := VBoxContainer.new()
+		_mid = mid
+		mid.resized.connect(_fit_value)
 		mid.add_theme_constant_override("separation", -4)
 		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -498,10 +578,14 @@ class BetBar extends HBoxContainer:
 		_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_sub.visible = false
 		mid.add_child(_sub)
-		plus = _b("+", 52)
+		plus = _b("+", 48)
 		plus.pressed.connect(func(): _step(1))
 		add_child(plus)
-		mx = _b("Max", 64)
+		dbl = _b("×2", 48)
+		dbl.add_theme_font_size_override("font_size", 17)
+		dbl.pressed.connect(func(): _scale(2.0))
+		add_child(dbl)
+		mx = _b("Max", 56)
 		mx.add_theme_font_size_override("font_size", 15)
 		mx.pressed.connect(func():
 			if locked:
@@ -526,6 +610,35 @@ class BetBar extends HBoxContainer:
 		_l.text = t
 		_sub.text = sub
 		_sub.visible = sub != ""
+		_fit_value()
+
+	func _fit_value() -> void:
+		## The amount shrinks (24 down to 15) rather than run out of its slot.
+		if _l == null or _mid == null or _mid.size.x <= 0.0:
+			return
+		var fs := 24
+		while fs > 15 and UI.DISPLAY.get_string_size(_l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > _mid.size.x - 2.0:
+			fs -= 1
+		_l.add_theme_font_size_override("font_size", fs)
+
+	func _scale(f: float) -> void:
+		## ½ halves the bet, ×2 doubles it, inside the table's smallest and
+		## largest bet. Off the - / + ladder is fine: any amount can be bet.
+		if locked:
+			Motion.shake(half if f < 1.0 else dbl)
+			return
+		_rebuild()
+		var lo: float = _ladder[0]
+		var hi: float = _ladder[_ladder.size() - 1]
+		var nv := clampf(floor(value * f * 100.0) / 100.0, lo, hi)
+		if absf(nv - value) < 0.005:
+			Motion.shake(half if f < 1.0 else dbl)
+			if f > 1.0:
+				Kit.toast("Table limit: %s" % Game.money_short(hi))
+			return
+		Kit.haptic("selection")
+		value = nv
+		_show()
 
 	func _rebuild() -> void:
 		var top := Game.casino_max_bet()

@@ -33,6 +33,7 @@ func _run() -> void:
 	_slots(spins)
 	print("  (slots %.1f s)" % ((Time.get_ticks_msec() - t0) / 1000.0))
 	_roulette()
+	_tower()
 	var t1 := Time.get_ticks_msec()
 	_blackjack(bj_hands)
 	print("  (blackjack %.1f s)" % ((Time.get_ticks_msec() - t1) / 1000.0))
@@ -189,3 +190,55 @@ func _blackjack(n_hands: int) -> void:
 	_ok(is_equal_approx(float(t.result()["payout_total"]), 25.0), "blackjack pays 3 to 2")
 	t.hands[0]["from_split"] = true
 	_ok(is_equal_approx(float(t.result()["payout_total"]), 20.0), "21 after a split pays even money")
+
+
+func _tower() -> void:
+	## Tower: every cash-out point pays back 95 to 97%, the top prize never
+	## passes the smallest win cap over the biggest bet (so the cap never cuts
+	## a ladder short), and laid-out towers are fair (bad boxes spread evenly).
+	var cap_x := Data.CASINO_MIN_WIN_CAP / Data.CASINO_MIN_BET_CAP
+	for m in TowerMath.ORDER:
+		var d := TowerMath.mode(m)
+		var p := float(int(d["boxes"]) - int(d["bad"])) / float(d["boxes"])
+		var worst := 1.0
+		var best := 0.0
+		for k in range(1, int(d["rows"]) + 1):
+			var rtp := pow(p, k) * TowerMath.mult(m, k)
+			worst = minf(worst, rtp)
+			best = maxf(best, rtp)
+		_ok(worst >= 0.95 and best <= 0.9701, "tower %s: every cash-out pays back 95-97%% (%.4f to %.4f)" % [m, worst, best])
+		_ok(TowerMath.mult(m, int(d["rows"])) <= cap_x, "tower %s: top prize x%.1f stays under the x%.0f cap" % [m, TowerMath.mult(m, int(d["rows"])), cap_x])
+		# Simulated climbs that cash out after one or two rows (low variance).
+		var tm := TowerMath.new(7)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 11
+		var staked := 0.0
+		var paid := 0.0
+		var bad_at := {}
+		var runs := 120000
+		for i in runs:
+			var lay := tm.roll_layout(m)
+			for b in (lay[0] as Array):
+				bad_at[b] = int(bad_at.get(b, 0)) + 1
+			var target := 1 + (i % 2)
+			var step := 0
+			staked += 1.0
+			while step < target:
+				if not TowerMath.is_safe(lay, step, rng.randi_range(0, int(d["boxes"]) - 1)):
+					step = -1
+					break
+				step += 1
+			if step > 0:
+				paid += TowerMath.mult(m, step)
+		var rtp_sim := paid / staked
+		_ok(rtp_sim > 0.94 and rtp_sim < 0.99, "tower %s: simulated climbs pay back %.3f" % [m, rtp_sim])
+		var even := true
+		for b in int(d["boxes"]):
+			var share := float(bad_at.get(b, 0)) / float(runs * int(d["bad"]))
+			if absf(share - 1.0 / float(d["boxes"])) > 0.01:
+				even = false
+		_ok(even, "tower %s: bad boxes are spread evenly" % m)
+	var a := TowerMath.new(3).roll_layout("hard")
+	var b2 := TowerMath.new(3).roll_layout("hard")
+	_ok(a == b2 and a.size() == 4 and (a[0] as Array).size() == 2, "tower: a seeded layout is fixed (a restore can't re-roll it)")
+

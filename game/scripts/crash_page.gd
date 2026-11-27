@@ -41,6 +41,7 @@ func finish_for_test() -> void:
 
 func build_game() -> void:
 	_settle_left_over()
+	add_results_strip("crash")
 	_graph = Graph.new()
 	_graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	area.add_child(_graph)
@@ -127,14 +128,14 @@ func _update_go() -> void:
 		t = "Cash out · " + Game.money_short(float(_round["stake"]) * CrashMath.at(_t))
 		state = 1
 	elif _running:
-		t = "Cashed out"
+		t = "Skip to result"   # you're paid: no need to watch the rest
 		state = 2
 	var key := "%d|%s" % [state, t]
 	if key == _go_key:
 		return
 	_go_key = key
 	_go.text = t
-	set_go(_go, state != 2, state == 1)
+	set_go(_go, true, state == 1)
 
 
 static func _fmt(x: float) -> String:
@@ -143,7 +144,10 @@ static func _fmt(x: float) -> String:
 
 func _on_go() -> void:
 	if _running:
-		_cash_out()
+		if bool(_round.get("paid", false)):
+			_skip()
+		else:
+			_cash_out()
 		return
 	_bet.refresh()
 	var bet := _bet.value
@@ -166,6 +170,7 @@ func _on_go() -> void:
 	if target > 0.0 and crash >= target:
 		# Known now: pay at once, then show the climb.
 		_hidden_win = Game.casino_pay(bet * target)
+		_round["got"] = _hidden_win
 		_round["paid"] = true
 		_round["paid_at"] = target
 		Game.save_game()
@@ -182,6 +187,7 @@ func _cash_out() -> void:
 	if m >= float(_round["crash"]):
 		return   # too late: it already crashed
 	var got := Game.casino_pay(float(_round["stake"]) * m)
+	_round["got"] = got
 	_round["paid"] = true
 	_round["paid_at"] = m
 	Game.save_game()
@@ -189,6 +195,21 @@ func _cash_out() -> void:
 	if is_inside_tree():
 		win_fx(got, float(_round["stake"]))
 		refresh()
+
+
+func _skip() -> void:
+	## After you've been paid: jump to the end of the round.
+	if not _running:
+		return
+	var paid_at := float(_round.get("paid_at", 0.0))
+	if paid_at > 0.0 and _graph.cashed <= 0.0:
+		_graph.cashed = paid_at
+		var won := _hidden_win
+		_hidden_win = 0.0
+		status.set_chips(Game.chips())
+		win_fx(won, float(_round["stake"]))
+	_t = CrashMath.time_to(float(_round["crash"]))
+	_finish()
 
 
 func _process(delta: float) -> void:
@@ -221,6 +242,7 @@ func _finish() -> void:
 	_graph.queue_redraw()
 	if not bool(_round.get("paid", false)):
 		win_fx(0.0, float(_round["stake"]))
+	record_result(float(_round["stake"]), float(_round.get("got", 0.0)))
 	_history.push_front(crash)
 	if _history.size() > 8:
 		_history.pop_back()
@@ -273,14 +295,18 @@ class Graph extends Control:
 			draw_polyline(pts, col, 3.0, true)
 			draw_circle(pts[pts.size() - 1], 5.0, col)
 		# The big number: gold while it climbs, red when it crashes.
-		var big := "%s×" % CrashPage._fmt(now)
-		var bc: Color = UI.RED if crashed else (UI.GOLD if crash > 0.0 else UI.TEXT)
+		# Once you've cashed out, the big number is YOUR multiplier: where it would
+		# have gone stays small, so there's no big number to chase.
+		var big := "%s×" % CrashPage._fmt(cashed if cashed > 0.0 else now)
+		var bc: Color = UI.GOLD if cashed > 0.0 else (UI.RED if crashed else (UI.GOLD if crash > 0.0 else UI.TEXT))
 		draw_string(UI.DISPLAY, Vector2(0, pad.y + h * 0.45), big, HORIZONTAL_ALIGNMENT_CENTER, size.x, 56, bc)
 		var sub := "Cash out before it crashes"
-		if crashed:
-			sub = "Crashed" + (" · you cashed out at %s×" % CrashPage._fmt(cashed) if cashed > 0.0 else "")
+		if crashed and cashed > 0.0:
+			sub = "You cashed out · it crashed at %s×" % CrashPage._fmt(now)
+		elif crashed:
+			sub = "Crashed"
 		elif cashed > 0.0:
-			sub = "Cashed out at %s×" % CrashPage._fmt(cashed)
+			sub = "You cashed out"
 		elif crash > 0.0:
 			sub = "Climbing"
 		draw_string(f, Vector2(0, pad.y + h * 0.45 + 30), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, UI.GOLD if cashed > 0.0 else UI.SUB)

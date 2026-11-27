@@ -203,7 +203,7 @@ func _pages() -> void:
 		var bottom: float = root.get_visible_rect().size.y - inset[1] - 104.0
 		for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
 				["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
-				["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+				["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""], ["res://scripts/tower_page.gd", ""]]:
 			var lp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
 			main.push(lp)
 			await create_timer(0.8).timeout
@@ -240,7 +240,7 @@ func _pages() -> void:
 	main.pop()
 	await create_timer(0.5).timeout
 	g.casino["chips"] = chips_keep
-	for path in ["res://scripts/video_poker_page.gd", "res://scripts/crash_page.gd", "res://scripts/plinko_page.gd", "res://scripts/race_page.gd"]:
+	for path in ["res://scripts/video_poker_page.gd", "res://scripts/crash_page.gd", "res://scripts/plinko_page.gd", "res://scripts/race_page.gd", "res://scripts/tower_page.gd"]:
 		var pg = load(path).new()
 		main.push(pg)
 		await create_timer(1.0).timeout
@@ -270,6 +270,41 @@ func _pages() -> void:
 	_ok(not g.ui.has("crash_round") and absf(g.chips() - cc0) < 0.01, "crash: a round left open by closing the app is lost, never refunded")
 	main.pop()
 	await create_timer(0.6).timeout
+	# Tower: a climb left open waits for you, with the same tower (no re-roll).
+	var tp = load("res://scripts/tower_page.gd").new()
+	main.push(tp)
+	await create_timer(0.8).timeout
+	var tc0: float = g.chips()
+	tp._on_go()   # start a climb
+	await create_timer(0.2).timeout
+	var tr0: Dictionary = g.ui.get("tower_round", {}).duplicate(true)
+	_ok(not tr0.is_empty() and g.chips() < tc0, "tower: the bet is taken and the climb is saved")
+	main.pop()
+	await create_timer(0.6).timeout
+	var tp2 = load("res://scripts/tower_page.gd").new()
+	main.push(tp2)
+	await create_timer(0.8).timeout
+	_ok(g.ui.has("tower_round") and g.ui["tower_round"]["layout"] == tr0["layout"] and int(g.ui["tower_round"]["step"]) == int(tr0["step"]), "tower: coming back finds the same climb, never re-rolled")
+	await tp2.finish_for_test()
+	_ok(not g.ui.has("tower_round"), "tower: cashing out ends the climb")
+	main.pop()
+	await create_timer(0.6).timeout
+	# Bet shortcuts: ½ halves and ×2 doubles, inside the table limits.
+	var bp = load("res://scripts/plinko_page.gd").new()
+	main.push(bp)
+	await create_timer(0.8).timeout
+	var bb = bp._bet
+	bb.value = 1000.0
+	bb.half.pressed.emit()
+	var v_half: float = bb.value
+	bb.dbl.pressed.emit()
+	bb.dbl.pressed.emit()
+	_ok(is_equal_approx(v_half, 500.0) and is_equal_approx(bb.value, minf(2000.0, g.casino_max_bet())), "bet bar: ½ halves and ×2 doubles (%s, %s)" % [v_half, bb.value])
+	for k in 40:
+		bb.dbl.pressed.emit()
+	_ok(bb.value <= g.casino_max_bet() + 0.01, "bet bar: ×2 stops at the table limit")
+	main.pop()
+	await create_timer(0.6).timeout
 	# The daily wheel: once a day.
 	g.casino["wheel_day"] = -1
 	_ok(g.wheel_ready(), "wheel: a free spin is ready")
@@ -293,7 +328,7 @@ func _pages() -> void:
 	var lvr: Rect2 = root.get_visible_rect()
 	for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
 			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
-			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""], ["res://scripts/tower_page.gd", ""]]:
 		var llp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
 		main.push(llp)
 		await create_timer(0.8).timeout

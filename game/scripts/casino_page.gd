@@ -16,6 +16,7 @@ const GAMES := [
 	["blackjack", "Blackjack", "Six decks · blackjack pays 3 to 2", "res://scripts/blackjack_page.gd", "", "tables"],
 	["poker", "Video poker", "Jacks or better · hold and draw", "res://scripts/video_poker_page.gd", "", "tables"],
 	["races", "Races", "Back a car · six runners", "res://scripts/race_page.gd", "", "tables"],
+	["tower", "Tower", "Climb row by row · cash out any time", "res://scripts/tower_page.gd", "", "tables"],
 ]
 
 var _locked: VBoxContainer
@@ -133,7 +134,7 @@ func build() -> void:
 	_stats = UI.label("", 13, UI.SUB)
 	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(_stats)
-	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, blackjack and poker ~99%.", 13, UI.SUB)
+	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, tower 97%, blackjack and poker ~99%.", 13, UI.SUB)
 	fine.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(fine)
 
@@ -290,6 +291,19 @@ class CasinoArt extends Control:
 					var x := s.x * (0.25 + 0.2 * float(k))
 					RacePage.draw_car(self, Vector2(x, y), 0.55, RacePage.car_color(k, k == 2))
 				draw_rect(Rect2(Vector2(s.x * 0.86, s.y * 0.14), Vector2(3, s.y * 0.72)), UI.TEXT)
+			"tower":
+				# Three columns of boxes, the climbed ones lit, one red cross.
+				var bw := s.x * 0.22
+				var bh := s.y * 0.15
+				for row in 4:
+					for k in 3:
+						var rr := Rect2(Vector2(s.x * 0.14 + float(k) * (bw + s.x * 0.04), s.y * 0.8 - float(row + 1) * (bh + s.y * 0.04)), Vector2(bw, bh))
+						var col: Color = UI.RAISED
+						if row < 2 and k == (row + 1) % 3:
+							col = UI.GOLD
+						elif row == 2 and k == 0:
+							col = Color(UI.RED, 0.85)
+						draw_rect(rr, col)
 			"blackjack":
 				var a := load("res://assets/cards/cardSpadesA.png") as Texture2D
 				var k := load("res://assets/cards/cardHeartsK.png") as Texture2D

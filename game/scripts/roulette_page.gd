@@ -55,6 +55,7 @@ func _init() -> void:
 
 func build_game() -> void:
 	_status = status.chips_l
+	add_results_strip("roulette")
 	# Top strip: the last number, what it paid, and the numbers before it.
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
@@ -411,6 +412,7 @@ func _finish(n: int, paid: float, total: float) -> void:
 		_win_l.add_theme_color_override("font_color", UI.SUB)
 	var at := _wheel.get_global_rect().get_center() if _wheel.is_visible_in_tree() else Vector2.INF
 	win_fx(paid, total, 10.0, at)
+	record_result(total, paid)
 	_draw_history()
 	refresh()
 
