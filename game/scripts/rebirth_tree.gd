@@ -5,6 +5,9 @@ extends RefCounted
 ## branches. Every node has a fixed string id (saves store ids, so the tree
 ## can be retuned later without breaking them). Built once, then cached.
 ##
+## Each branch: gate, a trunk of five, then three paths out: arm a and arm b
+## (six each, ending in keystones) and the deep path c (nine, 1.2).
+##
 ## Node: {id, name, kind ("core", "small", "notable", "key"), branch, x, y,
 ##        fx: {stat: amount}, cost: int, links: [ids], icon}
 ## Stats (all added together per stat, see Game.rb()):
@@ -41,6 +44,23 @@ const BRANCHES := [
 	["soul", "Rebirth", "sparkle", {"rbp": 0.03}, {"deals": 0.1},
 		[["Reborn", {"rbp": 0.2}], ["High roller", {"casino": 1.0}]]],
 ]
+
+# The deep path (added in 1.2): a third arm of nine nodes down the middle of
+# each branch, past the two keystone arms. Dearer than the arms (it starts two
+# steps deeper), for the long game. Same branch order as BRANCHES.
+# small effect, notable effect, keystone name, keystone effect
+const DEEP_START := 8        # depth of the first deep node (arms start at 7)
+const DEEP := [
+	[{"income": 0.08}, {"income": 0.4}, "Eternal empire", {"income": 1.5}],
+	[{"tap": 0.15}, {"tap": 0.3, "crit": 0.01}, "Midas touch", {"tap": 2.0, "crit": 0.02}],
+	[{"rent": 0.1}, {"rent": 0.45}, "Land baron", {"rent": 1.5, "all": 0.05}],
+	[{"div": 0.1}, {"div": 0.4, "stake": 0.15}, "Market maker", {"div": 1.5, "stake": 0.4}],
+	[{"mine": 0.1}, {"mine": 0.45}, "Core drill", {"mine": 1.5}],
+	[{"away": 0.25}, {"speed": 0.05, "away": 0.5}, "Timeless", {"away": 4.0, "speed": 0.08}],
+	[{"start": 0.25}, {"level": 2.0}, "Dynasty", {"start": 1.5, "level": 3.0}],
+	[{"all": 0.02}, {"all": 0.05}, "Eternal flame", {"sun": 1.0, "all": 0.1}],
+]
+const DEEP_LEN := 9          # nodes on the deep path; 3 and 6 notable, 9 keystone
 
 # Unlock nodes open new parts of the game. They sit between two branches,
 # linked to both gates, so even a first rebirth can reach one.
@@ -144,6 +164,23 @@ static func _build() -> void:
 				_add(id, nm, kind, p, _polar(r, ang + spread), fx, 6 + k, icon)
 				_link(aprev, id)
 				aprev = id
+		# The deep path: straight on from the trunk, between the two arms.
+		var dp: Array = DEEP[bi]
+		var dprev := p + "_t5"
+		for k in range(1, DEEP_LEN + 1):
+			var id := "%s_c%d" % [p, k]
+			var kind := "key" if k == DEEP_LEN else ("notable" if k % 3 == 0 else "small")
+			var nm := bname + " deep " + str(k)
+			var fx: Dictionary = dp[0]
+			if kind == "notable":
+				nm = bname + (" legacy" if k == 3 else " legend")
+				fx = dp[1]
+			elif kind == "key":
+				nm = String(dp[2])
+				fx = dp[3]
+			_add(id, nm, kind, p, _polar(STEP * (6.6 + float(k) * 0.92), ang), fx, DEEP_START + k - 1, icon)
+			_link(dprev, id)
+			dprev = id
 	# Inner ring: neighbouring gates link, so you can walk around the centre.
 	for bi in range(n_b):
 		var a: String = BRANCHES[bi][0] + "_g"

@@ -398,6 +398,20 @@ func _run() -> void:
 	_ev_button(tr_c0 + Vector2(80, 48), false)
 	await create_timer(0.6).timeout
 	_ok(tr_tv.pan.distance_to(tr_pan0) > 60.0 and not tr_kit.has_open(), "dragging moves the tree and opens nothing")
+	# The +, - and centre buttons: a tap there never opens the node behind.
+	var tr_bad := 0
+	for tr_b in tr_tv._btns.get_children():
+		var tr_bc: Vector2 = (tr_b as Control).get_global_rect().get_center()
+		tr_tv.pan = (tr_bc - tr_tv.global_position) - tr_tv.size * 0.5 - Vector2(float(RebirthTree.node("emp_g")["x"]), float(RebirthTree.node("emp_g")["y"])) * tr_tv.zoom
+		tr_tv.queue_redraw()
+		await create_timer(0.2).timeout
+		await _wobble_tap(tr_bc)
+		await create_timer(0.5).timeout
+		if tr_kit.has_open():
+			tr_bad += 1
+			while tr_kit.close_top():
+				await create_timer(0.3).timeout
+	_ok(tr_bad == 0, "the tree's zoom and centre buttons never open the node behind them (%d did)" % tr_bad)
 	g.rebirth = {"count": 0, "earned": 0, "nodes": {}}
 	g._rb_cache = {}
 	main.pop()
