@@ -171,6 +171,10 @@ func _run() -> void:
 	await _shot("17_rivals")
 	main.pop()
 	await create_timer(0.4).timeout
+	main.push(RecordsPage.new())
+	await _shot("17b_records")
+	main.pop()
+	await create_timer(0.4).timeout
 	main.show_page(1)
 	g.deal = {"kind": "supplier", "id": "taxi", "value": 1.0, "title": "Supplier discount", "text": "Halden Taxis · next expansion 25% off", "yes": "Take it"}
 	main._show_deal()

@@ -119,7 +119,7 @@ func _run() -> void:
 			["res://scripts/start_business_page.gd", ""], ["res://scripts/settings_page.gd", ""],
 			["res://scripts/goals_page.gd", ""], ["res://scripts/rebirth_page.gd", ""], ["res://scripts/stats_page.gd", ""],
 			["res://scripts/bank_page.gd", ""], ["res://scripts/casino_page.gd", ""], ["res://scripts/achievements_page.gd", ""],
-			["res://scripts/rivals_page.gd", ""], ["res://scripts/mergers_page.gd", ""], ["res://scripts/head_office_page.gd", ""],
+			["res://scripts/rivals_page.gd", ""], ["res://scripts/records_page.gd", ""], ["res://scripts/mergers_page.gd", ""], ["res://scripts/head_office_page.gd", ""],
 			["res://scripts/home_page.gd", ""], ["res://scripts/news_page.gd", ""],
 			["res://scripts/slots_page.gd", "vault"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
 			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],

@@ -16,6 +16,7 @@ var _reb_row: Row
 var _bank_row: Row
 var _ach_row: Row
 var _rival_row: Row
+var _rec_row: Row
 var _upd_card: PanelContainer
 var _upd_title: Label
 var _upd_btn: Button
@@ -101,6 +102,8 @@ func build() -> void:
 	_ach_row = _link(ac, "trophy", func(): return AchievementsPage.new())
 	separator(ac, 50)
 	_rival_row = _link(ac, "goal", func(): return RivalsPage.new())
+	separator(ac, 50)
+	_rec_row = _link(ac, "star", func(): return RecordsPage.new())
 
 	# Money: one stacked bar, then a list biggest first with each share.
 	section("Money")
@@ -199,6 +202,7 @@ func refresh() -> void:
 	_bank_row.set_texts("Bank", bank_sub, Game.money_short(Game.savings()) if Game.savings() > 0.0 else "")
 	_reb_row.set_texts("Rebirth", sub, ("%s RBP" % Game.group(free)) if free > 0 else "")
 	_rival_row.set_texts("Rivals", "", "%d/%d" % [Game.rivals_beaten(), Data.RIVALS.size()])
+	_rec_row.set_texts("Records", "Your all-time bests")
 
 
 func _refresh_update() -> void:

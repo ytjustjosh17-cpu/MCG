@@ -65,7 +65,7 @@ func refresh() -> void:
 	# Rebuild only when your place changes; just update your money otherwise.
 	var key := "%d:%s:%s" % [me, _open, _top_open]
 	if key == _key and is_instance_valid(_me):
-		_me.value_l.text = Game.money_short(nw)
+		_me.value_l.text = worth_text(nw)
 		return
 	_key = key
 	_me = null
@@ -102,7 +102,7 @@ func _add_row(it: Dictionary, i: int, passed: bool) -> void:
 	num.custom_minimum_size = Vector2(28, 0)
 	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	r.set_lead(num)
-	r.set_texts(it["name"], it["sub"], Game.money_short(it["worth"]))
+	r.set_texts(it["name"], it["sub"], worth_text(it["worth"]))
 	if it["me"]:
 		_me = r
 		r.title_l.add_theme_font_override("font", UI.SEMI)
@@ -139,3 +139,10 @@ func _add_toggle(n: int) -> void:
 		_open = not _open
 		refresh())
 	_list.add_child(t)
+
+
+static func worth_text(v: float) -> String:
+	## Exact to the pound while it fits a row (£1,353,325); short after that.
+	if absf(v) < 1.0e12:
+		return Game.CUR + Game.group(int(floor(v))) if v >= 1000.0 else Game.money(v)
+	return Game.money_short(v)

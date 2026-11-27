@@ -15,7 +15,7 @@ signal auto_tapped(count: int, amount: float)
 const SAVE_PATH := "user://save.json"
 const SAVE_TMP := "user://save.json.tmp"
 const SAVE_BAK := "user://save.json.bak"
-const SAVE_VERSION := 17
+const SAVE_VERSION := 18
 const CHANGE_EVERY_S := 0.1
 const BOOST_MULT := 3.0
 const BOOST_LEN_S := 60.0
@@ -352,6 +352,7 @@ func tap() -> float:
 		mult *= crit_mult()
 		_bump("crits")
 	var v := tap_value() * mult
+	_record("best_tap", v)
 	taps += 1
 	last_tap_at = now()
 	_task_progress("taps", 1)
@@ -1109,6 +1110,7 @@ func sell_asset(kind: String, sym: String, fraction: float) -> float:
 	cash += got
 	if kind == "coin":
 		_bump("crypto_profit", got - cost)  # losses count too
+	_record("best_trade", got - cost)
 	book[sym]["qty"] = float(book[sym]["qty"]) - qty
 	book[sym]["cost"] = float(book[sym]["cost"]) - cost
 	if float(book[sym]["qty"]) <= 1e-9 and float(book[sym].get("staked", 0.0)) <= 1e-9:
@@ -1857,7 +1859,7 @@ func _build_achievements() -> Array:
 		a.append({"id": "deals_%d" % n, "title": "%d deal%s" % [n, "" if n == 1 else "s"], "m": "deals", "goal": float(n)})
 	for n in [1, 5, 11]:
 		a.append({"id": "managers_%d" % n, "title": "%d manager%s" % [n, "" if n == 1 else "s"], "m": "managers", "goal": float(n)})
-	for n in [1, 5, 10, 13]:
+	for n in [1, 5, 10, 13, 20, 30]:
 		a.append({"id": "rivals_%d" % n, "title": "Beat %d rival%s" % [n, "" if n == 1 else "s"], "m": "rivals", "goal": float(n)})
 	for n in [10, 50]:
 		a.append({"id": "goals_%d" % n, "title": "%d goals done" % n, "m": "goals", "goal": float(n)})
@@ -1967,6 +1969,7 @@ func _check_streak() -> void:
 	streak = streak + 1 if streak_day == today - 1 else 1
 	streak_lost = old if (streak == 1 and old >= 2) else 0
 	streak_day = today
+	_record("best_streak", float(streak))
 	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
 	add_reward("streak:%d" % today, "streak", "Day %d in a row" % streak, gift)   # waits for a tap
 	streak_unseen = [streak, gift]
@@ -2135,6 +2138,7 @@ func unclaimed(kind := "") -> int:
 func _earn(v: float) -> void:
 	cash += v
 	total_earned += v
+	_day_add(v)
 	if v > 0.0:
 		_advance(weekly, "earn", v, "weekly")
 	_mark()
@@ -2144,11 +2148,56 @@ func _pay(v: float) -> void:
 	## Rewards: count as earnings but not towards the "earn" goal.
 	cash += v
 	total_earned += v
+	_day_add(v)
 	_mark()
 
 
 func _bump(name: String, by := 1.0) -> void:
 	counters[name] = float(counters.get(name, 0.0)) + by
+
+
+# ==== records (Profile > Records) =========================================
+# All-time bests, kept through rebirths (they live in counters). Each also
+# keeps when it was set, as "<key>_at".
+
+func _record(key: String, v: float) -> void:
+	if v > float(counters.get(key, 0.0)):
+		counters[key] = v
+		counters[key + "_at"] = now()
+
+
+func _day_add(v: float) -> void:
+	## Money earned today (the calendar day), for the best-day record.
+	if v <= 0.0:
+		return
+	var d := float(_today())
+	if float(counters.get("day_key", -1.0)) != d:
+		counters["day_key"] = d
+		counters["day_earned"] = 0.0
+	counters["day_earned"] = float(counters.get("day_earned", 0.0)) + v
+	_record("best_day", float(counters["day_earned"]))
+
+
+func records() -> Array:
+	## [title, value, when (unix, 0 = unknown), kind] for the Records page.
+	var c := counters
+	var top_biz := 0.0
+	for id in biz.keys():
+		top_biz = maxf(top_biz, biz_income(id))
+	_record("best_company", top_biz)
+	_record("best_worth", net_worth())
+	return [
+		["Richest you've been", float(c.get("best_worth", 0.0)), float(c.get("best_worth_at", 0.0)), "money"],
+		["Best income", float(c.get("best_income", 0.0)), float(c.get("best_income_at", 0.0)), "rate"],
+		["Best day", float(c.get("best_day", 0.0)), float(c.get("best_day_at", 0.0)), "money"],
+		["Best company", float(c.get("best_company", 0.0)), float(c.get("best_company_at", 0.0)), "rate"],
+		["Biggest tap", float(c.get("best_tap", 0.0)), float(c.get("best_tap_at", 0.0)), "money"],
+		["Biggest casino win", float(c.get("casino_best", 0.0)), float(c.get("casino_best_at", 0.0)), "money"],
+		["Best trade", float(c.get("best_trade", 0.0)), float(c.get("best_trade_at", 0.0)), "money"],
+		["Longest streak", float(c.get("best_streak", float(streak))), float(c.get("best_streak_at", 0.0)), "days"],
+		["Rebirths", float(rebirth.get("count", 0)), 0.0, "count"],
+		["Golden suns caught", float(c.get("suns", 0.0)), 0.0, "count"],
+	]
 
 
 func _mark() -> void:
@@ -2233,7 +2282,8 @@ func _process(delta: float) -> void:
 	if _check_timer >= 1.0:
 		# Stats: time played and the best income seen (only while the app is open).
 		counters["play_s"] = float(counters.get("play_s", 0.0)) + _check_timer
-		counters["best_income"] = maxf(float(counters.get("best_income", 0.0)), income_per_hour)
+		_record("best_income", income_per_hour)
+		_record("best_worth", net_worth())
 		_check_timer = 0.0
 		_ensure_daily()
 		_ensure_weekly()
@@ -2711,6 +2761,21 @@ func _migrate(d: Dictionary, live_prices: Dictionary = {}) -> Dictionary:
 		# v17: the bank (nothing saved, no loan).
 		d["bank"] = d.get("bank", {"saved": 0.0, "loan": {}})
 		v = 17
+	if v < 18:
+		# v18: 30 rivals with uneven fortunes instead of 13 round ones. "Passed"
+		# was a count of the old list; turn it into the same fortune passed on
+		# the new list (the richest old rival you had passed).
+		var old := [5e4, 5e5, 5e6, 5e7, 5e8, 5e9, 5e10, 5e11, 5e12, 5e13, 5e14, 5e15, 1.5e16]
+		var cs: Dictionary = d.get("counters", {})
+		var n := mini(int(cs.get("rivals", 0)), old.size())
+		if n > 0:
+			var passed := 0
+			for r in Data.RIVALS:
+				if float(r[2]) <= float(old[n - 1]):
+					passed += 1
+			cs["rivals"] = float(passed)
+			d["counters"] = cs
+		v = 18
 	d["version"] = v
 	return d
 
@@ -3089,6 +3154,7 @@ func casino_pay(amount: float) -> float:
 	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + amount
 	if amount > float(counters.get("casino_best", 0.0)):
 		counters["casino_best"] = amount
+		counters["casino_best_at"] = now()
 	save_game()
 	flush_changes()
 	return amount

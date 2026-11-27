@@ -320,7 +320,7 @@ func _run() -> void:
 		_check(pg._price.text.begins_with("£"), "%s page shows a price" % spec[1])
 		main.pop()
 		await create_timer(0.5).timeout
-	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd", "res://scripts/settings_page.gd", "res://scripts/achievements_page.gd"]:
+	for path in ["res://scripts/goals_page.gd", "res://scripts/rivals_page.gd", "res://scripts/settings_page.gd", "res://scripts/achievements_page.gd", "res://scripts/records_page.gd"]:
 		var gp = load(path).new()
 		main.push(gp)
 		await create_timer(0.5).timeout
@@ -913,6 +913,27 @@ func _run() -> void:
 	bk_old["version"] = 16
 	bk_old.erase("bank")
 	_check(game._migrate(bk_old).has("bank"), "v16 saves load with an empty bank")
+	# 1.2 records and rivals.
+	_check(Data.RIVALS.size() >= 30, "at least 30 rivals")
+	var round_worths := 0
+	for rv in Data.RIVALS:
+		if fmod(float(rv[2]), 1000.0) == 0.0:
+			round_worths += 1
+	_check(round_worths == 0, "no rival has a round fortune")
+	var rv_old: Dictionary = game.to_dict()
+	rv_old["version"] = 17
+	rv_old["counters"]["rivals"] = 5.0   # passed the old £500M rival
+	var rv_mig: Dictionary = game._migrate(rv_old)
+	_check(int(rv_mig["counters"]["rivals"]) == 11, "v17 rivals passed maps onto the new list (5 old -> 11 new)")
+	game.reset_game(true)
+	game.cash = 0.0
+	game._earn(1234.0)
+	game._earn(66.0)
+	var recs: Array = game.records()
+	_check(absf(float(recs[2][1]) - 1300.0) < 0.01, "best day counts today's earnings")
+	game.tap()
+	_check(float(game.counters.get("best_tap", 0.0)) > 0.0 and float(game.counters.get("best_tap_at", 0.0)) > 0.0, "biggest tap is kept with its time")
+	_check(RecordsPage.value_text(3.0, "days") == "3 days" and RivalsPage.worth_text(1353325.0) == "£1,353,325", "records and rivals text")
 	game.sim_time = -1.0
 	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.
