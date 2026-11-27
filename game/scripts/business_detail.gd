@@ -26,6 +26,14 @@ var _held := 0
 var _buy_row: HBoxContainer
 var _mgr: Row
 var _syn_rows := {}
+var _up_card: Control
+var _up_title: Label
+var _up_dots: UpDots
+var _up_line: Label
+var _up_name: Label
+var _up_change: Label
+var _up_btn: Button
+var _up_note: Label
 
 
 func _init(biz_id := "") -> void:
@@ -140,6 +148,33 @@ func build() -> void:
 	_exp_eta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ep.add_child(_exp_eta)
 
+	# Upgrade path: one "next upgrade" card (five named steps per company).
+	_up_card = card()
+	var upp := padded(_up_card, 16, 8)
+	var uth := HBoxContainer.new()
+	uth.add_theme_constant_override("separation", 8)
+	upp.add_child(uth)
+	_up_title = UI.label("", 17, UI.TEXT, true)
+	_up_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_up_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	uth.add_child(_up_title)
+	_up_dots = UpDots.new()
+	_up_dots.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	uth.add_child(_up_dots)
+	_up_name = UI.label("", 15, UI.TEXT, true)
+	_up_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	upp.add_child(_up_name)
+	_up_line = UI.label("", 13, UI.SUB)
+	_up_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	upp.add_child(_up_line)
+	_up_change = UI.label("", 15, UI.SUB)
+	upp.add_child(_up_change)
+	_up_btn = button("Upgrade", false, _on_upgrade)
+	upp.add_child(_up_btn)
+	_up_note = UI.label("", 13, UI.SUB)
+	_up_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	upp.add_child(_up_note)
+
 	# Manager: expands for you when full, for a cut of the income.
 	var mc := card()
 	_mgr = Row.new("profile")
@@ -250,6 +285,7 @@ func refresh() -> void:
 		var cost := Game.bulk_cost(id, shown)
 		_buy.text = "+%d · %s" % [shown, Game.money_short(cost)]
 		Page.set_enabled(_buy, n > 0 and Game.cash >= cost)
+	_refresh_upgrade()
 	if stage >= Data.MAX_STAGE:
 		_exp_title.text = "Fully expanded"
 		_exp_body.visible = false
@@ -291,6 +327,59 @@ func refresh() -> void:
 		var main_btn := units >= cap
 		_exp_btn.custom_minimum_size.y = UI.BTN_PRIMARY_H if main_btn else UI.BTN_H
 		Page.set_enabled(_exp_btn, Game.can_expand(id), main_btn)
+
+
+func _refresh_upgrade() -> void:
+	## The next named step: what it does to income, its price, or when it opens.
+	var steps := Data.biz_ups(id).size()
+	var lvl := Game.biz_up_level(id)
+	_up_dots.set_level(lvl, steps)
+	var nx: Dictionary = Game.biz_up_next(id)
+	if nx.is_empty():
+		_up_title.text = "All %d upgrades" % steps
+		_up_name.visible = false
+		_up_line.visible = false
+		_up_change.visible = false
+		_up_btn.visible = false
+		_up_note.visible = false
+		return
+	_up_title.text = "Upgrade %d of %d" % [int(nx["index"]) + 1, steps]
+	_up_name.visible = true
+	_up_name.text = String(nx["name"])
+	_up_line.visible = String(nx["line"]) != ""
+	_up_line.text = String(nx["line"])
+	var inc := Game.biz_income(id)
+	_up_change.visible = inc > 0.0
+	_up_change.text = BusinessPage.change_text(inc, Game.biz_income_after_up(id))
+	var cost := float(nx["cost"])
+	_up_btn.visible = true
+	_up_btn.text = "Upgrade · " + Game.money_short(cost)
+	var ready := bool(nx["ready"])
+	_up_note.visible = true
+	if not ready:
+		_up_note.text = "Opens at stage %d" % int(nx["need_stage"])
+	else:
+		var wait := Game.eta(cost)
+		_up_note.text = ("Afford in " + wait) if Game.cash < cost and wait != "" else "Lasts for good"
+	Page.set_enabled(_up_btn, ready and Game.cash >= cost, false)
+
+
+func _on_upgrade() -> void:
+	var nx: Dictionary = Game.biz_up_next(id)
+	if nx.is_empty():
+		return
+	if not bool(nx["ready"]):
+		Kit.toast("Opens at stage %d" % int(nx["need_stage"]))
+		return
+	if Game.buy_biz_up(id):
+		Kit.haptic("success")
+		Motion.pop(_up_title, 1.06)
+		Kit.toast("%s · upgrade %d of %d" % [String(nx["name"]), Game.biz_up_level(id), Data.biz_ups(id).size()], true)
+		Game.flush_changes()
+	else:
+		Kit.haptic("error")
+		Motion.shake(_up_btn)
+		Kit.toast("Need %s more" % Game.money_short(float(nx["cost"]) - Game.cash))
 
 
 static func _span(sec: float) -> String:
@@ -454,3 +543,29 @@ func _on_expand() -> void:
 		Kit.haptic("success")
 		Motion.pop(_exp_title, 1.06)
 		Game.flush_changes()
+
+
+class UpDots extends Control:
+	## Five small dots: bought steps filled, the rest outlined.
+	var level := 0
+	var total := 5
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(5 * 12, 12)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func set_level(l: int, t: int) -> void:
+		if l == level and t == total:
+			return
+		level = l
+		total = t
+		custom_minimum_size.x = float(t) * 12.0
+		queue_redraw()
+
+	func _draw() -> void:
+		for i in total:
+			var c := Vector2(6.0 + 12.0 * i, size.y * 0.5)
+			if i < level:
+				draw_circle(c, 4.0, UI.TEXT)
+			else:
+				draw_arc(c, 3.5, 0.0, TAU, 16, UI.TRACK, 1.5, true)
