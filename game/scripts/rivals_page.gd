@@ -30,7 +30,58 @@ func build() -> void:
 	_next = UI.label("", 15, UI.SUB)
 	_next.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	body.add_child(_next)
+	_podium = Podium.new()
+	body.add_child(_podium)
 	_list = card()
+	# Your own row, pinned above the tab bar while the real one is scrolled away.
+	_pin = PanelContainer.new()
+	_pin.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 16))
+	_pin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pin.visible = false
+	add_child(_pin)
+	_pin_row = Row.new("", "", false)
+	_pin_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var num := UI.display("", 22, UI.RED)
+	num.custom_minimum_size = Vector2(28, 0)
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pin_row.set_lead(num)
+	_pin_num = num
+	_pin_row.title_l.add_theme_font_override("font", UI.SEMI)
+	_pin.add_child(_pin_row)
+	scroll.get_v_scroll_bar().value_changed.connect(func(_v): _place_pin())
+	resized.connect(_place_pin)
+	Kit.layout_changed.connect(func(_l): _place_pin.call_deferred())
+
+
+var _podium: Podium
+var _pin: PanelContainer
+var _pin_row: Row
+var _pin_num: Label
+
+
+func _place_pin() -> void:
+	## Shows the pinned row only while your real row is out of sight, in the
+	## same column as the list, just above the tab bar (or the bottom in landscape).
+	if _pin == null or _list == null:
+		return
+	var side := 16.0
+	if Kit.landscape:
+		side = maxf(16.0, (size.x - Kit.COLUMN_MAX) * 0.5)
+	_pin.anchor_left = 0.0
+	_pin.anchor_right = 1.0
+	_pin.anchor_top = 1.0
+	_pin.anchor_bottom = 1.0
+	_pin.offset_left = side
+	_pin.offset_right = -side
+	_pin.offset_bottom = -(16.0 if Kit.landscape else 92.0)
+	_pin.offset_top = _pin.offset_bottom - 60.0
+	var show := false
+	if is_instance_valid(_me) and _me.size.y > 0.0 and not _me.is_queued_for_deletion():
+		var r := _me.get_global_rect()
+		var view := scroll.get_global_rect()
+		view.size.y -= (16.0 if Kit.landscape else 92.0) + 60.0   # the part the pin would cover
+		show = not view.encloses(r)
+	_pin.visible = show
 
 
 func _sorted(nw: float) -> Array:
@@ -57,6 +108,10 @@ func refresh() -> void:
 			me = i
 	_rank.text = "#%d" % (me + 1)
 	_of.text = "of %d" % rows.size()
+	_podium.set_rows(rows.slice(0, 3))
+	_pin_num.text = str(me + 1)
+	_pin_row.set_texts("You", "", worth_text(nw))
+	_place_pin.call_deferred()
 	if me > 0:
 		var nx: Dictionary = rows[me - 1]
 		_next.text = "Next: %s · %s to pass" % [nx["name"], Game.money_short(float(nx["worth"]) - nw)]
@@ -139,6 +194,57 @@ func _add_toggle(n: int) -> void:
 		_open = not _open
 		refresh())
 	_list.add_child(t)
+
+
+class Podium extends PanelContainer:
+	## The three richest, flat: three blocks with #1 tallest in the middle,
+	## name and fortune under each. No glow; the house teal with one TEXT accent.
+	var _cols: Array = []   # [block, rank, name, worth] for places 2, 1, 3
+
+	func _init() -> void:
+		add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16, 12, 12))
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		add_child(row)
+		for place in [2, 1, 3]:
+			var col := VBoxContainer.new()
+			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			col.alignment = BoxContainer.ALIGNMENT_END
+			col.add_theme_constant_override("separation", 2)
+			row.add_child(col)
+			var nm := UI.label("", 13, UI.TEXT, true)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			nm.clip_text = true
+			nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			col.add_child(nm)
+			var w := UI.label("", 13, UI.SUB)
+			w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(w)
+			var blk := PanelContainer.new()
+			blk.add_theme_stylebox_override("panel", UI.box(UI.RAISED if place != 1 else UI.TEXT, 10))
+			blk.custom_minimum_size = Vector2(0, [0, 64, 46, 34][place])
+			col.add_child(blk)
+			var rk := UI.display(str(place), 22, UI.INK if place == 1 else UI.TEXT)
+			rk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rk.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			blk.add_child(rk)
+			_cols.append([blk, rk, nm, w])
+
+	func set_rows(top: Array) -> void:
+		var order := [1, 0, 2]   # columns show places 2, 1, 3
+		for k in range(3):
+			var c: Array = _cols[k]
+			var i: int = order[k]
+			if i >= top.size():
+				(c[2] as Label).text = ""
+				(c[3] as Label).text = ""
+				continue
+			var it: Dictionary = top[i]
+			(c[2] as Label).text = String(it["name"])
+			(c[3] as Label).text = Game.money_short(float(it["worth"]))
+			(c[2] as Label).add_theme_color_override("font_color", UI.RED if it["me"] else UI.TEXT)
 
 
 static func worth_text(v: float) -> String:

@@ -457,6 +457,36 @@ func _run() -> void:
 	await create_timer(0.5).timeout
 	root.size = Vector2i(390, 844)
 	await create_timer(0.5).timeout
+	# Batch 3 design wins: before -> after text, podium and pinned row, invest
+	# totals and the property filter. Presentation only: no money moves.
+	_ok(BusinessPage.change_text(100.0, 145.0) == "£100 → £145 /h (+45%)", "before -> after text reads '£100 → £145 /h (+45%)'")
+	if not g.biz.is_empty():
+		var bid: String = g.biz.keys()[0]
+		var b3_u0 := int(g.biz[bid]["units"])
+		var c_keep: float = g.cash
+		var after_inc: float = BusinessPage.unit_gain(bid, 1)
+		_ok(after_inc >= g.biz_income(bid) and int(g.biz[bid]["units"]) == b3_u0 and g.cash == c_keep, "a unit's before -> after leaves the game unchanged")
+	var rp = RivalsPage.new()
+	main.push(rp)
+	await create_timer(0.8).timeout
+	_ok(rp._podium != null and rp._podium.is_visible_in_tree(), "rivals: the top-3 podium shows")
+	main.pop()
+	await create_timer(0.5).timeout
+	main.show_page(2)
+	await create_timer(0.4).timeout
+	var ivp = main._pages[2]
+	ivp._seg.select(1, true)
+	await create_timer(0.4).timeout
+	ivp._prop_seg.select(2, true)
+	await create_timer(0.4).timeout
+	var only_locked := true
+	for pi in ivp._prop_rows.keys():
+		if ivp._prop_rows[pi].get_parent() == ivp._all_props and g.cash >= g.prop_price(int(pi)):
+			only_locked = false
+	_ok(ivp._prop_filter == 2 and only_locked, "property filter 'Locked' lists only homes you can't afford yet")
+	ivp._prop_seg.select(0, true)
+	ivp._seg.select(0, true)
+	await create_timer(0.3).timeout
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
 

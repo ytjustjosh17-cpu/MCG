@@ -21,6 +21,8 @@ var _sum_line2: Label
 var _sum_line3: Label
 var _share_rows := {}
 var _prop_rows := {}
+var _prop_seg: Segmented
+var _prop_filter := 0   # Market filter: 0 all, 1 can buy, 2 locked
 var _coin_rows := {}
 var _sector := ""
 var _sector_pill: Button
@@ -70,6 +72,7 @@ func build() -> void:
 		if is_visible_in_tree():
 			_sorted.clear())
 	_seg.select(int(Game.ui.get("invest_tab", 0)))
+	_totals_strip()
 	body.add_child(_seg)
 	_summary_card()
 	_park = VBoxContainer.new()
@@ -127,6 +130,14 @@ func build() -> void:
 	_my_props_l = _head(props_box, "Yours")
 	_my_props = card(props_box)
 	_all_props_l = _head(props_box, "Market")
+	# Market filter: everything, only what you can buy now, or only the locked ones.
+	_prop_seg = Segmented.new(["All", "Can buy", "Locked"])
+	_prop_seg.select(0)
+	_prop_seg.changed.connect(func(i: int):
+		Kit.haptic("selection")
+		_prop_filter = i
+		refresh())
+	props_box.add_child(_prop_seg)
 	_all_props = card(props_box)
 	for i in range(Data.PROPERTIES.size()):
 		var r := _prop_row(String(Data.PROPERTIES[i][3]), String(Data.PROPERTIES[i][0]), i)
@@ -200,6 +211,48 @@ func _prop_row(art: String, seed_id: String, i: int) -> Row:
 	r.pressed.connect(func(): _property(i))
 	_prop_rows[i] = r
 	return r
+
+
+var _tot_box: Control
+var _tot_vals: Array = []   # Value, Earns, Profit labels
+
+
+func _totals_strip() -> void:
+	## Everything invested, in three labelled columns (no dotted run-on): what
+	## it's worth, what it all earns an hour, and the profit on shares and coins.
+	## Hidden until you own something; each tab keeps its own card below.
+	var c := card()
+	_tot_box = c.get_parent()
+	var p := padded(c, 16, 0)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	p.add_child(row)
+	for t in ["All investments", "Earns", "Profit"]:
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_theme_constant_override("separation", 0)
+		row.add_child(col)
+		col.add_child(UI.label(t, 13, UI.SUB))
+		var v := UI.label("", 17, UI.TEXT, true)
+		col.add_child(v)
+		_tot_vals.append(v)
+
+
+func _refresh_totals() -> void:
+	if _tot_box == null:
+		return
+	var worth := Game.book_value(Game.shares) + Game.book_value(Game.coins) + Game.props_value()
+	_tot_box.visible = worth > 0.0
+	if worth <= 0.0:
+		return
+	var per_h := Game.dividends_per_hour() + Game.rent_per_hour() + Game.staking_per_hour() + Game.mining_value_per_hour()
+	var gain := (Game.book_value(Game.shares) - Game.book_cost(Game.shares)) + (Game.book_value(Game.coins) - Game.book_cost(Game.coins))
+	_tot_vals[0].text = Game.money_short(worth)
+	_tot_vals[1].text = Game.money_short(per_h) + " /h"
+	if absf(gain) < 1.0:
+		gain = 0.0   # pennies either way read as noise
+	_tot_vals[2].text = (Game.CUR + "0") if gain == 0.0 else ("+" if gain > 0.0 else "−") + Game.money_short(absf(gain))
+	_tot_vals[2].add_theme_color_override("font_color", UI.TEXT if gain == 0.0 else UI.change_color(gain))
 
 
 func _summary_card() -> void:
@@ -382,6 +435,7 @@ func refresh() -> void:
 	var none: bool = [Game.shares.is_empty(), Game.props.is_empty(), Game.coins.is_empty() and Game.rigs_total() == 0][_seg.index]
 	_hint.text = hints[_seg.index]
 	_hint.visible = none
+	_refresh_totals()
 	match _seg.index:
 		0:
 			var v := Game.book_value(Game.shares)
@@ -407,7 +461,7 @@ func refresh() -> void:
 			for st in mine + rest:
 				var r: Row = _share_rows[st[0]]
 				var held := Game.holding(Game.shares, st[0])
-				var sub: String = st[0]
+				var sub: String = "%s · %s risk" % [st[0], risk_name("share", st[0])]
 				if held > 0.0:
 					sub = "%s shares · %s" % [qty_short(held), Game.money_short(held * Game.price(st[0]))]
 				r.set_texts(st[1], sub, AssetDetail.price_text(Game.price(st[0])))
@@ -433,7 +487,10 @@ func refresh() -> void:
 				if powned.has(i):
 					pmine.append([str(i)])
 				else:
-					prest.append([str(i)])
+					# The Market filter: All / Can buy / Locked.
+					var can_buy := Game.cash >= Game.prop_price(i)
+					if _prop_filter == 0 or (_prop_filter == 1 and can_buy) or (_prop_filter == 2 and not can_buy):
+						prest.append([str(i)])
 			_place("props", pmine, prest, _prop_rows_s, _my_props, _all_props, _my_props_l, _all_props_l)
 			for i in range(Game.property_count()):
 				var p: Array = Data.property(i)
@@ -444,10 +501,9 @@ func refresh() -> void:
 				else:
 					var price := Game.prop_price(i)
 					var can := Game.cash >= price
-					# Not affordable yet: a lock and what's still needed, not a faded row.
-					# "Need £X" once it's within reach; far off, the town (the lock says enough).
-					var near := Game.cash >= price * 0.25
-					r.set_texts(p[0], "Need " + Game.money_short(price - Game.cash) if near and not can else p[1], Game.money_short(price), "%s /h" % Game.money_short(Game.rent_quote(i)))
+					# Not affordable yet: a lock and how far off it is, not a faded row.
+					var sub: String = p[1] if can else "%s · %s to go" % [p[1], Game.money_short(price - Game.cash)]
+					r.set_texts(p[0], sub, Game.money_short(price), "%s /h" % Game.money_short(Game.rent_quote(i)))
 					r.set_locked(not can)
 		2:
 			var v := Game.book_value(Game.coins)
@@ -477,12 +533,26 @@ func refresh() -> void:
 			for c in cmine + crest:
 				var r: Row = _coin_rows[c[0]]
 				var held := Game.holding(Game.coins, c[0]) + Game.staked(c[0])
-				var sub: String = c[0]
+				var sub: String = "%s · %s risk" % [c[0], risk_name("coin", c[0])]
 				if held > 0.0:
 					sub = "%s %s · %s" % [qty_short(held), c[0], Game.money_short(held * Game.price(c[0]))]
 				r.set_texts(c[1], sub, AssetDetail.price_text(Game.price(c[0])))
 				r.set_change(Game.change_pct(c[0], 1440))
 			_refresh_mining()
+
+
+static func risk_name(kind: String, sym: String) -> String:
+	## Low / Med / High from how much the price swings (Data volatility).
+	## Shares and coins have their own scales: coins all swing more.
+	if kind == "share":
+		for s in Data.STOCKS:
+			if s[0] == sym:
+				var v: float = Data.SECTOR_VOL.get(s[4], 0.006)
+				return "Low" if v <= 0.005 else ("Med" if v <= 0.007 else "High")
+		return "Med"
+	var c := Data.coin(sym)
+	var cv := float(c[3]) if c.size() > 3 else 0.02
+	return "Low" if cv <= 0.012 else ("Med" if cv <= 0.02 else "High")
 
 
 func _sort_pill() -> Button:
@@ -683,6 +753,19 @@ func _on_miner_up(kind: String) -> void:
 		Kit.toast("Need %s more" % Game.money_short(c - Game.cash))
 
 
+func _miner_up_after(kind: String) -> float:
+	## Mining per hour if this upgrade were one level higher. Puts the level
+	## back straight after, so nothing in the game changes.
+	var keep := Game.miner_up_level(kind)
+	Game.miners[kind] = keep + 1
+	var v := Game.mining_value_per_hour()
+	if keep == 0:
+		Game.miners.erase(kind)
+	else:
+		Game.miners[kind] = keep
+	return v
+
+
 func _refresh_miner_ups() -> void:
 	for kind in _mup_rows.keys():
 		var r: Row = _mup_rows[kind]
@@ -699,6 +782,14 @@ func _refresh_miner_ups() -> void:
 			BusinessPage.plain_value(r, "Max", UI.SUB)
 		else:
 			var c := Game.miner_up_cost(kind)
+			# With miners running: what the next level does to mining, before -> after.
+			if Game.rigs_total() > 0:
+				var now := Game.mining_value_per_hour()
+				var after := _miner_up_after(kind)
+				if after > now * 1.001:
+					sub = "Mining " + BusinessPage.change_text(now, after)
+				elif kind == "speed" and Game.mining_capped():
+					sub = "At the cap: cooling first · level %d of %d" % [lvl, mx]
 			r.set_texts(String(u["name"]), sub)
 			BusinessPage.price_pill(r, Game.money_short(c), Game.cash >= c and Game.rigs_total() > 0)
 

@@ -238,6 +238,36 @@ static func plain_value(r: Row, text: String, color: Color = UI.SUB) -> void:
 		l.add_theme_font_size_override("font_size", 15)
 
 
+# ---- before -> after (what an upgrade changes) --------------------------------
+
+static func change_text(before: float, after: float, unit := " /h", pct := true) -> String:
+	## "£2.4K → £3.5K /h (+45%)": what a purchase changes, short enough for a
+	## row's sub-line at 390 px. Only presentation: the numbers come from the game.
+	var s := "%s → %s%s" % [Game.money_short(before), Game.money_short(after), unit]
+	if pct and before > 0.0 and absf(after - before) >= before * 0.005:
+		var p := (after - before) / before * 100.0
+		s += " (%s%d%%)" % ["+" if p >= 0.0 else "−", int(round(absf(p)))]
+	return s
+
+
+static func unit_gain(id: String, n: int) -> float:
+	## This company's income per hour with n more units (milestones included).
+	## Works on the numbers for a moment and puts them back: the game is unchanged.
+	if not Game.biz.has(id) or n <= 0:
+		return Game.biz_income(id)
+	var s: Dictionary = Game.biz[id]
+	var keep := int(s["units"])
+	s["units"] = keep + n
+	var after := Game.biz_income(id)
+	s["units"] = keep
+	return after
+
+
+static func how_far(need: float, have: float, what := "net worth") -> String:
+	## "Needs £1.5K net worth · you're at £900".
+	return "Needs %s %s · you're at %s" % [Game.money_short(need), what, Game.money_short(maxf(0.0, have))]
+
+
 class BizCard extends Button:
 	## One compact row: picture, name and status, income, and a thin bar
 	## (units filled, or time left on an expansion). "Can buy" / "Can expand"

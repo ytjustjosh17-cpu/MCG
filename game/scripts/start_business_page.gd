@@ -113,10 +113,8 @@ func refresh() -> void:
 		elif can:
 			(parts[2] as Label).text = Game.money_short(float(b["cost"]))
 		else:
-			var wait := Game.eta(float(b["cost"]))
-			if wait.ends_with("days") and int(wait.trim_prefix("~").get_slice(" ", 0)) > 30:
-				wait = ""  # too far off to be useful
-			(parts[2] as Label).text = Game.money_short(float(b["cost"])) + ("" if wait == "" else " · " + wait)
+			# How far: what's still missing (the time to afford it is in the sheet).
+			(parts[2] as Label).text = "%s · %s to go" % [Game.money_short(float(b["cost"])), Game.money_short(float(b["cost"]) - Game.cash)]
 
 
 func _pick(id: String) -> void:
@@ -125,7 +123,8 @@ func _pick(id: String) -> void:
 		Kit.toast("Already owned")
 		return
 	if Game.cash < float(b["cost"]):
-		Kit.toast("Need %s more" % Game.money_short(float(b["cost"]) - Game.cash))
+		var wait := Game.eta(float(b["cost"]))
+		Kit.toast("Need %s more" % Game.money_short(float(b["cost"]) - Game.cash) + ("" if wait == "" else " · " + wait))
 		return
 	var names: Array = b["names"]
 	var nm: String = names[int(_name_index[id]) % names.size()]

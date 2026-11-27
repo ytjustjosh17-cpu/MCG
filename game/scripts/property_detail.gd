@@ -72,11 +72,27 @@ func refresh() -> void:
 		var r: Row = _imps[k]
 		var cost := Game.prop_price(index) * float(imp[1])
 		# Every row keeps its sub-line, so done rows don't shrink the rhythm.
-		r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100))
+		# Not bought yet: what it does to this home's rent, before -> after.
+		if imps[k]:
+			r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100))
+		else:
+			r.set_texts(imp[0], BusinessPage.change_text(Game.prop_rent(index), _rent_with(k)))
 		if imps[k]:
 			BusinessPage.plain_value(r, "Done")
 		else:
 			BusinessPage.price_pill(r, Game.money_short(cost), Game.cash >= cost)
+
+
+func _rent_with(k: int) -> float:
+	## This home's rent per hour if improvement k were done as well (the same
+	## sum as Game.prop_rent: base rent x (1 + every improvement done)).
+	var imps: Array = Game.props[str(index)]["imps"]
+	var extra := 0.0
+	for j in range(imps.size()):
+		if imps[j]:
+			extra += float(Data.IMPROVEMENTS[j][2])
+	var now := Game.prop_rent(index)
+	return now / (1.0 + extra) * (1.0 + extra + float(Data.IMPROVEMENTS[k][2]))
 
 
 func _on_sell() -> void:

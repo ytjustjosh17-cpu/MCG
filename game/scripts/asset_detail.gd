@@ -68,6 +68,11 @@ func build() -> void:
 	hv.add_child(_price)
 	_change = UI.label("", 15)
 	hv.add_child(_change)
+	# How much it swings: a quiet chip, no colour coding (red stays for the sun).
+	var risk := UI.label(InvestPage.risk_name(kind, sym) + " risk", 13, UI.TEXT)
+	risk.add_theme_stylebox_override("normal", UI.box(UI.RAISED, 12, 10, 4))
+	risk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(risk)
 	_chart = PriceChart.new(sym, "1H", true)
 	_chart.line_col = UI.asset_color(sym)
 	_chart.show_range = true

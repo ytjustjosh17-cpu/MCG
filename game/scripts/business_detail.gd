@@ -217,7 +217,15 @@ func refresh() -> void:
 			_mgr.set_lead(Icon.new("check", UI.TEXT, 22.0))
 	else:
 		var mc := Game.manager_cost(id)
-		_mgr.set_texts("Hire a manager", "Auto-expands · takes %d%%" % cut, Game.money_short(mc))
+		# What the cut costs here, until fully expanded (then it's free).
+		var inc_now := Game.biz_income(id)
+		var sub := "Auto-expands · takes %d%%" % cut
+		if cut > 0 and inc_now > 0.0:
+			# Just the change: the title says what it is, the sheet says what it does.
+			sub = BusinessPage.change_text(inc_now, inc_now * (1.0 - float(cut) / 100.0), " /h", false) + " · auto-expands"
+			if sub.length() > 30:
+				sub = BusinessPage.change_text(inc_now, inc_now * (1.0 - float(cut) / 100.0), " /h", false)
+		_mgr.set_texts("Hire a manager", sub, Game.money_short(mc))
 		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT)
 	if units >= cap:
 		_units_value.text = "%d / %d · Full" % [units, cap]
@@ -231,9 +239,14 @@ func refresh() -> void:
 		_buy_row.visible = true
 		_mult_seg.visible = true
 		_unit_note.visible = true
-		_unit_note.text = "+%s /h each" % Game.money_short(per_unit) + ("" if mile_txt == "" else " · " + mile_txt)
 		var n := _buy_n()
 		var shown := maxi(n, 1)
+		# What this buy does to the company's income (milestones included).
+		var inc_before := Game.biz_income(id)
+		if inc_before > 0.0:
+			_unit_note.text = BusinessPage.change_text(inc_before, BusinessPage.unit_gain(id, shown)) + ("" if mile_txt == "" else " · " + mile_txt)
+		else:
+			_unit_note.text = "+%s /h each" % Game.money_short(per_unit) + ("" if mile_txt == "" else " · " + mile_txt)
 		var cost := Game.bulk_cost(id, shown)
 		_buy.text = "+%d · %s" % [shown, Game.money_short(cost)]
 		Page.set_enabled(_buy, n > 0 and Game.cash >= cost)

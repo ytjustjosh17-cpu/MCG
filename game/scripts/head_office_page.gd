@@ -62,11 +62,39 @@ func refresh() -> void:
 		if r == null:
 			continue
 		var cost := float(u[3])
-		r.set_texts(u[1], u[2])
 		if Game.has_up(u[0]):
+			r.set_texts(u[1], u[2])
 			BusinessPage.plain_value(r, "Owned")
 		else:
+			r.set_texts(u[1], change_line(String(u[0]), String(u[2])))
 			BusinessPage.price_pill(r, Game.money_short(cost), Game.cash >= cost)
+
+
+static func change_line(uid: String, fallback: String) -> String:
+	## What buying this would change for you now, before -> after, where it can
+	## be worked out ("£379 → £569 a tap"). Otherwise the plain description.
+	match uid:
+		"tap":
+			return BusinessPage.change_text(Game.tap_value(), _with_up(uid, func(): return Game.tap_value()), " a tap")
+		"mine":
+			var m := Game.mining_value_per_hour()
+			if m > 0.0:
+				return "Mining " + BusinessPage.change_text(m, _with_up(uid, func(): return Game.mining_value_per_hour()))
+		"away1", "away2":
+			return "Away cap %d h → %d h" % [int(Game.offline_cap_h()), int(_with_up(uid, func(): return Game.offline_cap_h()))]
+		"mgr":
+			return "Manager cut %d%% → %d%%" % [int(round(Game.manager_cut() * 100.0)), int(round(_with_up(uid, func(): return Game.manager_cut()) * 100.0))]
+	return fallback
+
+
+static func _with_up(uid: String, f: Callable) -> float:
+	## Works a value out as if this upgrade were owned, then puts things back.
+	if Game.has_up(uid):
+		return float(f.call())
+	Game.upgrades[uid] = true
+	var v := float(f.call())
+	Game.upgrades.erase(uid)
+	return v
 
 
 func _on_tap(id: String) -> void:
