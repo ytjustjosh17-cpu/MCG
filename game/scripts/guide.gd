@@ -143,13 +143,18 @@ func _process(delta: float) -> void:
 	var busy: bool = Kit.has_open() or (main != null and not main._stack.is_empty())
 	_card.visible = not busy
 	_ring = Rect2() if busy else _target_rect(String(STEPS[_step][2]))
-	# The card sits at the top, under the cash, or above the ring if that's high.
+	# The card floats at the foot of the tower art, just above the action
+	# strip (near the thumb, clear of the roof lights), or above the ring
+	# when the ring would sit under it.
 	var w := size.x - 32.0
 	_card.size = Vector2(w, 0)
 	_card.size = Vector2(w, _card.get_combined_minimum_size().y)
-	var y := 160.0   # floats on the top of the tower card, under the cash
-	if _ring.size != Vector2.ZERO and _ring.position.y < y + _card.size.y + 20.0:
-		y = _ring.end.y + 16.0
+	var foot := size.y - 92.0 - 72.0 - 12.0   # EarnPage NAV_SPACE, STRIP_H, gap
+	if main != null and main._pages[0].get("_strip") != null:
+		foot = (main._pages[0]._strip as Control).get_global_rect().position.y - global_position.y - 12.0
+	var y := foot - 12.0 - _card.size.y
+	if _ring.size != Vector2.ZERO and _ring.end.y + 8.0 > y and _ring.position.y < y + _card.size.y + 8.0:
+		y = _ring.position.y - 16.0 - _card.size.y
 	_card.position = Vector2(16, y)
 	queue_redraw()
 

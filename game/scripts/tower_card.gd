@@ -173,9 +173,10 @@ func _draw() -> void:
 		var a := Vector2(tx + tw, top + 4.0 + k * 10.0)
 		var b := Vector2(w + 8.0, h * (0.06 + k * 0.09))
 		Art._wire(self, a, b, h * (0.015 + k * 0.01), clip, UI.INK, 1.3)
-	# Street: ground strip and two lamps.
+	# Street: ground strip and a lamp on the right (one at the far left read
+	# as a stray dash against the pylon, so it went).
 	_fill_clipped(UI.rect_poly(Rect2(0, h - 10.0, w, 10.0)), clip, UI.INK)
-	for lx in [w * 0.04, w * 0.95]:
+	for lx in [w * 0.95]:
 		_fill_clipped(UI.rect_poly(Rect2(lx, h - 46.0, 2.0, 36.0)), clip, UI.INK)
 		_fill_clipped(UI.rect_poly(Rect2(lx - 6.0, h - 48.0, 10.0, 3.0)), clip, UI.INK)
 		draw_rect(Rect2(lx - 5.0, h - 45.0, 8.0, 2.0), Color(UI.FLASH, 0.5), true)

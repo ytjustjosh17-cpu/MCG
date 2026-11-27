@@ -13,7 +13,6 @@ var _sound_row: Row
 var _num_row: Row
 var _upd_row: Row
 var _report_row: Row
-var _vib_row: Row
 var _checking := false
 var _storage := ""
 
@@ -31,18 +30,17 @@ func build() -> void:
 	_num_row = _row(st, "hash", true)
 	_num_row.pressed.connect(_on_numbers)
 	separator(st, 50)
-	_vib = _switch_row(st, "vibrate", "Vibration", func(on: bool):
+	_vib = _switch_row(st, "vibrate", "Vibration", Game.vibrate, func(on: bool):
 		Game.vibrate = on)
-	_vib_row = _vib.get_meta("row")
 	separator(st, 50)
-	_motion = _switch_row(st, "sparkle", "Less motion", func(on: bool):
+	_motion = _switch_row(st, "sparkle", "Less motion", Game.reduce_motion, func(on: bool):
 		Game.reduce_motion = on)
 	separator(st, 50)
 	# Deals never pop up (they wait on Business); only news can.
-	_news = _switch_row(st, "news", "News pop-ups", func(on: bool):
+	_news = _switch_row(st, "news", "News pop-ups", not bool(Game.ui.get("news_quiet", false)), func(on: bool):
 		Game.ui["news_quiet"] = not on)
 	separator(st, 50)
-	_awake = _switch_row(st, "clock", "Keep screen on", func(on: bool):
+	_awake = _switch_row(st, "clock", "Keep screen on", bool(Game.ui.get("keep_awake", false)), func(on: bool):
 		Game.ui["keep_awake"] = on
 		DisplayServer.screen_set_keep_on(on))
 
@@ -88,22 +86,22 @@ func _row(parent: Control, icon: String, chevron: bool) -> Row:
 	return r
 
 
-func _switch_row(parent: Control, icon: String, title: String, apply: Callable) -> Switch:
-	## A row with a switch at the end; a tap anywhere on the row flips it.
+func _switch_row(parent: Control, icon: String, title: String, start: bool, apply: Callable) -> Switch:
+	## A row with a switch at the end; a tap anywhere on the row (switch
+	## included) flips it.
 	var r := _row(parent, icon, false)
 	r.set_texts(title)
-	var sw := Switch.new()
+	var sw := Switch.new(start)   # built in its real state: no slide on open
 	sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	r._h.add_child(sw)
-	sw.set_meta("row", r)
-	var commit := func(on: bool):
-		apply.call(on)
-		Game.save_game()
-	sw.toggled_on.connect(commit)
+	# The row takes the tap (Kit lets button presses pass to parents, so a
+	# live switch inside a live row would flip twice).
+	sw.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.pressed.connect(func():
 		sw.set_on(not sw.on)
 		Kit.haptic("selection")
-		commit.call(sw.on))
+		apply.call(sw.on)
+		Game.save_game())
 	return sw
 
 
@@ -207,7 +205,7 @@ func _on_backup_menu() -> void:
 		if v == "copy":
 			_on_backup()
 		else:
-			_on_restore(), "A code that holds your whole game. Keep it in Notes.")
+			_on_restore(), "Your whole game in one code.")
 
 
 func _on_backup() -> void:
