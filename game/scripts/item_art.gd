@@ -1,8 +1,11 @@
 class_name ItemArt
 extends Control
 ## A small drawing of one personal item: each watch, painting, car, jet,
-## yacht and island has its own look (index 0-5 changes the details).
+## yacht, island and relic has its own look (index 0-5 changes the details).
 ## `col` is the collection id; `idx` is the item number (-1 = the set's emblem).
+## Owned items are drawn in full (TEXT with one GOLD accent, the "luxury"
+## colour). Items you don't own yet are a quiet SUB silhouette, so the two
+## read apart at a glance even at list size.
 
 var col := "watches"
 var idx := 0
@@ -25,11 +28,9 @@ func set_owned(o: bool) -> void:
 func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var o := (size - Vector2(s, s)) * 0.5
-	var k := maxi(idx, 0)
-	var ink := UI.TEXT if owned else UI.DIM
-	# Calm accents from the palette (bright brand colours clashed with the teal).
-	var tones := [UI.SUB, UI.FLASH, UI.UP, UI.GOLD, UI.DOWN, UI.TEXT]
-	var acc: Color = tones[(k * 5 + col.length()) % tones.size()] if owned else UI.TRACK
+	var k := clampi(idx if idx >= 0 else 5, 0, 5)
+	var ink := UI.TEXT if owned else Color(UI.SUB, 0.55)
+	var acc := UI.GOLD if owned else Color(UI.SUB, 0.3)
 	match col:
 		"watches": _watch(o, s, k, ink, acc)
 		"art": _painting(o, s, k, ink, acc)
@@ -51,122 +52,157 @@ func _poly(o: Vector2, s: float, pts: Array, c: Color) -> void:
 	draw_colored_polygon(p, c)
 
 
+func _rrect(o: Vector2, s: float, x: float, y: float, w: float, h: float, r: float, c: Color) -> void:
+	draw_colored_polygon(UI.rounded_rect_poly(Rect2(_p(o, s, x, y), Vector2(w, h) * s), r * s), c)
+
+
+func _hole() -> Color:
+	## The dark "inside" colour (dial, windows, wheels).
+	return UI.INK if owned else UI.PANEL
+
+
 func _watch(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# Strap, then a round (or cushion) case, hands at a different time each.
-	draw_rect(Rect2(_p(o, s, 0.38, 0.02), Vector2(0.24, 0.96) * s), UI.RAISED if owned else UI.TRACK)
+	# Strap above and below, then the case: round, cushion or square.
+	var strap := UI.RAISED if owned else Color(UI.SUB, 0.25)
+	_rrect(o, s, 0.36, 0.0, 0.28, 0.3, 0.06, strap)
+	_rrect(o, s, 0.36, 0.7, 0.28, 0.3, 0.06, strap)
 	var c := _p(o, s, 0.5, 0.5)
-	var r := s * (0.3 + 0.02 * float(k % 3))
+	var r := s * 0.32
 	if k == 2 or k == 4:
-		draw_colored_polygon(UI.rounded_rect_poly(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), r * 0.35), ink)
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), r * 0.4), ink)
 	else:
 		draw_circle(c, r, ink)
-	draw_circle(c, r * 0.82, UI.INK)
-	if k == 2:   # diver: coloured bezel ring
-		draw_arc(c, r * 0.9, 0.0, TAU, 32, acc, r * 0.14, true)
-	if k == 3:   # moonphase: small moon window
-		draw_circle(c + Vector2(0, r * 0.42), r * 0.2, acc)
-	if k == 4:   # tourbillon: a little gear
-		for g in 8:
-			var a := TAU * float(g) / 8.0
-			draw_line(c + Vector2(0, r * 0.4), c + Vector2(0, r * 0.4) + Vector2(cos(a), sin(a)) * r * 0.22, acc, 1.5)
+	draw_circle(c, r * 0.8, _hole())
+	# Bezel: gold on the diver and the last watch, a crown on the right.
+	if k == 2 or k == 5:
+		draw_arc(c, r * 0.9, 0.0, TAU, 40, acc, r * 0.16, true)
+	draw_rect(Rect2(c + Vector2(r * 0.98, -r * 0.12), Vector2(r * 0.18, r * 0.24)), ink)
+	# Four hour marks.
+	for m in 4:
+		var a := TAU * float(m) / 4.0
+		var d := Vector2(cos(a), sin(a))
+		draw_line(c + d * r * 0.56, c + d * r * 0.72, ink, maxf(1.0, s * 0.03))
+	if k == 3:   # moonphase window
+		draw_circle(c + Vector2(0, r * 0.38), r * 0.18, acc)
+	if k == 4:   # tourbillon cage
+		draw_arc(c + Vector2(0, r * 0.36), r * 0.18, 0.0, TAU, 16, acc, maxf(1.0, s * 0.03), true)
 	var ah := TAU * float(k * 2 + 1) / 12.0 - PI / 2.0
 	var am := TAU * float(k * 7 + 2) / 12.0 - PI / 2.0
-	draw_line(c, c + Vector2(cos(ah), sin(ah)) * r * 0.45, ink, 2.0, true)
-	draw_line(c, c + Vector2(cos(am), sin(am)) * r * 0.68, ink, 1.5, true)
-	if k == 5:   # Red Sun No. 1: a red dot at twelve
-		draw_circle(c + Vector2(0, -r * 0.6), r * 0.13, UI.RED if owned else UI.DIM)
+	draw_line(c, c + Vector2(cos(ah), sin(ah)) * r * 0.42, ink, maxf(1.5, s * 0.05), true)
+	draw_line(c, c + Vector2(cos(am), sin(am)) * r * 0.62, ink, maxf(1.0, s * 0.035), true)
+	draw_circle(c, maxf(1.5, s * 0.03), acc)
 
 
 func _painting(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# Frame, then a tiny scene per painting.
-	var fr := Rect2(_p(o, s, 0.06, 0.14), Vector2(0.88, 0.72) * s)
-	draw_rect(fr, ink)
-	var cv := fr.grow(-s * 0.06)
+	# A gilt frame (gold once owned), then a tiny scene per painting.
+	var fr := Rect2(_p(o, s, 0.04, 0.12), Vector2(0.92, 0.76) * s)
+	draw_rect(fr, acc if owned else ink)
+	var cv := fr.grow(-s * 0.07)
 	draw_rect(cv, UI.SKY if owned else UI.PANEL)
 	var b := cv.position
 	var w := cv.size
 	match k:
 		0:  # Harbour at Dusk: sun low, water lines
-			draw_circle(b + Vector2(w.x * 0.7, w.y * 0.55), w.y * 0.25, acc)
+			draw_circle(b + Vector2(w.x * 0.68, w.y * 0.5), w.y * 0.24, ink)
 			for i in 3:
-				draw_rect(Rect2(b + Vector2(0, w.y * (0.7 + i * 0.1)), Vector2(w.x, 1.5)), ink)
+				draw_rect(Rect2(b + Vector2(0, w.y * (0.68 + i * 0.12)), Vector2(w.x, maxf(1.0, s * 0.03))), ink)
 		1:  # Two Cranes
-			for cx in [0.3, 0.65]:
-				draw_rect(Rect2(b + Vector2(w.x * cx, w.y * 0.2), Vector2(2, w.y * 0.8)), ink)
-				draw_rect(Rect2(b + Vector2(w.x * (cx - 0.15), w.y * 0.2), Vector2(w.x * 0.35, 2)), ink)
-		2:  # Ironmere Smoke: chimneys and a smudge
-			for cx in [0.25, 0.45, 0.65]:
-				draw_rect(Rect2(b + Vector2(w.x * cx, w.y * 0.45), Vector2(w.x * 0.08, w.y * 0.55)), ink)
-			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.25), w.y * 0.18, acc)
-		3:  # The Long Quay: a long pier into the distance
-			draw_colored_polygon(PackedVector2Array([b + Vector2(0, w.y), b + Vector2(w.x * 0.45, w.y * 0.45), b + Vector2(w.x * 0.55, w.y * 0.45), b + Vector2(w.x, w.y)]), ink)
-		4:  # Red Sun Rising
-			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.8), w.y * 0.45, UI.RED if owned else UI.DIM)
-			draw_rect(Rect2(b + Vector2(0, w.y * 0.8), Vector2(w.x, w.y * 0.2)), UI.INK)
+			for cx in [0.3, 0.66]:
+				draw_rect(Rect2(b + Vector2(w.x * cx, w.y * 0.2), Vector2(maxf(2.0, s * 0.04), w.y * 0.8)), ink)
+				draw_rect(Rect2(b + Vector2(w.x * (cx - 0.16), w.y * 0.2), Vector2(w.x * 0.36, maxf(2.0, s * 0.04))), ink)
+		2:  # Ironmere Smoke: chimneys and a cloud
+			for cx in [0.2, 0.42, 0.64]:
+				draw_rect(Rect2(b + Vector2(w.x * cx, w.y * 0.45), Vector2(w.x * 0.1, w.y * 0.55)), ink)
+			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.24), w.y * 0.17, ink)
+			draw_circle(b + Vector2(w.x * 0.68, w.y * 0.22), w.y * 0.13, ink)
+		3:  # The Long Quay: a pier into the distance
+			draw_colored_polygon(PackedVector2Array([b + Vector2(0, w.y), b + Vector2(w.x * 0.44, w.y * 0.42), b + Vector2(w.x * 0.56, w.y * 0.42), b + Vector2(w.x, w.y)]), ink)
+		4:  # Red Sun Rising: the one red in the set
+			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.7), w.y * 0.3, UI.RED if owned else ink)
+			draw_rect(Rect2(b + Vector2(0, w.y * 0.7), Vector2(w.x, w.y * 0.3)), _hole())
 		_:  # Portrait in Teal: head and shoulders
-			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.4), w.y * 0.2, acc)
-			draw_colored_polygon(PackedVector2Array([b + Vector2(w.x * 0.2, w.y), b + Vector2(w.x * 0.35, w.y * 0.65), b + Vector2(w.x * 0.65, w.y * 0.65), b + Vector2(w.x * 0.8, w.y)]), acc)
+			draw_circle(b + Vector2(w.x * 0.5, w.y * 0.38), w.y * 0.2, ink)
+			draw_colored_polygon(PackedVector2Array([b + Vector2(w.x * 0.18, w.y), b + Vector2(w.x * 0.34, w.y * 0.64), b + Vector2(w.x * 0.66, w.y * 0.64), b + Vector2(w.x * 0.82, w.y)]), ink)
 
 
 func _car(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# A side view; roof height, length and fins change per car.
-	var roof: float = [0.42, 0.36, 0.40, 0.48, 0.34, 0.30][k]
-	var nose: float = [0.9, 0.95, 0.92, 0.9, 0.96, 0.98][k]
-	_poly(o, s, [[0.06, 0.68], [0.08, 0.56], [0.25, 0.52], [0.35, roof], [0.62, roof], [0.74, 0.52], [nose, 0.56], [nose, 0.68]], acc)
-	if k != 3:   # the Spyder has no roof window
-		_poly(o, s, [[0.38, roof + 0.03], [0.6, roof + 0.03], [0.68, 0.51], [0.32, 0.51]], UI.INK)
-	for wx in [0.24, 0.74]:
-		draw_circle(_p(o, s, wx, 0.68), s * 0.09, ink)
-		draw_circle(_p(o, s, wx, 0.68), s * 0.04, UI.INK)
-	if k == 5:   # The Lamplight: a long chrome line
-		draw_rect(Rect2(_p(o, s, 0.1, 0.6), Vector2(0.8, 0.02) * s), ink)
+	# Side view: low body, glasshouse, two big wheels. Each car has its own
+	# shape: open roadster, fastback GT, notchback sport, roofless spyder,
+	# long-bonnet coupe and a long limousine.
+	var roof: float = [0.46, 0.36, 0.38, 0.5, 0.36, 0.34][k]
+	var rs: float = [0.4, 0.2, 0.32, 0.4, 0.42, 0.24][k]     # where the roof starts (rear)
+	var re: float = [0.56, 0.56, 0.58, 0.56, 0.62, 0.66][k]  # where the windscreen tops out
+	var tail: float = [0.08, 0.05, 0.06, 0.06, 0.05, 0.02][k]
+	var nose: float = [0.94, 0.95, 0.94, 0.94, 0.97, 0.98][k]
+	var belt := 0.54
+	if k == 0 or k == 3:   # open cars: a low body, a windscreen and a headrest
+		_poly(o, s, [[tail, 0.7], [tail, belt], [rs - 0.04, belt - 0.02], [re + 0.1, belt - 0.02], [nose, belt + 0.04], [nose, 0.7]], ink)
+		draw_line(_p(o, s, re + 0.04, belt - 0.02), _p(o, s, re - 0.02, belt - 0.14), ink, maxf(1.5, s * 0.04))
+		_rrect(o, s, rs - 0.02, belt - 0.1, 0.06, 0.09, 0.02, ink)
+	else:
+		_poly(o, s, [[tail, 0.7], [tail, belt + 0.04], [rs - 0.06, belt], [rs, roof], [re, roof], [re + 0.1, belt], [nose, belt + 0.04], [nose, 0.7]], ink)
+		_poly(o, s, [[rs + 0.03, roof + 0.04], [re - 0.01, roof + 0.04], [re + 0.07, belt - 0.01], [rs - 0.02, belt - 0.01]], _hole())
+	# Gold pin stripe along the side.
+	draw_rect(Rect2(_p(o, s, tail + 0.04, 0.59), Vector2(nose - tail - 0.08, 0.03) * s), acc)
+	for wx in [0.25, 0.75]:
+		draw_circle(_p(o, s, wx, 0.7), s * 0.11, _hole())
+		draw_circle(_p(o, s, wx, 0.7), s * 0.075, ink)
+		draw_circle(_p(o, s, wx, 0.7), s * 0.03, _hole())
 
 
 func _jet(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# Seen from above; wings sweep more and the body grows with the price.
-	var len := 0.6 + 0.06 * float(k)
-	var sweep := 0.1 + 0.04 * float(k)
+	# Seen from above; longer body and more sweep as the price rises.
+	var len := 0.66 + 0.05 * float(k)
+	var sweep := 0.1 + 0.035 * float(k)
 	var x0 := 0.5 - len * 0.5
 	var x1 := 0.5 + len * 0.5
-	_poly(o, s, [[x0, 0.5], [x0 + 0.08, 0.45], [x1 - 0.05, 0.46], [x1, 0.5], [x1 - 0.05, 0.54], [x0 + 0.08, 0.55]], ink)
-	_poly(o, s, [[0.45, 0.47], [0.45 + sweep, 0.12], [0.55 + sweep, 0.12], [0.6, 0.47]], acc)
-	_poly(o, s, [[0.45, 0.53], [0.45 + sweep, 0.88], [0.55 + sweep, 0.88], [0.6, 0.53]], acc)
-	_poly(o, s, [[x0 + 0.02, 0.48], [x0 - 0.02, 0.34], [x0 + 0.06, 0.34], [x0 + 0.1, 0.48]], ink)
-	if k == 4:   # Red Sun One: a red stripe
-		draw_rect(Rect2(_p(o, s, x0 + 0.1, 0.49), Vector2(len - 0.15, 0.02) * s), UI.RED if owned else UI.DIM)
+	_poly(o, s, [[0.44, 0.46], [0.44 + sweep, 0.1], [0.56 + sweep, 0.1], [0.6, 0.46]], ink)
+	_poly(o, s, [[0.44, 0.54], [0.44 + sweep, 0.9], [0.56 + sweep, 0.9], [0.6, 0.54]], ink)
+	_poly(o, s, [[x0 + 0.02, 0.47], [x0 - 0.02, 0.3], [x0 + 0.07, 0.3], [x0 + 0.12, 0.47]], ink)
+	_poly(o, s, [[x0 + 0.02, 0.53], [x0 - 0.02, 0.7], [x0 + 0.07, 0.7], [x0 + 0.12, 0.53]], ink)
+	_poly(o, s, [[x0, 0.5], [x0 + 0.08, 0.44], [x1 - 0.08, 0.44], [x1, 0.5], [x1 - 0.08, 0.56], [x0 + 0.08, 0.56]], ink)
+	# Gold cheat line down the body, dark cockpit at the nose.
+	draw_rect(Rect2(_p(o, s, x0 + 0.1, 0.485), Vector2(len - 0.22, 0.03) * s), acc)
+	_poly(o, s, [[x1 - 0.1, 0.47], [x1 - 0.04, 0.5], [x1 - 0.1, 0.53]], _hole())
 
 
 func _yacht(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# Hull, decks stacked higher on bigger boats, a sail on the first two.
-	_poly(o, s, [[0.04, 0.62], [0.96, 0.62], [0.86, 0.78], [0.14, 0.78]], ink)
+	# Hull with a gold trim, decks stacked higher on bigger boats, a sail on
+	# the first two.
+	_poly(o, s, [[0.02, 0.6], [0.98, 0.6], [0.86, 0.78], [0.12, 0.78]], ink)
+	draw_rect(Rect2(_p(o, s, 0.06, 0.64), Vector2(0.86, 0.035) * s), acc)
 	var decks: int = [0, 1, 1, 2, 2, 3][k]
 	for d in decks:
-		var w := 0.6 - 0.14 * float(d)
-		_poly(o, s, [[0.5 - w * 0.5, 0.62 - 0.08 * d], [0.5 + w * 0.5 + 0.05, 0.62 - 0.08 * d], [0.5 + w * 0.5, 0.54 - 0.08 * d], [0.5 - w * 0.5 + 0.05, 0.54 - 0.08 * d]], acc if d % 2 == 0 else ink)
+		var w := 0.62 - 0.14 * float(d)
+		var y := 0.6 - 0.09 * float(d)
+		_poly(o, s, [[0.46 - w * 0.5, y], [0.46 + w * 0.5 + 0.06, y], [0.46 + w * 0.5, y - 0.08], [0.46 - w * 0.5 + 0.05, y - 0.08]], ink)
+		for wx in range(int(w * 10.0)):
+			draw_rect(Rect2(_p(o, s, 0.46 - w * 0.4 + float(wx) * 0.09, y - 0.06), Vector2(0.05, 0.035) * s), _hole())
 	if k <= 1:
-		draw_rect(Rect2(_p(o, s, 0.49, 0.14), Vector2(0.02, 0.48) * s), ink)
-		_poly(o, s, [[0.51, 0.16], [0.51, 0.58], [0.82, 0.58]], acc)
-	for i in 2:
-		draw_rect(Rect2(_p(o, s, 0.1 + i * 0.3, 0.86), Vector2(0.22, 0.015) * s), UI.SUB if owned else UI.TRACK)
+		draw_rect(Rect2(_p(o, s, 0.48, 0.1), Vector2(0.03, 0.5) * s), ink)
+		_poly(o, s, [[0.52, 0.12], [0.52, 0.56], [0.84, 0.56]], ink)
+	for i in 3:
+		draw_rect(Rect2(_p(o, s, 0.08 + i * 0.3, 0.88), Vector2(0.2, 0.02) * s), Color(UI.SUB, 0.5) if owned else Color(UI.SUB, 0.2))
 
 
 func _island(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
-	# Sea, a mound of a different shape, palms and (later ones) a house.
+	# Sea, a mound of a different shape, palms and (later ones) a villa.
 	draw_rect(Rect2(_p(o, s, 0.0, 0.7), Vector2(1.0, 0.3) * s), UI.SKY if owned else UI.PANEL)
-	var wid := 0.4 + 0.08 * float(k)
-	var hgt := 0.12 + 0.03 * float(k % 3)
-	_poly(o, s, [[0.5 - wid * 0.5, 0.72], [0.5 - wid * 0.25, 0.72 - hgt], [0.5 + wid * 0.25, 0.72 - hgt * 1.1], [0.5 + wid * 0.5, 0.72]], acc)
+	var wid := 0.5 + 0.08 * float(k % 4)
+	var hgt := 0.14 + 0.03 * float(k % 3)
+	_poly(o, s, [[0.5 - wid * 0.5, 0.72], [0.5 - wid * 0.25, 0.72 - hgt], [0.5 + wid * 0.25, 0.72 - hgt * 1.1], [0.5 + wid * 0.5, 0.72]], ink)
+	# Gold sand line where the island meets the sea.
+	draw_rect(Rect2(_p(o, s, 0.5 - wid * 0.5, 0.7), Vector2(wid, 0.03) * s), acc)
 	var palms: int = [1, 1, 2, 2, 3, 3][k]
 	for p in palms:
 		var px := 0.5 - wid * 0.3 + float(p) * 0.16
-		draw_line(_p(o, s, px, 0.72 - hgt), _p(o, s, px + 0.03, 0.34), ink, 2.0, true)
-		for a in [-0.6, 0.0, 0.6]:
-			draw_line(_p(o, s, px + 0.03, 0.34), _p(o, s, px + 0.03, 0.34) + Vector2(cos(a - PI / 2.0 + PI / 2.0 * signf(a)), sin(a - 0.9)) * s * 0.1, ink, 2.0, true)
+		var top := _p(o, s, px + 0.04, 0.3)
+		draw_line(_p(o, s, px, 0.72 - hgt), top, ink, maxf(1.5, s * 0.04), true)
+		for a in [-2.6, -1.9, -1.2, -0.5]:
+			draw_line(top, top + Vector2(cos(a), sin(a) + 0.9) * s * 0.12, ink, maxf(1.5, s * 0.04), true)
 	if k >= 3:
-		var hx := 0.56
-		draw_rect(Rect2(_p(o, s, hx, 0.72 - hgt - 0.1), Vector2(0.16, 0.1) * s), ink)
-		if k == 5:   # Crown Isle: a red roof light
-			draw_circle(_p(o, s, hx + 0.08, 0.72 - hgt - 0.13), s * 0.025, UI.RED if owned else UI.DIM)
+		_rrect(o, s, 0.58, 0.72 - hgt - 0.11, 0.18, 0.11, 0.02, _hole())
+		draw_rect(Rect2(_p(o, s, 0.56, 0.72 - hgt - 0.13), Vector2(0.22, 0.03) * s), acc)
 
 
 func _relic(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
@@ -174,30 +210,30 @@ func _relic(o: Vector2, s: float, k: int, ink: Color, acc: Color) -> void:
 	var c := _p(o, s, 0.5, 0.5)
 	match k:
 		0:  # Iron Compass: a ring with a needle
-			draw_circle(c, s * 0.36, ink)
-			draw_circle(c, s * 0.29, UI.INK)
-			_poly(o, s, [[0.5, 0.2], [0.55, 0.5], [0.5, 0.8], [0.45, 0.5]], acc)
+			draw_circle(c, s * 0.38, ink)
+			draw_circle(c, s * 0.3, _hole())
+			_poly(o, s, [[0.5, 0.2], [0.56, 0.5], [0.5, 0.8], [0.44, 0.5]], acc)
 			draw_circle(c, s * 0.04, ink)
 		1:  # Salt Crown: five points on a band
-			_poly(o, s, [[0.18, 0.7], [0.18, 0.38], [0.32, 0.55], [0.42, 0.3], [0.5, 0.52], [0.58, 0.3], [0.68, 0.55], [0.82, 0.38], [0.82, 0.7]], ink)
+			_poly(o, s, [[0.14, 0.72], [0.14, 0.36], [0.3, 0.55], [0.4, 0.26], [0.5, 0.5], [0.6, 0.26], [0.7, 0.55], [0.86, 0.36], [0.86, 0.72]], ink)
 			for x in [0.3, 0.5, 0.7]:
-				draw_circle(_p(o, s, x, 0.63), s * 0.04, acc)
+				draw_circle(_p(o, s, x, 0.63), s * 0.05, acc)
 		2:  # Tern Idol: a standing bird figure
-			_poly(o, s, [[0.42, 0.85], [0.42, 0.45], [0.36, 0.3], [0.5, 0.15], [0.64, 0.3], [0.58, 0.45], [0.58, 0.85]], ink)
-			_poly(o, s, [[0.58, 0.45], [0.86, 0.38], [0.6, 0.55]], acc)
-			draw_circle(_p(o, s, 0.5, 0.27), s * 0.03, UI.INK)
-		3:  # Sun Lens: a glass disc catching a red sun
-			draw_circle(c, s * 0.34, ink)
-			draw_circle(c, s * 0.27, UI.SKY if owned else UI.PANEL)
-			draw_circle(c + Vector2(s * 0.06, s * 0.04), s * 0.12, UI.RED if owned else UI.DIM)
-			draw_line(_p(o, s, 0.74, 0.74), _p(o, s, 0.92, 0.92), ink, s * 0.07)
+			_poly(o, s, [[0.4, 0.88], [0.4, 0.45], [0.34, 0.3], [0.5, 0.12], [0.66, 0.3], [0.6, 0.45], [0.6, 0.88]], ink)
+			_poly(o, s, [[0.6, 0.44], [0.9, 0.36], [0.62, 0.56]], acc)
+			draw_circle(_p(o, s, 0.5, 0.26), s * 0.035, _hole())
+		3:  # Sun Lens: a glass disc catching the sun
+			draw_circle(c - Vector2(s * 0.06, s * 0.06), s * 0.32, ink)
+			draw_circle(c - Vector2(s * 0.06, s * 0.06), s * 0.25, UI.SKY if owned else UI.PANEL)
+			draw_circle(c - Vector2(s * 0.02, s * 0.02), s * 0.1, acc)
+			draw_line(_p(o, s, 0.66, 0.66), _p(o, s, 0.9, 0.9), ink, s * 0.08)
 		4:  # Drowned Bell: a bell with weed on its rim
-			_poly(o, s, [[0.3, 0.72], [0.34, 0.4], [0.42, 0.24], [0.58, 0.24], [0.66, 0.4], [0.7, 0.72]], ink)
-			draw_rect(Rect2(_p(o, s, 0.24, 0.72), Vector2(0.52, 0.06) * s), ink)
-			draw_circle(_p(o, s, 0.5, 0.84), s * 0.05, ink)
-			for x in [0.32, 0.46, 0.6]:
-				draw_line(_p(o, s, x, 0.72), _p(o, s, x + 0.03, 0.9), acc, 2.0, true)
+			_poly(o, s, [[0.28, 0.72], [0.32, 0.4], [0.42, 0.22], [0.58, 0.22], [0.68, 0.4], [0.72, 0.72]], ink)
+			draw_rect(Rect2(_p(o, s, 0.22, 0.72), Vector2(0.56, 0.07) * s), ink)
+			draw_circle(_p(o, s, 0.5, 0.85), s * 0.05, ink)
+			for x in [0.3, 0.46, 0.62]:
+				draw_line(_p(o, s, x, 0.72), _p(o, s, x + 0.04, 0.92), acc, maxf(1.5, s * 0.035), true)
 		_:  # First Ingot: a stepped bar with a stamp
-			_poly(o, s, [[0.14, 0.7], [0.24, 0.42], [0.76, 0.42], [0.86, 0.7]], ink)
-			_poly(o, s, [[0.24, 0.42], [0.3, 0.36], [0.82, 0.36], [0.76, 0.42]], acc)
-			draw_circle(_p(o, s, 0.5, 0.56), s * 0.07, UI.RED if owned else UI.DIM)
+			_poly(o, s, [[0.1, 0.72], [0.22, 0.42], [0.78, 0.42], [0.9, 0.72]], acc)
+			_poly(o, s, [[0.22, 0.42], [0.28, 0.34], [0.84, 0.34], [0.78, 0.42]], ink)
+			draw_circle(_p(o, s, 0.5, 0.58), s * 0.07, _hole())

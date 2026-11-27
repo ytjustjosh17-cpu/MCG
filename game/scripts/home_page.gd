@@ -46,6 +46,8 @@ func refresh() -> void:
 		return
 	var h: Array = Data.HOMES[Game.home]
 	_sub.text = "%s · home %d of %d" % [h[1], Game.home + 1, Data.HOMES.size()]
+	if Game.home > 0:
+		_sub.text = "%s · +%d%% income" % [h[1], int(round(Data.HOME_BONUS * 100.0 * float(Game.home)))]
 	var parts: Array = []
 	for col in Game.collections():
 		var n := Game.collection_count(String(col["id"]))
@@ -75,7 +77,7 @@ func refresh() -> void:
 			nm.clip_text = true
 			nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			cell.add_child(nm)
-			var cnt := UI.label(str(pt[2]), 15, UI.SUB)
+			var cnt := UI.label("%d/%d" % [pt[2], Game.collection(String(pt[0]))["items"].size()], 15, UI.SUB)
 			cnt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			cell.add_child(cnt)
 			_grid.add_child(cell)
