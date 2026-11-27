@@ -1,10 +1,11 @@
 class_name RoulettePage
-extends Page
-## European roulette. A wheel drawn in real pocket order with a ball that
-## orbits, drops and settles; a phone-sized vertical betting mat (zero on
-## top, 12 rows of three, dozens and even-money bets down the left, columns
-## at the bottom) that scrolls in its own area; chips, Undo, Clear, Rebet
-## or Double, and Spin in thumb reach.
+extends CasinoGame
+## European roulette. A phone-sized vertical betting mat (zero on top, 12
+## rows of three, dozens and even-money bets down the left, columns at the
+## bottom) that scrolls in its own area; chips, Undo, Clear, Rebet or Double,
+## and Spin in thumb reach. When you spin, the wheel (real pocket order, a
+## ball that orbits, drops and settles) rises over the mat, then steps aside.
+## The mat keeps its own scroll: 14 rows at a 48 px tap size can't fit.
 ##
 ## Money: the whole table is staked with one Game.casino_stake() and the
 ## result paid with Game.casino_pay() BEFORE the wheel spins, so both are
@@ -16,14 +17,16 @@ const ROW_H := 48.0
 const GAP := 3.0
 const STRIP_W := 48.0
 const HISTORY := 12
+const WHEEL_SIDE := 260.0
 
 var _math := RouletteMath.new()
 var _wheel: WheelView
+var _over: Control        # the wheel over the mat while it spins
 var _num_panel: PanelContainer
 var _num_l: Label
 var _win_l: Label
-var _hist_box: GridContainer
-var _status: Label
+var _hist_box: HBoxContainer
+var _status: Label        # the chips shown (status row)
 var _mat_scroll: ScrollContainer
 var _mat: Control
 var _chip_row: HBoxContainer
@@ -43,130 +46,97 @@ var _spinning := false
 var _shown_chips := -1.0  # what the screen shows while the ball is moving
 var _winners: Array = []  # keys that won last spin (gold edge until the next bet)
 var _history: Array = []
+var _hide_t: Tween
 
 
 func _init() -> void:
 	super("Roulette", true)
 
 
-func build() -> void:
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # the mat scrolls, not the page
-	# Top: the wheel, the last number, the win and the history strip.
+func build_game() -> void:
+	_status = status.chips_l
+	# Top strip: the last number, what it paid, and the numbers before it.
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
-	body.add_child(top)
-	_wheel = WheelView.new()
-	top.add_child(_wheel)
-	var side := VBoxContainer.new()
-	side.add_theme_constant_override("separation", 8)
-	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(side)
-	var hr := HBoxContainer.new()
-	hr.add_theme_constant_override("separation", 10)
-	side.add_child(hr)
+	area.add_child(top)
 	_num_panel = PanelContainer.new()
-	_num_panel.custom_minimum_size = Vector2(64, 64)
-	_num_panel.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 14))
-	hr.add_child(_num_panel)
-	_num_l = UI.display("-", 34)
+	_num_panel.custom_minimum_size = Vector2(48, 48)
+	_num_panel.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 24))
+	top.add_child(_num_panel)
+	_num_l = UI.display("-", 24)
 	_num_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_num_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_num_panel.add_child(_num_l)
-	var wv := VBoxContainer.new()
-	wv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wv.alignment = BoxContainer.ALIGNMENT_CENTER
-	hr.add_child(wv)
-	wv.add_child(UI.label("Last spin", 13, UI.SUB))
+	var tv := VBoxContainer.new()
+	tv.add_theme_constant_override("separation", 4)
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(tv)
 	_win_l = UI.label("Place your bets", 15, UI.TEXT, true)
-	_win_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	wv.add_child(_win_l)
-	_hist_box = GridContainer.new()
-	_hist_box.columns = 6
-	_hist_box.add_theme_constant_override("h_separation", 4)
-	_hist_box.add_theme_constant_override("v_separation", 4)
-	side.add_child(_hist_box)
-	# Status: table total, limit and chips, with a quick way to buy chips.
-	var sr := HBoxContainer.new()
-	sr.add_theme_constant_override("separation", 8)
-	body.add_child(sr)
-	_status = UI.label("", 13, UI.SUB)
-	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sr.add_child(_status)
-	var buy := UI.pill("+ Chips", UI.RAISED, UI.TEXT, 15, 16)
-	buy.custom_minimum_size = Vector2(88, 48)
-	buy.pressed.connect(func():
-		Kit.tick()
-		if Game.cash < 0.01:
-			Kit.toast("No cash to spend")
-			return
-		TradeSheet.open("chips", "", "chips_in"))
-	Kit.press_fx(buy)
-	sr.add_child(buy)
-	# The mat, in its own scroll area (a wobbly tap still places a chip).
+	tv.add_child(_win_l)
+	_hist_box = HBoxContainer.new()
+	_hist_box.add_theme_constant_override("separation", 4)
+	tv.add_child(_hist_box)
+	# The mat, in its own scroll area (a wobbly tap still places a chip),
+	# with the wheel drawn over it during a spin (never takes a tap).
+	var board := Control.new()
+	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	board.mouse_filter = Control.MOUSE_FILTER_PASS
+	area.add_child(board)
 	var mp := PanelContainer.new()
 	mp.add_theme_stylebox_override("panel", UI.box(UI.FELT, 16, 0, 0))
-	body.add_child(mp)
+	mp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	board.add_child(mp)
 	_mat_scroll = ScrollContainer.new()
 	_mat_scroll.scroll_deadzone = 10
 	_mat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_mat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	_mat_scroll.custom_minimum_size = Vector2(0, 260)
+	_mat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	mp.add_child(_mat_scroll)
 	_mat = Control.new()
 	_mat.custom_minimum_size = Vector2(MAT_W, 14.0 * ROW_H + 15.0 * GAP)
 	_mat.mouse_filter = Control.MOUSE_FILTER_PASS
 	_mat_scroll.add_child(_mat)
 	_build_mat()
-	# Show there's more mat below (columns and the rest): a slim scroll bar.
+	# A slim bar shows there's more mat below (columns and the rest).
 	var vb := _mat_scroll.get_v_scroll_bar()
 	vb.add_theme_stylebox_override("scroll", StyleBoxEmpty.new())
 	vb.add_theme_stylebox_override("grabber", UI.box(Color(UI.TEXT, 0.35), 3))
 	vb.add_theme_stylebox_override("grabber_highlight", UI.box(Color(UI.TEXT, 0.5), 3))
 	vb.add_theme_stylebox_override("grabber_pressed", UI.box(Color(UI.TEXT, 0.5), 3))
 	vb.custom_minimum_size.x = 5
-	_mat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
-
-	# Chips to bet with.
+	_over = Control.new()
+	_over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_over.visible = false
+	_over.draw.connect(func(): _over.draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, _over.size), 16.0), Color(UI.INK, 0.72)))
+	board.add_child(_over)
+	_wheel = WheelView.new()
+	_wheel.custom_minimum_size = Vector2(WHEEL_SIDE, WHEEL_SIDE)
+	_wheel.size = Vector2(WHEEL_SIDE, WHEEL_SIDE)
+	_over.add_child(_wheel)
+	_over.resized.connect(func(): _wheel.position = (_over.size - _wheel.size) * 0.5)
+	# Dock: chips to bet with, Undo / Clear / Rebet, then Spin.
 	_chip_row = HBoxContainer.new()
 	_chip_row.add_theme_constant_override("separation", 8)
 	_chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(_chip_row)
-	# Actions, Spin biggest and nearest the thumb.
-	var ar := HBoxContainer.new()
-	ar.add_theme_constant_override("separation", 6)
-	body.add_child(ar)
-	_undo_b = _small("Undo", _on_undo)
-	ar.add_child(_undo_b)
-	_clear_b = _small("Clear", _on_clear)
-	ar.add_child(_clear_b)
-	_again_b = _small("Rebet", _on_again)
-	ar.add_child(_again_b)
-	_spin_b = UI.pill("Spin", UI.TEXT, UI.INK, 17, 24)
-	_spin_b.custom_minimum_size = Vector2(0, 52)
-	_spin_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_spin_b.pressed.connect(_on_spin)
-	Kit.press_fx(_spin_b)
-	ar.add_child(_spin_b)
+	_chip_row.custom_minimum_size = Vector2(0, 52)
+	dock.add_child(_chip_row)
+	_undo_b = quiet("Undo", _on_undo)
+	_clear_b = quiet("Clear", _on_clear)
+	_again_b = quiet("Rebet", _on_again)
+	dock_row([_undo_b, _clear_b, _again_b])
+	_spin_b = primary("Spin", _on_spin)
+	dock.add_child(_spin_b)
 
 
-func _ready() -> void:
-	super()
-	# The mat takes whatever height is left above the bottom bar.
-	await get_tree().process_frame
-	if not is_instance_valid(_mat_scroll):
-		return
-	var used := body.get_combined_minimum_size().y - _mat_scroll.custom_minimum_size.y
-	_mat_scroll.custom_minimum_size.y = maxf(200.0, get_viewport_rect().size.y - 4.0 - 104.0 - used)
-
-
-func _small(t: String, call: Callable) -> Button:
-	var b := UI.pill(t, UI.RAISED, UI.TEXT, 15, 18)
-	b.custom_minimum_size = Vector2(64, 52)
-	b.pressed.connect(call)
-	Kit.press_fx(b)
-	return b
+func info_content() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.add_child(note("Pick a chip, tap the mat to bet, then spin. A single zero wheel. Pays include your bet back.\n", UI.TEXT))
+	for p in [["A number", "36×"], ["Dozen or column", "3×"], ["Red, black, odd, even", "2×"], ["1-18 or 19-36", "2×"]]:
+		box.add_child(pay_line(p[0], p[1]))
+	box.add_child(note("\nRebet puts your last bets back; with chips down it doubles them. Pays back 97.3% over time."))
+	return box
 
 
 # ---- the mat ----------------------------------------------------------------
@@ -189,14 +159,14 @@ func _build_mat() -> void:
 	# Dozens down the far left, four rows each.
 	var tall := 4.0 * ROW_H + 3.0 * GAP
 	for d in range(3):
-		_cell("dozen:%d" % (d + 1), Rect2(GAP, rowy.call(1 + d * 4), STRIP_W, tall), ["1-12", "13-24", "25-36"][d], UI.FELT, 12, "dozen", d + 1)
+		_cell("dozen:%d" % (d + 1), Rect2(GAP, rowy.call(1 + d * 4), STRIP_W, tall), ["1-12", "13-24", "25-36"][d], UI.FELT, 13, "dozen", d + 1)
 	# Even-money bets, two rows each.
 	var two := 2.0 * ROW_H + GAP
 	var evens := [["low", "1-18", UI.FELT], ["even", "Even", UI.FELT], ["red", "Red", UI.ROUL_RED],
 		["black", "Black", UI.ROUL_BLACK], ["odd", "Odd", UI.FELT], ["high", "19-36", UI.FELT]]
 	for i in range(evens.size()):
 		var e: Array = evens[i]
-		_cell(String(e[0]), Rect2(STRIP_W + GAP * 2.0, rowy.call(1 + i * 2), STRIP_W, two), String(e[1]), e[2], 12, String(e[0]), null)
+		_cell(String(e[0]), Rect2(STRIP_W + GAP * 2.0, rowy.call(1 + i * 2), STRIP_W, two), String(e[1]), e[2], 13, String(e[0]), null)
 
 
 func _cell(key: String, r: Rect2, text: String, bg: Color, fsize: int, type: String, arg) -> void:
@@ -258,7 +228,7 @@ func _place(key: String, type: String, arg) -> void:
 		Motion.shake(b)
 		return
 	if total + _chip > Game.chips() + 0.001:
-		Kit.toast("Not enough chips · tap + Chips")
+		Kit.toast("Not enough chips · tap +")
 		Motion.shake(b)
 		return
 	_clear_winners()
@@ -277,7 +247,7 @@ func _update_marks() -> void:
 		var m: ChipMark = _marks[k]
 		var amt := float(_bets[k]["amount"]) if _bets.has(k) else 0.0
 		m.visible = amt > 0.0
-		m.set_amount(amt, Game.casino_max_bet())
+		m.set_amount(amt)
 
 
 func _clear_winners() -> void:
@@ -331,7 +301,7 @@ func _on_again() -> void:
 		Motion.shake(_again_b)
 		return
 	if t > Game.chips() + 0.001:
-		Kit.toast("Not enough chips · tap + Chips")
+		Kit.toast("Not enough chips · tap +")
 		Motion.shake(_again_b)
 		return
 	Kit.tick()
@@ -351,7 +321,7 @@ func _on_spin() -> void:
 		Motion.shake(_spin_b)
 		return
 	if total > Game.chips() + 0.001:
-		Kit.toast("Not enough chips · tap + Chips")
+		Kit.toast("Not enough chips · tap +")
 		Motion.shake(_spin_b)
 		return
 	var before := Game.chips()
@@ -367,10 +337,32 @@ func _on_spin() -> void:
 	_shown_chips = before - total
 	_spinning = true
 	Kit.haptic("medium")
+	status.clear_win()
 	_win_l.text = "No more bets"
 	_win_l.add_theme_color_override("font_color", UI.SUB)
+	_show_wheel(true)
 	refresh()
 	_wheel.spin_to(n, func(): _finish(n, paid, total))
+
+
+func _show_wheel(on: bool) -> void:
+	## The wheel rises over the mat for the spin and fades after the result.
+	if _hide_t and _hide_t.is_valid():
+		_hide_t.kill()
+	if Motion.reduced():
+		_over.visible = false
+		return
+	if on:
+		_over.visible = true
+		_over.modulate.a = 0.0
+		_over.queue_redraw()
+		_hide_t = create_tween()
+		_hide_t.tween_property(_over, "modulate:a", 1.0, 0.2)
+		return
+	_hide_t = create_tween()
+	_hide_t.tween_interval(1.1)
+	_hide_t.tween_property(_over, "modulate:a", 0.0, 0.3)
+	_hide_t.tween_callback(func(): _over.visible = false)
 
 
 func _finish(n: int, paid: float, total: float) -> void:
@@ -382,8 +374,9 @@ func _finish(n: int, paid: float, total: float) -> void:
 	if _history.size() > HISTORY:
 		_history.resize(HISTORY)
 	_num_l.text = str(n)
-	_num_panel.add_theme_stylebox_override("panel", UI.box(_pocket_col(n), 14))
+	_num_panel.add_theme_stylebox_override("panel", UI.box(_pocket_col(n), 24))
 	Motion.pop(_num_panel, 1.1)
+	_show_wheel(false)
 	# Winning bets get a gold edge until the next chip goes down.
 	_winners = []
 	for k in _bets.keys():
@@ -405,19 +398,16 @@ func _finish(n: int, paid: float, total: float) -> void:
 		var to := int(clampf(wc.position.y - _mat_scroll.size.y * 0.4, 0.0, maxf(0.0, _mat.custom_minimum_size.y - _mat_scroll.size.y)))
 		var st := create_tween()
 		st.tween_property(_mat_scroll, "scroll_vertical", to, Motion.d(0.35)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+	var col := RouletteMath.color(n)
+	var said := "%d %s" % [n, col] if n != 0 else "Zero"
 	if paid > 0.0:
+		_win_l.text = said + ", you win"
 		_win_l.add_theme_color_override("font_color", UI.GOLD)
-		var tw := create_tween()
-		tw.tween_method(func(v: float): _win_l.text = "Win " + Game.money(v), 0.0, paid, Motion.d(0.8)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-		Kit.haptic("success")
-		if paid >= total * 10.0:
-			Kit.sound("fanfare")
-			if not Motion.reduced():
-				var c := Confetti.new(_wheel.global_position + _wheel.size * 0.5, 60)
-				get_tree().root.get_node("Kit").add_child(c)
 	else:
+		_win_l.text = said + ", no win"
 		_win_l.add_theme_color_override("font_color", UI.SUB)
-		_win_l.text = "%d · no win" % n
+	var at := _wheel.get_global_rect().get_center() if _wheel.is_visible_in_tree() else Vector2.INF
+	win_fx(paid, total, 10.0, at)
 	_draw_history()
 	refresh()
 
@@ -430,13 +420,15 @@ func _pocket_col(n: int) -> Color:
 
 
 func _draw_history() -> void:
+	## The numbers before the last one, newest first (as many as fit).
 	for ch in _hist_box.get_children():
 		ch.queue_free()
-	for n in _history:
+	for i in range(1, mini(_history.size(), 9)):
+		var n: int = _history[i]
 		var p := PanelContainer.new()
-		p.custom_minimum_size = Vector2(26, 26)
-		p.add_theme_stylebox_override("panel", UI.box(_pocket_col(int(n)), 13))
-		var l := UI.label(str(n), 11, UI.TEXT, true)
+		p.custom_minimum_size = Vector2(28, 24)
+		p.add_theme_stylebox_override("panel", UI.box(_pocket_col(n), 12))
+		var l := UI.label(str(n), 13, UI.TEXT, true)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		p.add_child(l)
@@ -445,33 +437,8 @@ func _draw_history() -> void:
 
 # ---- chips --------------------------------------------------------------------
 
-static func nice(x: float) -> float:
-	## Rounds down to 1, 2 or 5 times a power of ten.
-	if x < 1.0:
-		return 1.0
-	var p := pow(10.0, floor(log(x) / log(10.0)))
-	var m := x / p
-	return (1.0 if m < 2.0 else (2.0 if m < 5.0 else 5.0)) * p
-
-
-static func denoms(max_bet: float) -> Array:
-	## Five chip values that fit the table limit.
-	var out: Array = []
-	for f in [0.01, 0.05, 0.1, 0.25, 0.5]:
-		var v := nice(max_bet * f)
-		if not out.has(v):
-			out.append(v)
-	return out
-
-
-static func chip_text(v: float) -> String:
-	if v >= 1000.0:
-		return Game.money_short(v).substr(1)
-	return str(int(v))
-
-
 func _rebuild_chips() -> void:
-	var d := denoms(Game.casino_max_bet())
+	var d := CasinoGame.denoms(Game.casino_max_bet())
 	if d == _denoms:
 		return
 	_denoms = d
@@ -494,57 +461,20 @@ func _rebuild_chips() -> void:
 
 
 func refresh() -> void:
-	if _status == null:
+	if _spin_b == null:
 		return
 	_rebuild_chips()
 	var shown := _shown_chips if _shown_chips >= 0.0 else Game.chips()
-	_status.text = "On table %s · limit %s\nChips %s" % [Game.money_short(_table_total()), Game.money_short(Game.casino_max_bet()), Game.money(shown)]
+	status.set_chips(shown)
 	_again_b.text = "Rebet" if _bets.is_empty() else "×2"
-	Page.set_enabled(_spin_b, not _spinning and _table_total() > 0.0)
+	var total := _table_total()
+	_spin_b.text = "Spin · " + Game.money_short(total) if total > 0.0 else "Spin"
+	set_go(_spin_b, not _spinning and total > 0.0)
+	for b in [_undo_b, _clear_b, _again_b]:
+		(b as Control).modulate.a = 0.4 if _spinning else 1.0
 
 
 # ---- pieces ---------------------------------------------------------------------
-
-class ChipButton extends Button:
-	## A round casino chip you can tap; the chosen one sits up with a ring.
-	var value := 1.0
-	var tier := 0
-	var selected := false
-
-	func _init(v := 1.0, t := 0) -> void:
-		value = v
-		tier = t
-		focus_mode = Control.FOCUS_NONE
-		flat = true
-		custom_minimum_size = Vector2(52, 52)
-		for st in ["normal", "hover", "pressed", "disabled", "focus"]:
-			add_theme_stylebox_override(st, StyleBoxEmpty.new())
-
-	func _draw() -> void:
-		var c := size * 0.5 - Vector2(0, 3.0 if selected else 0.0)
-		var r := 22.0
-		if selected:
-			draw_circle(c + Vector2(0, 3), r + 4.0, UI.GOLD)
-		RoulettePage.draw_chip(self, c, r, tier, RoulettePage.chip_text(value))
-
-
-static func draw_chip(ci: CanvasItem, c: Vector2, r: float, tier: int, text: String) -> void:
-	## A flat casino chip: coloured body, light edge marks, inner ring, value.
-	var col: Color = UI.CHIP_COL[tier % UI.CHIP_COL.size()]
-	var light := tier % UI.CHIP_COL.size() == 0
-	ci.draw_circle(c, r, col)
-	var mark: Color = UI.INK if light else UI.TEXT
-	for i in 6:
-		var a := TAU * float(i) / 6.0
-		ci.draw_arc(c, r * 0.86, a - 0.16, a + 0.16, 6, mark, r * 0.22, true)
-	ci.draw_circle(c, r * 0.64, col)
-	ci.draw_arc(c, r * 0.64, 0.0, TAU, 32, Color(mark, 0.6), 1.5, true)
-	var f: Font = UI.SEMI
-	var fs := int(clampf(r * 0.62, 9.0, 15.0))
-	if text.length() > 3:
-		fs = int(fs * 0.8)
-	ci.draw_string(f, c + Vector2(-r, fs * 0.36), text, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, fs, UI.INK if light else UI.TEXT)
-
 
 class ChipMark extends Control:
 	## The chip stack sitting on a bet, showing how much is on it.
@@ -555,13 +485,9 @@ class ChipMark extends Control:
 		size = Vector2(26, 26)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	func set_amount(a: float, max_bet: float) -> void:
+	func set_amount(a: float) -> void:
 		amount = a
-		var ds := RoulettePage.denoms(max_bet)
-		tier = 0
-		for i in range(ds.size()):
-			if a >= float(ds[i]):
-				tier = i
+		tier = CasinoGame.chip_tier(a)
 		queue_redraw()
 
 	func _draw() -> void:
@@ -569,13 +495,12 @@ class ChipMark extends Control:
 			return
 		var c := size * 0.5
 		draw_circle(c + Vector2(0, 3), 13.0, Color(UI.INK, 0.5))
-		RoulettePage.draw_chip(self, c, 13.0, tier, RoulettePage.chip_text(amount))
+		CasinoGame.draw_chip(self, c, 13.0, tier, CasinoGame.chip_text(amount))
 
 
 class WheelView extends Control:
 	## The wheel in real European order. spin_to() turns the wheel one way and
 	## runs the ball the other, then drops it into the pocket.
-	const SIDE := 168.0
 	var wheel_ang := 0.0
 	var ball_ang := -PI / 2.0
 	var ball_r := 0.0        # 0 = no ball shown, else fraction of the radius
@@ -589,7 +514,6 @@ class WheelView extends Control:
 	var _running := false
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(SIDE, SIDE)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_process(false)
 
@@ -653,6 +577,7 @@ class WheelView extends Control:
 		var r_out := R * 0.9
 		var r_in := R * 0.6
 		var f: Font = UI.SEMI
+		var fs := int(clampf(R * 0.09, 8.0, 12.0))   # pocket numbers: wheel art, the big number is in the strip
 		for i in 37:
 			var n: int = RouletteMath.WHEEL[i]
 			var a0 := wheel_ang + pocket_ang(i) - PI / 37.0 - PI / 2.0
@@ -666,7 +591,7 @@ class WheelView extends Control:
 			# Number, upright along the radius.
 			var am := (a0 + a1) * 0.5
 			draw_set_transform(c + Vector2(cos(am), sin(am)) * R * 0.8, am + PI / 2.0)
-			draw_string(f, Vector2(-8, 3), str(n), HORIZONTAL_ALIGNMENT_CENTER, 16, 8, UI.TEXT)
+			draw_string(f, Vector2(-10, fs * 0.4), str(n), HORIZONTAL_ALIGNMENT_CENTER, 20, fs, UI.TEXT)
 			draw_set_transform(Vector2.ZERO, 0.0)
 		draw_circle(c, r_in, UI.FELT)
 		draw_arc(c, r_in, 0.0, TAU, 72, UI.GOLD.lerp(UI.SIDE, 0.4), 2.0, true)
@@ -678,5 +603,5 @@ class WheelView extends Control:
 		draw_circle(c, R * 0.06, UI.SIDE)
 		if ball_r > 0.0:
 			var bp := c + Vector2(cos(ball_ang - PI / 2.0), sin(ball_ang - PI / 2.0)) * R * ball_r
-			draw_circle(bp + Vector2(1, 1.5), 5.0, Color(UI.INK, 0.5))
-			draw_circle(bp, 5.0, UI.TEXT)
+			draw_circle(bp + Vector2(1, 1.5), 6.0, Color(UI.INK, 0.5))
+			draw_circle(bp, 6.0, UI.TEXT)

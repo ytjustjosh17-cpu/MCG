@@ -82,9 +82,11 @@ class WheelView extends Control:
 				pts.append(c + Vector2(cos(a), sin(a)) * rad)
 			var seg: Array = Data.WHEEL[i]
 			var chips := String(seg[0]) == "chips"
+			# Tonal segments; the top prize is gold (gold means a win, red is for the button).
+			var top := float(seg[1]) >= 180.0
 			var col: Color = UI.RAISED if chips else UI.PANEL
 			if float(seg[1]) >= 60.0:
-				col = UI.RED if float(seg[1]) >= 180.0 else UI.FELT
+				col = UI.GOLD if top else UI.FELT
 			draw_colored_polygon(pts, col)
 			draw_line(c, c + Vector2(cos(a0), sin(a0)) * rad, UI.SIDE, 2.0, true)
 			# Label: minutes of income, and a chip mark for chip prizes.
@@ -92,9 +94,9 @@ class WheelView extends Control:
 			var lp := c + Vector2(cos(mid), sin(mid)) * rad * 0.66
 			var mins := int(seg[1])
 			var txt := ("%d h" % (mins / 60)) if mins >= 60 else ("%d m" % mins)
-			draw_string(f, lp + Vector2(-30, 5), txt, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 14, UI.TEXT)
+			draw_string(f, lp + Vector2(-30, 5), txt, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 15, UI.INK if top else UI.TEXT)
 			if chips:
-				draw_circle(c + Vector2(cos(mid), sin(mid)) * rad * 0.88, 5.0, UI.GOLD)
+				draw_circle(c + Vector2(cos(mid), sin(mid)) * rad * 0.88, 5.0, UI.INK if top else UI.GOLD)
 		draw_arc(c, rad, 0.0, TAU, 64, UI.GOLD, 2.0, true)
 		draw_circle(c, rad * 0.16, UI.GOLD)
 		draw_circle(c, rad * 0.08, UI.SIDE)

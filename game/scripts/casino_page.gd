@@ -96,7 +96,7 @@ func build() -> void:
 	wc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
 	_open.add_child(wc)
 	_wheel_row = Row.new("", "", true)
-	_wheel_row.set_lead(CasinoArt.new("wheel", 48.0))
+	_wheel_row.set_lead(CasinoArt.new("wheel", 40.0))
 	_wheel_row.pressed.connect(func():
 		Kit.tick()
 		WheelSheet.open())
@@ -111,12 +111,9 @@ func build() -> void:
 	for i in range(GAMES.size()):
 		var gm: Array = GAMES[i]
 		if i > 0:
-			var sep := ColorRect.new()
-			sep.color = UI.RAISED
-			sep.custom_minimum_size = Vector2(0, 1)
-			lv.add_child(sep)
+			separator(lv, 68)   # inset under the text, past the thumbnail
 		var r := Row.new("", "", true)
-		r.set_lead(CasinoArt.new(String(gm[0]), 48.0))
+		r.set_lead(CasinoArt.new(String(gm[0]), 40.0))
 		r.set_texts(String(gm[1]), String(gm[2]))
 		var path: String = gm[3]
 		var arg: String = gm[4]
@@ -136,7 +133,7 @@ func build() -> void:
 	_stats = UI.label("", 13, UI.SUB)
 	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(_stats)
-	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, blackjack and poker ~99%.", 13, UI.DIM)
+	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, blackjack and poker ~99%.", 13, UI.SUB)
 	fine.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(fine)
 
@@ -156,11 +153,11 @@ func refresh() -> void:
 		(tr as Row).modulate.a = 1.0 if Game.tables_open() else 0.55
 	_chips.text = Game.money(Game.chips())
 	_wheel_row.set_texts("Daily wheel", "Free spin ready" if Game.wheel_ready() else "Next spin tomorrow", "Spin" if Game.wheel_ready() else "")
-	_limits.text = "Max bet %s · max win %s a round (they grow with your income)" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]
+	_limits.text = "Max bet %s · max win %s a round" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]
 	var bet := float(Game.counters.get("casino_bet", 0.0))
 	var won := float(Game.counters.get("casino_won", 0.0))
 	_stats.visible = bet > 0.0
-	_stats.text = "All time: bet %s · won %s · %s %s" % [Game.money_short(bet), Game.money_short(won), "up" if won >= bet else "down", Game.money_short(absf(won - bet))]
+	_stats.text = "All time: bet %s, won %s" % [Game.money_short(bet), Game.money_short(won)]
 
 
 func _on_unlock() -> void:
@@ -173,16 +170,23 @@ class CasinoArt extends Control:
 	## and a blackjack hand. kind: sign, classic, neon, vault, roulette, blackjack.
 	var kind := "sign"
 	var _t := 0.0
+	var _acc := 0.0
 
 	func _init(k := "sign", side := 0.0) -> void:
 		kind = k
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if side > 0.0:
 			custom_minimum_size = Vector2(side, side)
+		set_process(k == "sign")
 
 	func _process(delta: float) -> void:
-		if kind == "sign" and is_visible_in_tree() and not Game.reduce_motion:
-			_t += delta
+		if not is_visible_in_tree() or Game.reduce_motion:
+			return
+		# The marquee lights chase at 15 frames a second: plenty, and it saves battery.
+		_t += delta
+		_acc += delta
+		if _acc >= 1.0 / 15.0:
+			_acc = 0.0
 			queue_redraw()
 
 	func _draw() -> void:
@@ -215,7 +219,8 @@ class CasinoArt extends Control:
 					var gc := inner.position + Vector2(cw * (float(gi % 3) + 0.5), ch * (float(gi / 3) + 0.5))
 					ForgePage.ForgeGrid.draw_symbol(self, gems[gi], 5, gc, minf(cw, ch) * 1.15, 1.0, 1.0)
 			"classic", "neon", "vault":
-				var body: Color = {"classic": UI.RED, "neon": UI.SLOT_COL["wild"], "vault": UI.DIM}[kind]
+				# Tonal cabinets (red is for the one thing to tap); the classic keeps a small sun.
+				var body: Color = {"classic": UI.TRACK, "neon": UI.FELT_LINE, "vault": UI.DIM}[kind]
 				var r := Rect2(Vector2(s.x * 0.16, s.y * 0.08), Vector2(s.x * 0.62, s.y * 0.86))
 				draw_rect(r, body)
 				draw_rect(Rect2(r.position + Vector2(4, s.y * 0.2), Vector2(r.size.x - 8, s.y * 0.32)), UI.INK)
@@ -227,6 +232,8 @@ class CasinoArt extends Control:
 				draw_line(Vector2(r.end.x, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.5), UI.SUB, 2.0)
 				draw_line(Vector2(s.x * 0.9, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.18), UI.SUB, 2.0)
 				draw_circle(Vector2(s.x * 0.9, s.y * 0.16), 4.0, UI.SUB)   # not red: red dots mean "claim"
+				if kind == "classic":
+					draw_circle(Vector2(r.position.x + r.size.x * 0.5, r.position.y + s.y * 0.1), s.x * 0.06, Color(UI.RED, 0.7))
 			"roulette":
 				var c := s * 0.5
 				var rad := minf(s.x, s.y) * 0.46
@@ -281,7 +288,7 @@ class CasinoArt extends Control:
 					var y := s.y * (0.25 + 0.25 * float(k))
 					draw_line(Vector2(s.x * 0.06, y + 6), Vector2(s.x * 0.94, y + 6), UI.TRACK, 1.0)
 					var x := s.x * (0.25 + 0.2 * float(k))
-					RacePage.draw_car(self, Vector2(x, y), 0.55, UI.CHIP_COL[(k + 1) % UI.CHIP_COL.size()])
+					RacePage.draw_car(self, Vector2(x, y), 0.55, RacePage.car_color(k, k == 2))
 				draw_rect(Rect2(Vector2(s.x * 0.86, s.y * 0.14), Vector2(3, s.y * 0.72)), UI.TEXT)
 			"blackjack":
 				var a := load("res://assets/cards/cardSpadesA.png") as Texture2D
@@ -297,105 +304,3 @@ class CasinoArt extends Control:
 
 
 
-# ---- shared pieces for the casino games -------------------------------------
-
-static func status_row(parent: Control) -> Label:
-	## "Bet ... / Chips ..." text on the left and "+ Chips" on the right.
-	var sr := HBoxContainer.new()
-	sr.add_theme_constant_override("separation", 8)
-	parent.add_child(sr)
-	var l := UI.label("", 13, UI.SUB)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sr.add_child(l)
-	var buy := UI.pill("+ Chips", UI.RAISED, UI.TEXT, 15, 16)
-	buy.custom_minimum_size = Vector2(88, 48)
-	buy.pressed.connect(func():
-		Kit.tick()
-		if Game.cash < 0.01:
-			Kit.toast("No cash to spend")
-			return
-		TradeSheet.open("chips", "", "chips_in"))
-	Kit.press_fx(buy)
-	sr.add_child(buy)
-	return l
-
-
-static func game_button(t: String, primary: bool, call: Callable) -> Button:
-	var b := UI.pill(t, UI.TEXT if primary else UI.RAISED, UI.INK if primary else UI.TEXT, 16, 18)
-	b.custom_minimum_size = Vector2(0, 52)
-	b.pressed.connect(call)
-	Kit.press_fx(b)
-	return b
-
-
-class BetBar extends HBoxContainer:
-	## The bet: - and + step through round amounts up to the table limit, Max
-	## jumps to the limit. `locked` while a round is running.
-	var value := 0.0
-	var locked := false
-	var _l: Label
-	var _ladder: Array = []
-
-	func _init() -> void:
-		add_theme_constant_override("separation", 6)
-		var minus := UI.pill("-", UI.RAISED, UI.TEXT, 20, 0)
-		minus.custom_minimum_size = Vector2(52, 52)
-		minus.pressed.connect(func(): _step(-1))
-		add_child(minus)
-		_l = UI.label("", 17, UI.TEXT, true)
-		_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		add_child(_l)
-		var plus := UI.pill("+", UI.RAISED, UI.TEXT, 20, 0)
-		plus.custom_minimum_size = Vector2(52, 52)
-		plus.pressed.connect(func(): _step(1))
-		add_child(plus)
-		var mx := UI.pill("Max", UI.RAISED, UI.TEXT, 15, 12)
-		mx.custom_minimum_size = Vector2(64, 52)
-		mx.pressed.connect(func():
-			if locked:
-				return
-			Kit.haptic("selection")
-			_rebuild()
-			value = _ladder[_ladder.size() - 1]
-			_show())
-		add_child(mx)
-		for b in [minus, plus, mx]:
-			Kit.press_fx(b)
-
-	func _rebuild() -> void:
-		var mx := Game.casino_max_bet()
-		_ladder = []
-		var v := RoulettePage.nice(maxf(1.0, mx / 500.0))
-		while v < mx - 0.001 and _ladder.size() < 40:
-			_ladder.append(v)
-			var p := pow(10.0, floor(log(v) / log(10.0)))
-			var m := roundf(v / p)
-			v = (2.0 if m < 2.0 else (5.0 if m < 5.0 else 10.0)) * p
-		_ladder.append(mx)
-
-	func refresh() -> void:
-		_rebuild()
-		if value <= 0.0:
-			value = _ladder[mini(3, _ladder.size() - 1)]
-		value = minf(value, _ladder[_ladder.size() - 1])
-		_show()
-
-	func _step(d: int) -> void:
-		if locked:
-			return
-		Kit.haptic("selection")
-		_rebuild()
-		var i := 0
-		for k in range(_ladder.size()):
-			if _ladder[k] <= value + 0.001:
-				i = k
-		value = _ladder[clampi(i + d, 0, _ladder.size() - 1)]
-		_show()
-
-	func _show() -> void:
-		_l.text = "Bet " + Game.money_short(value)
-		modulate.a = 0.5 if locked else 1.0

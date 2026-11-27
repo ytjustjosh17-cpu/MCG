@@ -99,6 +99,7 @@ func _run() -> void:
 	g.sim_time = -1.0
 	var keep_motion: bool = g.reduce_motion
 	g.reduce_motion = false   # a setting, so it survives resets: pin it for this test
+	root.size = Vector2i(390, 844)   # the phone's screen in game units (as fit_test)
 	var main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await create_timer(0.6).timeout

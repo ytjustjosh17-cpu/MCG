@@ -41,7 +41,7 @@ const GOLD := Color("#E9C46A")
 const CHIP_COL := [Color("#E9EEEC"), Color("#D2362B"), Color("#2F6FB8"), Color("#2E9A62"), Color("#1A1F22"), Color("#7C4DB0")]
 const SLOT_COL := {
 	"sun": Color("#FF1A0F"), "crown": Color("#E9C46A"), "bar": Color("#D8E6E3"), "seven": Color("#FF5D73"),
-	"bell": Color("#F2B544"), "cherry": Color("#E2453C"), "lemon": Color("#E8DD5A"), "wild": Color("#7FD8C8"), "scatter": Color("#B98BFF"),
+	"bell": Color("#F2B544"), "cherry": Color("#E2453C"), "lemon": Color("#E8DD5A"), "wild": Color("#7FD8C8"), "scatter": Color("#FFB8A8"),
 }
 
 # Type: Switzer for text, Tanker for big numbers and titles (both from

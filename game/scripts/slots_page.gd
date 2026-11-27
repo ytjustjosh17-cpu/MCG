@@ -1,9 +1,9 @@
 class_name SlotsPage
-extends Page
+extends CasinoGame
 ## One slot machine (theme: classic, neon or vault). 5 reels, 3 rows, 20
 ## lines. Each spin is settled first (stake taken, result worked out by
 ## SlotMath, win paid and saved), then the reels play it out, so closing the
-## app mid-spin can never undo a loss. The credits meter lags the real chips
+## app mid-spin can never undo a loss. The chips shown lag the real chips
 ## until the reels stop, like a real machine.
 ##
 ## Extras: slam stop (tap Spin while spinning), win lines shown one by one,
@@ -18,22 +18,12 @@ var math: SlotMath
 var _ladder: Array = []         # line bets allowed now
 var _bet_i := 0
 var _machine: SlotMachine
-var _credits: Label
-var _bet_l: Label
-var _bet_sub: Label
-var _win_l: Label
-var _minus: Button
-var _plus: Button
-var _max: Button
+var _bet: BetBar
 var _spin_b: Button
 var _auto_b: Button
 var _bonus_b: Button
-var _info_b: Button
-var _shown_chips := 0.0         # what the meter shows (lags while reels spin)
-var _shown_win := 0.0
+var _shown_chips := 0.0         # what the status row shows (lags while reels spin)
 var _busy := false              # reels moving or a result still playing out
-var _auto_left := 0             # spins left on autospin (-1 = until free spins)
-var _auto_on := false
 var _free_left := 0
 var _free_won := 0.0
 var _free_line := 0.0
@@ -45,101 +35,47 @@ func _init(t := "classic") -> void:
 	super(String(SlotMath.THEMES[theme_id]["name"]), true)
 
 
-func build() -> void:
+func build_game() -> void:
 	math = SlotMath.new(theme_id)
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED   # the machine never scrolls while you play
-	if _title_label:
-		_title_label.add_theme_font_size_override("font_size", 32)
 	_machine = SlotMachine.new(theme_id)
+	_machine.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_machine.reels_stopped.connect(_on_stopped)
 	_machine.reel_landed.connect(func(_i: int):
 		Kit.sound("tap")
 		Kit.haptic("selection"))
-	body.add_child(_machine)
-	# Meters: credits, bet, win.
-	var meters := PanelContainer.new()
-	meters.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16, 14, 8))
-	body.add_child(meters)
-	var mh := HBoxContainer.new()
-	mh.add_theme_constant_override("separation", 6)
-	meters.add_child(mh)
-	_credits = _meter(mh, "Credits")
-	_bet_l = _meter(mh, "Bet")
-	_win_l = _meter(mh, "Win")
-	_win_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	(_win_l.get_parent().get_child(0) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_bet_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	(_bet_l.get_parent().get_child(0) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# Bet row: - [per line] + Max.
-	var br := HBoxContainer.new()
-	br.add_theme_constant_override("separation", 8)
-	body.add_child(br)
-	_minus = _small("-", func(): _step_bet(-1))
-	br.add_child(_minus)
-	_bet_sub = UI.label("", 13, UI.SUB)
-	_bet_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_bet_sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_bet_sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	br.add_child(_bet_sub)
-	_plus = _small("+", func(): _step_bet(1))
-	br.add_child(_plus)
-	_max = _small("Max", func():
+	area.add_child(_machine)
+	# Dock: the bet (total, with the line bet under it), Auto and Bonus, SPIN.
+	_bet = BetBar.new()
+	_bet.external = true
+	_bet.stepped.connect(_step_bet)
+	_bet.maxed.connect(func():
 		if _busy or _free_left > 0:
 			return
-		Kit.haptic("selection")
 		_bet_i = _ladder.size() - 1
 		_refresh_bet())
-	_max.custom_minimum_size = Vector2(72, 48)
-	br.add_child(_max)
-	# Action row: info, auto, SPIN, bonus.
-	var ar := HBoxContainer.new()
-	ar.add_theme_constant_override("separation", 8)
-	body.add_child(ar)
-	_info_b = _small("", _show_paytable)
-	var ic := Icon.new("info", UI.TEXT, 22.0)
-	ic.position = Vector2(13, 13)
-	_info_b.add_child(ic)
-	ar.add_child(_info_b)
-	_auto_b = _small("Auto", _on_auto)
-	_auto_b.custom_minimum_size = Vector2(76, 56)
-	ar.add_child(_auto_b)
-	_spin_b = UI.pill("SPIN", UI.TEXT, UI.INK, 20, 28)
-	_spin_b.custom_minimum_size = Vector2(0, 56)
-	_spin_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_spin_b.pressed.connect(_on_spin_pressed)
-	Kit.press_fx(_spin_b)
-	ar.add_child(_spin_b)
-	_bonus_b = _small("Bonus", _on_bonus)
-	_bonus_b.custom_minimum_size = Vector2(76, 56)
-	ar.add_child(_bonus_b)
+	dock.add_child(_bet)
+	_auto_b = quiet("Auto", _on_auto)
+	_bonus_b = quiet("Bonus buy", _on_bonus)
+	dock_row([_auto_b, _bonus_b])
+	_spin_b = primary("SPIN", _on_spin_pressed)
+	_spin_b.add_theme_font_size_override("font_size", 20)
+	dock.add_child(_spin_b)
 	_shown_chips = Game.chips()
 	_build_ladder()
 	_bet_i = _default_bet()
-	visibility_changed.connect(func():
-		if not is_visible_in_tree():
-			_stop_auto())
-	tree_exiting.connect(_stop_auto)
 	_resume_free()
 
 
-func _meter(parent: Control, cap: String) -> Label:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	parent.add_child(v)
-	v.add_child(UI.label(cap, 13, UI.SUB))
-	var l := UI.label("", 17, UI.TEXT, true)
-	l.clip_text = true
-	v.add_child(l)
-	return l
+func show_info() -> void:
+	_show_paytable()
 
 
-func _small(text: String, cb: Callable) -> Button:
-	var b := UI.pill(text, UI.RAISED, UI.TEXT, 17, 16)
-	b.custom_minimum_size = Vector2(48, 48)
-	b.pressed.connect(cb)
-	Kit.press_fx(b)
-	return b
+func auto_spin() -> bool:
+	return spin()
+
+
+func is_busy() -> bool:
+	return _busy
 
 
 # ---- bets -------------------------------------------------------------------
@@ -178,10 +114,11 @@ func total_bet() -> float:
 
 func _step_bet(d: int) -> void:
 	if _busy or _free_left > 0:
+		Motion.shake(_bet.plus if d > 0 else _bet.minus)
 		return
 	var ni := clampi(_bet_i + d, 0, _ladder.size() - 1)
 	if ni == _bet_i:
-		Motion.shake(_plus if d > 0 else _minus)
+		Motion.shake(_bet.plus if d > 0 else _bet.minus)
 		if d > 0:
 			Kit.toast("Table limit: %s a spin" % Game.money_short(Game.casino_max_bet()))
 		return
@@ -191,13 +128,12 @@ func _step_bet(d: int) -> void:
 
 
 func _refresh_bet() -> void:
-	var tb := total_bet() if _free_left <= 0 else math.total_bet(_free_line)
-	_bet_l.text = Game.money_short(tb)
-	_bet_sub.text = "%s a line" % Game.money_short(line_bet() if _free_left <= 0 else _free_line)
+	var lb := line_bet() if _free_left <= 0 else _free_line
+	_bet.show_text(Game.money_short(math.total_bet(lb)), "%s a line" % Game.money_short(lb))
 
 
 func refresh() -> void:
-	if _credits == null:
+	if _spin_b == null:
 		return
 	var keep := line_bet() if not _ladder.is_empty() else 0.0
 	_build_ladder()
@@ -207,10 +143,8 @@ func refresh() -> void:
 		_bet_i = idx
 	if not _busy:
 		_shown_chips = Game.chips()
-	_credits.text = Game.money_short(_shown_chips)
+		status.set_chips(_shown_chips)
 	_refresh_bet()
-	if _shown_win <= 0.0:
-		_win_l.text = "-"
 	_update_buttons()
 
 
@@ -218,17 +152,19 @@ func _update_buttons() -> void:
 	if _spin_b == null:
 		return
 	if _free_left > 0:
-		_spin_b.text = "FREE %d" % _free_left
+		_spin_b.text = "FREE SPINS · %d" % _free_left
 	elif _busy:
 		_spin_b.text = "STOP"
+	elif auto_on:
+		_spin_b.text = "STOP AUTO"
 	else:
 		_spin_b.text = "SPIN"
-	Page.set_enabled(_spin_b, _busy or _free_left > 0 or Game.chips() >= total_bet())
-	_auto_b.text = ("Stop %d" % _auto_left if _auto_left > 0 else "Stop") if _auto_on else "Auto"
-	UI.paint(_auto_b, UI.RED if _auto_on else UI.RAISED, UI.TEXT, 16)
+	set_go(_spin_b, _busy or _free_left > 0 or auto_on or Game.chips() >= total_bet())
+	_auto_b.text = ("Auto · %d left" % auto_left if auto_left > 0 else "Auto · on") if auto_on else "Auto"
+	UI.paint(_auto_b, UI.RAISED, UI.GOLD if auto_on else UI.TEXT, 24)
 	var idle := not _busy and _free_left <= 0
-	for b in [_minus, _plus, _max, _bonus_b]:
-		(b as Button).modulate.a = 1.0 if idle else 0.45
+	_bet.locked = not idle
+	_bonus_b.modulate.a = 1.0 if idle else 0.4
 
 
 # ---- spinning -----------------------------------------------------------------
@@ -237,8 +173,8 @@ func _on_spin_pressed() -> void:
 	if _busy:
 		_machine.slam()     # tap again to stop the reels at once
 		return
-	if _auto_on:
-		_stop_auto()
+	if auto_on:
+		stop_auto()
 		return
 	spin()
 
@@ -257,10 +193,10 @@ func spin() -> bool:
 		Kit.toast("Bet lowered to the table limit")
 		return false
 	if Game.chips() < tb - 0.001:
-		_stop_auto()
+		stop_auto()
 		Motion.shake(_spin_b)
 		Kit.toast("Not enough chips · buy more in the casino")
-		_offer_chips()
+		offer_chips()
 		return false
 	var before := Game.chips()
 	if not Game.casino_stake(tb):
@@ -289,9 +225,8 @@ func _free_spin() -> void:
 func _play(res: Dictionary) -> void:
 	_last = res
 	_busy = true
-	_shown_win = 0.0
-	_win_l.text = "-"
-	_credits.text = Game.money_short(_shown_chips)
+	status.clear_win()
+	status.set_chips(_shown_chips)
 	_update_buttons()
 	_machine.spin_to(res)
 
@@ -301,16 +236,12 @@ func _on_stopped() -> void:
 	var paid := float(res.get("paid", 0.0))
 	var tb := float(res.get("total_bet", total_bet()))
 	var x := paid / maxf(tb, 0.0001)
-	if paid > 0.0:
-		_count_win(paid)
-		Kit.sound("buy" if x < BIG_WIN_X else "fanfare")
-		Kit.haptic("success")
-		if x >= BIG_WIN_X:
-			_machine.banner("MEGA WIN" if x >= AUTO_STOP_X else "BIG WIN", Game.money_short(paid), 2.2)
-			if not Motion.reduced():
-				var c := Confetti.new(Vector2(Kit.screen().x * 0.5, _machine.global_position.y + 120.0), 70)
-				get_tree().root.get_node("Kit").add_child(c)
-	_tween_credits()
+	win_fx(paid, tb, BIG_WIN_X, _machine.get_global_rect().get_center())
+	if x >= BIG_WIN_X:
+		_machine.banner("MEGA WIN" if x >= AUTO_STOP_X else "BIG WIN", Game.money_short(paid), 2.2)
+	var to := Game.chips()
+	status.tween_chips(_shown_chips, to)
+	_shown_chips = to
 	var awarded := int(res.get("free_spins_awarded", 0))
 	var wait := 0.25
 	if paid > 0.0:
@@ -326,15 +257,15 @@ func _on_stopped() -> void:
 		Kit.haptic("success")
 		_machine.banner("%d FREE SPINS" % awarded if not was_free else "+%d FREE SPINS" % awarded, "Wins pay ×2", 1.8)
 		wait = maxf(wait, 1.9)
-		if _auto_on and _auto_left == -1:
-			_stop_auto()   # "until free spins" got there
+		if auto_on and auto_left == -1:
+			stop_auto()   # "until free spins" got there
 	elif bool(res.get("free", false)) and _free_left <= 0:
 		# The feature is over: show what it paid, then back to normal.
 		_machine.banner("FREE SPINS WON", Game.money_short(_free_won), 2.2)
 		_clear_free()
 		wait = maxf(wait, 2.0)
-	if _auto_on and x >= AUTO_STOP_X:
-		_stop_auto()
+	if auto_on and x >= AUTO_STOP_X:
+		stop_auto()
 		Kit.toast("Autospin stopped on a big win")
 	_machine.set_free(_free_left, _free_won)
 	await get_tree().create_timer(Motion.d(wait) if paid > 0.0 or awarded > 0 else 0.05).timeout
@@ -347,37 +278,17 @@ func _on_stopped() -> void:
 		if is_visible_in_tree():
 			_free_spin()
 		return
-	if _auto_on:
-		if _auto_left > 0:
-			_auto_left -= 1
-		if _auto_left == 0:
-			_stop_auto()
+	if auto_on:
+		if auto_left > 0:
+			auto_left -= 1
+		if auto_left == 0:
+			stop_auto()
 		elif is_visible_in_tree():
 			await get_tree().create_timer(Motion.d(0.3)).timeout
-			if _auto_on and not _busy and is_inside_tree():
+			if auto_on and not _busy and is_inside_tree():
 				if not spin():
-					_stop_auto()
+					stop_auto()
 	_update_buttons()
-
-
-func _count_win(v: float) -> void:
-	_shown_win = v
-	if Motion.reduced():
-		_win_l.text = Game.money_short(v)
-		return
-	var t := create_tween()
-	t.tween_method(func(f: float): _win_l.text = Game.money_short(f), 0.0, v, 0.6).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-
-
-func _tween_credits() -> void:
-	var to := Game.chips()
-	var from := _shown_chips
-	_shown_chips = to
-	if Motion.reduced() or absf(to - from) < 0.005:
-		_credits.text = Game.money_short(to)
-		return
-	var t := create_tween()
-	t.tween_method(func(f: float): _credits.text = Game.money_short(f), from, to, 0.6).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 
 
 # ---- free spins kept on disk ----------------------------------------------------
@@ -419,8 +330,8 @@ func _resume_free() -> void:
 # ---- autospin, bonus buy, paytable ---------------------------------------------
 
 func _on_auto() -> void:
-	if _auto_on:
-		_stop_auto()
+	if auto_on:
+		stop_auto()
 		return
 	if _free_left > 0:
 		return
@@ -432,32 +343,6 @@ func _on_auto() -> void:
 	acts.append({"text": "Until free spins", "style": "secondary", "call": func(): _start_auto(-1)})
 	acts.append({"text": "Close", "style": "plain"})
 	Kit.sheet("Autospin", "Spins at %s each. Stops on a win over %d× the bet, when chips run out, or when you leave." % [Game.money_short(total_bet()), int(AUTO_STOP_X)], acts)
-
-
-func _start_auto(n: int) -> void:
-	_auto_on = true
-	_auto_left = n
-	_update_buttons()
-	if not _busy:
-		if not spin():
-			_stop_auto()
-
-
-func _stop_auto() -> void:
-	if not _auto_on:
-		return
-	_auto_on = false
-	_auto_left = 0
-	_update_buttons()
-
-
-func is_auto() -> bool:
-	return _auto_on
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
-		_stop_auto()
 
 
 func _on_bonus() -> void:
@@ -484,7 +369,8 @@ func buy_bonus() -> bool:
 		Kit.toast("Can't buy the bonus now")
 		return false
 	_shown_chips = before - cost
-	_credits.text = Game.money_short(_shown_chips)
+	status.set_chips(_shown_chips)
+	status.clear_win()
 	_free_line = line_bet()
 	_free_won = 0.0
 	_free_left = SlotMath.FREE_SPINS
@@ -501,13 +387,7 @@ func buy_bonus() -> bool:
 	return true
 
 
-func _offer_chips() -> void:
-	if Game.cash >= 0.01:
-		TradeSheet.open("chips", "", "chips_in")
-
-
 func _show_paytable() -> void:
-	Kit.tick()
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	var pt := math.paytable()
@@ -519,10 +399,7 @@ func _show_paytable() -> void:
 	var tb := math.total_bet(lb)
 	box.add_child(_pay_row("scatter", "Anywhere: 5 %s · 4 %s · 3 %s + free spins" % [Game.money_short(float(sp[2]) * tb), Game.money_short(float(sp[1]) * tb), Game.money_short(float(sp[0]) * tb)]))
 	var th := math.theoretical()
-	var note := UI.label("20 lines, pay left to right. Wild stands in for everything but the scatter. 3 or more scatters anywhere give 10 free spins with wins ×2, and they can come again. Pays back about %.1f%% over time. One spin pays at most %d× the bet, and the casino caps a round at %s." % [float(th["rtp"]) * 100.0, int(SlotMath.MAX_WIN_X), Game.money_short(Game.casino_max_win())], 13, UI.SUB)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = 330
-	box.add_child(note)
+	box.add_child(note("20 lines, pay left to right. Wild stands in for everything but the scatter. 3 or more scatters anywhere give 10 free spins with wins ×2, and they can come again. Pays back about %.1f%% over time. One spin pays at most %d× the bet, and the casino caps a round at %s." % [float(th["rtp"]) * 100.0, int(SlotMath.MAX_WIN_X), Game.money_short(Game.casino_max_win())]))
 	Kit.sheet("Paytable", "", [
 		{"text": "See the 20 lines", "style": "secondary", "keep_open": false, "call": _show_lines},
 		{"text": "Close", "style": "plain"}], true, box)
@@ -549,7 +426,7 @@ func _show_lines() -> void:
 	g.add_theme_constant_override("v_separation", 6)
 	for i in range(SlotMath.LINES):
 		var d := LineDiagram.new(i)
-		d.custom_minimum_size = Vector2(62, 40)
+		d.custom_minimum_size = Vector2(62, 44)
 		g.add_child(d)
 	Kit.sheet("The 20 lines", "", [{"text": "Close", "style": "plain"}], true, g)
 
@@ -588,7 +465,7 @@ class LineDiagram extends Control:
 				draw_rect(Rect2(Vector2(r * cw + 1, row * ch + 1), Vector2(cw - 2, ch - 2)), UI.GOLD if on else UI.WINDOW)
 			pts.append(Vector2(r * cw + cw * 0.5, int(rows[r]) * ch + ch * 0.5))
 		draw_polyline(pts, UI.RED, 1.5, true)
-		draw_string(UI.SEMI, Vector2(2, 10), str(line + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, UI.TEXT)
+		draw_string(UI.SEMI, Vector2(2, 12), str(line + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UI.TEXT)
 
 
 class SlotMachine extends Control:
@@ -616,6 +493,7 @@ class SlotMachine extends Control:
 	var _free_left := 0
 	var _free_won := 0.0
 	var _t := 0.0
+	var _acc := 0.0
 	var _rng := RandomNumberGenerator.new()
 	var _reels: Control             # clipped layer for the reels
 	var _over: Control              # lines and banners on top
@@ -782,29 +660,29 @@ class SlotMachine extends Control:
 				_line_t = 0.0
 		if not is_visible_in_tree():
 			return
-		_redraw()
+		# Full speed only while something moves (reels, a banner, win lines);
+		# at rest the marquee lights chase at 15 frames a second (battery).
+		if _spinning.has(true) or _banner_t > 0.0 or _show_line != -1:
+			_acc = 0.0
+			_redraw()
+			return
+		if Game.reduce_motion:
+			return
+		_acc += delta
+		if _acc >= 1.0 / 15.0:
+			_acc = 0.0
+			queue_redraw()
 
 	# ---- drawing
 	func _draw() -> void:
 		var s := size
-		var frame: Color
-		var trim: Color
-		match theme_id:
-			"neon":
-				frame = UI.SKY
-				trim = UI.SLOT_COL["wild"]
-			"vault":
-				frame = UI.SIDE
-				trim = UI.DIM
-			_:
-				frame = UI.SIDE
-				trim = UI.RED
-		# Cabinet.
+		var frame: Color = {"neon": UI.SKY, "vault": UI.SIDE}.get(theme_id, UI.SIDE)
+		# Cabinet with a hairline gold trim (red is kept for the one thing to tap).
 		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, s), 22.0), frame)
 		var outline := UI.rounded_rect_poly(Rect2(Vector2(1, 1), s - Vector2(2, 2)), 21.0)
 		outline.append(outline[0])
-		var glow := 0.55 + 0.25 * sin(_t * 2.0) if theme_id == "neon" and not Game.reduce_motion else 0.8
-		draw_polyline(outline, Color(trim, glow), 2.0, true)
+		var glow := 0.3 + 0.15 * sin(_t * 2.0) if theme_id == "neon" and not Game.reduce_motion else 0.4
+		draw_polyline(outline, Color(UI.GOLD, glow), 1.5, true)
 		if theme_id == "vault":
 			# Rivets round the edge.
 			for i in 12:
@@ -816,8 +694,6 @@ class SlotMachine extends Control:
 		for i in lights:
 			var lit := fmod(_t * 6.0 - float(i), float(lights)) < 3.0 if not Game.reduce_motion else i % 3 == 0
 			draw_circle(Vector2(26.0 + (s.x - 52.0) * float(i) / float(lights - 1), 14.0), 2.6, UI.GOLD if lit else UI.TRACK)
-		if theme_id == "classic":
-			draw_circle(Vector2(s.x - 34.0, 34.0), 9.0, UI.RED)   # the red sun on the marquee
 		var title := "%s SWINGS · 20 LINES" % String(SlotMath.THEMES[theme_id]["volatility"]).to_upper()
 		if _free_left > 0:
 			title = "FREE SPINS · %d LEFT · ×2" % _free_left
@@ -828,7 +704,7 @@ class SlotMachine extends Control:
 		draw_rect(w, UI.INK)
 		# Info strip under the reels.
 		var info := _info_text()
-		draw_string(UI.SEMI, Vector2(0, s.y - 18), info, HORIZONTAL_ALIGNMENT_CENTER, s.x, 14, UI.GOLD if info.begins_with("Line") or info.begins_with("Scatter") else UI.SUB)
+		draw_string(UI.SEMI, Vector2(0, s.y - 18), info, HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, UI.GOLD if info.begins_with("Line") or info.begins_with("Scatter") else UI.SUB)
 
 	func _draw_reels() -> void:
 		## Drawn in _reels, which clips: spinning symbols never spill out.
@@ -842,7 +718,7 @@ class SlotMachine extends Control:
 			ci.draw_rect(col_r, UI.WINDOW)
 			if _hot[r] and _spinning[r]:
 				var a := 0.35 + 0.25 * sin(_t * 12.0)
-				ci.draw_rect(col_r, Color(UI.SLOT_COL["scatter"], a), false, 3.0)
+				ci.draw_rect(col_r, Color(UI.GOLD, a), false, 3.0)
 			if _spinning[r]:
 				_draw_tape(ci, r, col_r, ch)
 			else:
@@ -931,8 +807,8 @@ class SlotMachine extends Control:
 			ci.draw_polyline(pts, UI.GOLD, 3.0, true)
 			# The line number on the left edge, like a real machine.
 			var lp := pts[0]
-			ci.draw_circle(lp, 9.0, UI.GOLD)
-			ci.draw_string(UI.SEMI, lp + Vector2(-9, 4), str(int(wn["line"]) + 1), HORIZONTAL_ALIGNMENT_CENTER, 18, 10, UI.INK)
+			ci.draw_circle(lp, 11.0, UI.GOLD)
+			ci.draw_string(UI.SEMI, lp + Vector2(-11, 5), str(int(wn["line"]) + 1), HORIZONTAL_ALIGNMENT_CENTER, 22, 13, UI.INK)
 
 	func _draw_tape(ci: CanvasItem, r: int, col_r: Rect2, ch: float) -> void:
 		var pos := float(_pos[r])

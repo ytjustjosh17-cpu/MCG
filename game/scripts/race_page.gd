@@ -1,21 +1,22 @@
 class_name RacePage
-extends Page
+extends CasinoGame
 ## Races: six made-up cars with odds that change every race. Pick one, bet,
 ## and watch. The finishing order is drawn at the start (RaceMath) and a win
 ## is paid at once; the race then plays out to match. Leaving early changes
 ## nothing (the result was already settled).
+## Cars are tonal and numbered; only your pick is red.
 
 var _rm := RaceMath.new()
 var _track: Track
 var _list: GridContainer
 var _rows: Array = []
-var _status: Label
 var _result: Label
-var _bet: CasinoPage.BetBar
+var _bet: BetBar
 var _go: Button
 var _pick := 0
 var _racing := false
 var _hidden_win := 0.0
+var _stake := 0.0
 
 
 func _init() -> void:
@@ -26,18 +27,17 @@ func play_button() -> Button:
 	return _go
 
 
-func build() -> void:
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+func build_game() -> void:
 	_track = Track.new()
-	_track.custom_minimum_size = Vector2(0, 196)
+	_track.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_track.finished.connect(_on_finished)
-	body.add_child(_track)
-	_result = UI.label("Pick a car", 15, UI.SUB)
+	area.add_child(_track)
+	_result = UI.label("Pick a car", 15, UI.SUB, true)
 	_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(_result)
+	area.add_child(_result)
 	var pc := PanelContainer.new()
 	pc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
-	body.add_child(pc)
+	area.add_child(pc)
 	_list = GridContainer.new()
 	_list.columns = 2
 	_list.add_theme_constant_override("h_separation", 0)
@@ -47,18 +47,26 @@ func build() -> void:
 		var b := RunnerRow.new(i)
 		b.pressed.connect(func():
 			if _racing:
+				Motion.shake(b)
 				return
 			Kit.haptic("selection")
 			_pick = b.index
 			_paint_rows())
 		_list.add_child(b)
 		_rows.append(b)
-	_status = CasinoPage.status_row(body)
-	_bet = CasinoPage.BetBar.new()
-	body.add_child(_bet)
-	_go = CasinoPage.game_button("Race", true, _on_go)
-	body.add_child(_go)
+	_bet = BetBar.new()
+	dock.add_child(_bet)
+	_go = primary("Race", _on_go)
+	dock.add_child(_go)
 	_paint_rows()
+
+
+func info_content() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	box.add_child(note("Six cars race. Back one: if it wins you get your bet times its odds (the odds include your bet). The odds change every race with each car's form.", UI.TEXT))
+	box.add_child(note("The order is drawn when you bet. Every car pays back 95% over time, whichever you pick."))
+	return box
 
 
 func _paint_rows() -> void:
@@ -67,17 +75,19 @@ func _paint_rows() -> void:
 		rr.odds = float(_rm.odds[rr.index])
 		rr.picked = rr.index == _pick
 		rr.queue_redraw()
+	_track.pick = _pick
+	_track.queue_redraw()
 
 
 func refresh() -> void:
-	if _status == null:
+	if _go == null:
 		return
 	_bet.locked = _racing
 	_bet.refresh()
-	_status.text = "Chips %s · limit %s" % [Game.money(Game.chips() - _hidden_win), Game.money_short(Game.casino_max_bet())]
+	status.set_chips(Game.chips() - _hidden_win)
 	var name: String = RaceMath.RUNNERS[_pick][0]
-	_go.text = "Racing..." if _racing else "Back %s · %s" % [name, Game.money_short(_bet.value)]
-	Page.set_enabled(_go, not _racing)
+	_go.text = "Racing" if _racing else "Back %s · %s" % [name, Game.money_short(_bet.value)]
+	set_go(_go, not _racing)
 
 
 func _on_go() -> void:
@@ -88,6 +98,7 @@ func _on_go() -> void:
 	if bet > Game.chips() + 0.001:
 		Kit.toast("Not enough chips")
 		Motion.shake(_go)
+		offer_chips()
 		return
 	if not Game.casino_stake(bet):
 		Kit.toast("Over the table limit")
@@ -100,7 +111,10 @@ func _on_go() -> void:
 	Kit.sound("tap")
 	_racing = true
 	_hidden_win = paid
+	_stake = bet
+	status.clear_win()
 	_result.text = "And they're off"
+	_result.add_theme_color_override("font_color", UI.SUB)
 	_track.run(order, Motion.reduced())
 	_track.set_meta("res", [won, paid, order])
 	refresh()
@@ -112,20 +126,23 @@ func _on_finished() -> void:
 	_hidden_win = 0.0
 	var winner: String = RaceMath.RUNNERS[int(res[2][0])][0]
 	if bool(res[0]):
-		_result.text = "%s wins · +%s" % [winner, Game.money_short(float(res[1]))]
-		Kit.haptic("success")
-		Kit.sound("fanfare")
+		_result.text = "%s wins, you win" % winner
+		_result.add_theme_color_override("font_color", UI.GOLD)
 	else:
 		_result.text = "%s wins" % winner
-		Kit.haptic("light")
+		_result.add_theme_color_override("font_color", UI.TEXT)
+	win_fx(float(res[1]), _stake, 5.0)
 	_rm.new_form()   # new odds for the next race
 	_paint_rows()
 	Game.flush_changes()
 	refresh()
 
 
-static func car_color(i: int) -> Color:
-	var cols := [UI.RED, UI.GOLD, UI.SLOT_COL["wild"], UI.TEXT, UI.SLOT_COL["scatter"], UI.UP]
+static func car_color(i: int, picked := false) -> Color:
+	## Tonal cars, told apart by their numbers; your pick is the red one.
+	if picked:
+		return UI.RED
+	var cols := [UI.TEXT, UI.GOLD, UI.SUB, UI.FELT_LINE, UI.UP, UI.DIM]
 	return cols[i % cols.size()]
 
 
@@ -143,6 +160,12 @@ static func draw_car(ci: CanvasItem, p: Vector2, s: float, col: Color) -> void:
 		ci.draw_circle(p + Vector2(w * wx, 0), h * 0.16, UI.SUB)
 
 
+static func draw_num(ci: CanvasItem, c: Vector2, n: int, lit: bool) -> void:
+	## The car's number in a small disc (lane and list match).
+	ci.draw_circle(c, 11.0, UI.RED if lit else UI.RAISED)
+	ci.draw_string(UI.SEMI, c + Vector2(-11, 5), str(n), HORIZONTAL_ALIGNMENT_CENTER, 22, 13, UI.TEXT)
+
+
 class RunnerRow extends Button:
 	var index := 0
 	var odds := 1.0
@@ -152,30 +175,33 @@ class RunnerRow extends Button:
 		index = i
 		focus_mode = Control.FOCUS_NONE
 		flat = true
-		custom_minimum_size = Vector2(0, 52)
+		custom_minimum_size = Vector2(0, 56)
 		size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for st in ["normal", "hover", "pressed", "disabled", "focus"]:
 			add_theme_stylebox_override(st, StyleBoxEmpty.new())
 
 	func _draw() -> void:
 		if picked:
-			draw_rect(Rect2(Vector2(4, 3), size - Vector2(8, 6)), UI.RAISED)
-			draw_rect(Rect2(Vector2(4, 3), Vector2(3, size.y - 6)), UI.GOLD)
-		RacePage.draw_car(self, Vector2(28, size.y * 0.62), 0.55, RacePage.car_color(index))
+			draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(4, 4), size - Vector2(8, 8)), 12.0), UI.RAISED)
+		RacePage.draw_num(self, Vector2(22, size.y * 0.5), index + 1, picked)
 		var f: Font = UI.SEMI
-		draw_string(f, Vector2(56, size.y * 0.44), String(RaceMath.RUNNERS[index][0]), HORIZONTAL_ALIGNMENT_LEFT, size.x - 60, 14, UI.TEXT)
-		draw_string(f, Vector2(56, size.y * 0.82), "pays x%.2f" % odds, HORIZONTAL_ALIGNMENT_LEFT, size.x - 60, 12, UI.GOLD if picked else UI.SUB)
+		draw_string(f, Vector2(42, size.y * 0.45), String(RaceMath.RUNNERS[index][0]), HORIZONTAL_ALIGNMENT_LEFT, size.x - 46, 15, UI.TEXT)
+		draw_string(UI.REG, Vector2(42, size.y * 0.8), "pays ×%.2f" % odds, HORIZONTAL_ALIGNMENT_LEFT, size.x - 46, 13, UI.GOLD if picked else UI.SUB)
 
 
 class Track extends Control:
 	## Six lanes; each car's finishing time follows the drawn order.
 	signal finished
 	const BASE_S := 5.0
+	var pick := 0
 	var _order: Array = []
 	var _finish_t: Array = []
 	var _t := 0.0
 	var _running := false
 	var _phase: Array = []
+
+	func _init() -> void:
+		set_process(false)
 
 	func run(order: Array, instant: bool) -> void:
 		_order = order
@@ -217,21 +243,26 @@ class Track extends Control:
 		return clampf(x + sin(x * PI) * 0.06 * sin(_t * 1.7 + float(_phase[i])), 0.0, 1.0)
 
 	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), UI.INK)
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), 16.0), UI.PANEL)
 		var lane_h := (size.y - 16.0) / 6.0
-		var x0 := 34.0
+		var x0 := 64.0
 		var x1 := size.x - 30.0
 		# Finish line: a chequer of light and dark.
-		for k in int(size.y / 8.0):
-			draw_rect(Rect2(Vector2(x1 + 4.0 + float(k % 2) * 4.0, 8.0 + float(k) * 8.0 - 8.0), Vector2(4, 8)), UI.TEXT if k % 2 == 0 else UI.SIDE)
+		for k in int((size.y - 16.0) / 8.0):
+			draw_rect(Rect2(Vector2(x1 + 4.0 + float(k % 2) * 4.0, 8.0 + float(k) * 8.0), Vector2(4, 8)), UI.TEXT if k % 2 == 0 else UI.SIDE)
+		var done := not _running and not _order.is_empty()
+		var f: Font = UI.SEMI
 		for i in 6:
 			var y := 8.0 + lane_h * float(i)
-			draw_line(Vector2(0, y + lane_h), Vector2(size.x, y + lane_h), UI.TRACK, 1.0)
+			if i < 5:
+				draw_line(Vector2(12, y + lane_h), Vector2(size.x - 12, y + lane_h), UI.TRACK, 1.0)
+			if done and int(_order[0]) == i:
+				draw_rect(Rect2(Vector2(4, y + 1), Vector2(size.x - 8, lane_h - 2)), Color(UI.GOLD, 0.12))
+			RacePage.draw_num(self, Vector2(22, y + lane_h * 0.5), i + 1, i == pick)
 			var px := lerpf(x0, x1 - 20.0, _progress(i))
-			RacePage.draw_car(self, Vector2(px, y + lane_h * 0.78), 0.7, RacePage.car_color(i))
-		if not _running and not _order.is_empty():
-			var f: Font = UI.SEMI
+			RacePage.draw_car(self, Vector2(px, y + lane_h * 0.78), 0.7, RacePage.car_color(i, i == pick))
+		if done:
 			for place in mini(3, _order.size()):
 				var i := int(_order[place])
 				var y := 8.0 + lane_h * float(i)
-				draw_string(f, Vector2(6, y + lane_h * 0.7), str(place + 1), HORIZONTAL_ALIGNMENT_LEFT, 20, 14, UI.GOLD if place == 0 else UI.SUB)
+				draw_string(f, Vector2(40, y + lane_h * 0.62), ["1st", "2nd", "3rd"][place], HORIZONTAL_ALIGNMENT_LEFT, 40, 13, UI.GOLD if place == 0 else UI.SUB)

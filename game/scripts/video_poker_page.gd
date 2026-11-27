@@ -1,5 +1,5 @@
 class_name VideoPokerPage
-extends Page
+extends CasinoGame
 ## Video poker, Jacks or Better (9/6). Deal five cards, tap the ones to keep,
 ## draw. A fresh deck every hand. Money: the bet is taken (and saved) at Deal;
 ## at Draw the result is worked out and paid at once, then the new cards flip
@@ -16,9 +16,9 @@ var _hidden_win := 0.0
 var _last := ""             # last result id
 var _cards: Array = []      # CardSlot x5
 var _pay: PayTable
-var _status: Label
 var _result: Label
-var _bet: CasinoPage.BetBar
+var _tip: Label
+var _bet: BetBar
 var _go: Button
 var _hint: Button
 
@@ -37,18 +37,19 @@ func finish_for_test() -> void:
 	await get_tree().create_timer(0.3).timeout
 
 
-func build() -> void:
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_pay = PayTable.new()
-	_pay.custom_minimum_size = Vector2(0, 168)
-	body.add_child(_pay)
+func build_game() -> void:
 	var felt := PanelContainer.new()
-	felt.add_theme_stylebox_override("panel", UI.box(UI.FELT, 18, 8, 12))
-	body.add_child(felt)
+	felt.add_theme_stylebox_override("panel", UI.box(UI.FELT, 16, 8, 16))
+	felt.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	area.add_child(felt)
 	var fv := VBoxContainer.new()
-	fv.add_theme_constant_override("separation", 8)
+	fv.add_theme_constant_override("separation", 10)
+	fv.alignment = BoxContainer.ALIGNMENT_CENTER
 	felt.add_child(fv)
-	_result = UI.label("Deal to start", 17, UI.TEXT, true)
+	_pay = PayTable.new()
+	_pay.custom_minimum_size = Vector2(0, 9.0 * 17.0 + 4.0)
+	fv.add_child(_pay)
+	_result = UI.label("", 17, UI.TEXT, true)
 	_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	fv.add_child(_result)
 	var row := HBoxContainer.new()
@@ -60,33 +61,49 @@ func build() -> void:
 		cs.pressed.connect(func(): _toggle(cs.index))
 		row.add_child(cs)
 		_cards.append(cs)
-	var tip := UI.label("Tap cards to hold", 13, UI.FELT_LINE)
-	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	fv.add_child(tip)
-	_status = CasinoPage.status_row(body)
-	_bet = CasinoPage.BetBar.new()
-	body.add_child(_bet)
-	var act := HBoxContainer.new()
-	act.add_theme_constant_override("separation", 6)
-	body.add_child(act)
-	_hint = CasinoPage.game_button("?", false, _on_hint)
-	_hint.custom_minimum_size.x = 52
-	act.add_child(_hint)
-	_go = CasinoPage.game_button("Deal", true, _on_go)
-	_go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	act.add_child(_go)
+	# Under the cards: a hint while idle, "Suggest holds" while holding.
+	var under := CenterContainer.new()
+	under.custom_minimum_size = Vector2(0, 48)
+	fv.add_child(under)
+	_tip = UI.label("Pair of jacks or better pays", 13, UI.FELT_LINE)
+	under.add_child(_tip)
+	_hint = UI.pill("Suggest holds", Color(UI.INK, 0.35), UI.TEXT, 15, 24)
+	_hint.custom_minimum_size = Vector2(168, 48)
+	_hint.pressed.connect(_on_hint)
+	Kit.press_fx(_hint)
+	under.add_child(_hint)
+	_bet = BetBar.new()
+	dock.add_child(_bet)
+	_go = primary("Deal", _on_go)
+	dock.add_child(_go)
 	tree_exiting.connect(_settle_on_leave)
+	_show_idle_line()
+
+
+func info_content() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	for p in PokerMath.PAYTABLE:
+		box.add_child(pay_line(String(p[1]), "×%d" % int(p[2]), String(p[0]) == _last))
+	box.add_child(note("\nPays are times your bet. Deal five cards, tap the ones to keep, then draw. A fresh deck every hand. Pays back about 99.5% with perfect play."))
+	return box
+
+
+func _show_idle_line() -> void:
+	_result.text = "Jacks or better"
+	_result.add_theme_color_override("font_color", UI.TEXT)
 
 
 func refresh() -> void:
-	if _status == null:
+	if _go == null:
 		return
 	_bet.locked = _phase == "hold"
 	_bet.refresh()
-	_status.text = "Chips %s · limit %s" % [Game.money(Game.chips() - _hidden_win), Game.money_short(Game.casino_max_bet())]
+	status.set_chips(Game.chips() - _hidden_win)
 	_go.text = "Draw" if _phase == "hold" else "Deal · " + Game.money_short(_bet.value)
 	_hint.visible = _phase == "hold"
-	_pay.highlight = _last
+	_tip.visible = _phase != "hold"
+	_pay.highlight = _last if _phase == "idle" else ""
 
 
 func _toggle(i: int) -> void:
@@ -104,7 +121,6 @@ func _on_hint() -> void:
 	_holds = PokerMath.auto_hold(_pm.hand)
 	for i in 5:
 		_cards[i].held = _holds[i]
-	Kit.toast("Suggested holds")
 
 
 func _on_go() -> void:
@@ -116,6 +132,7 @@ func _on_go() -> void:
 	if bet > Game.chips() + 0.001:
 		Kit.toast("Not enough chips")
 		Motion.shake(_go)
+		offer_chips()
 		return
 	if not Game.casino_stake(bet):
 		Kit.toast("Over the table limit")
@@ -127,7 +144,9 @@ func _on_go() -> void:
 	_pm.deal()
 	_holds = [false, false, false, false, false]
 	_phase = "hold"
-	_result.text = "Hold cards, then draw"
+	status.clear_win()
+	_result.text = "Tap cards to hold, then draw"
+	_result.add_theme_color_override("font_color", UI.TEXT)
 	for i in 5:
 		_cards[i].held = false
 		_cards[i].show_card(_pm.hand[i], float(i) * 0.06)
@@ -150,17 +169,19 @@ func _draw_now(animate: bool) -> void:
 			_cards[i].show_card(_pm.hand[i], float(k) * 0.08)
 			k += 1
 	var wait := Motion.d(0.35 + 0.08 * float(k))
+	var stake := _bet_now
 	get_tree().create_timer(wait).timeout.connect(func():
 		if not is_instance_valid(self):
 			return
 		_hidden_win = 0.0
 		if paid > 0.0:
-			_result.text = "%s · +%s" % [PokerMath.name_of(id), Game.money_short(paid)]
-			Kit.haptic("success")
-			Kit.sound("buy" if PokerMath.pays(id) < 25.0 else "fanfare")
+			_result.text = PokerMath.name_of(id)
+			_result.add_theme_color_override("font_color", UI.GOLD)
 		else:
 			_result.text = "No win"
+			_result.add_theme_color_override("font_color", UI.SUB)
 		_phase = "idle"
+		win_fx(paid, stake, 25.0)
 		refresh())
 	refresh()
 
@@ -214,11 +235,11 @@ class CardSlot extends Button:
 		if held:
 			draw_rect(Rect2(Vector2(-2, -2), VideoPokerPage.CARD + Vector2(4, 4)), UI.GOLD, false, 3.0)
 			draw_rect(r, UI.GOLD)
-			draw_string(UI.SEMI, r.position + Vector2(0, 13), "HELD", HORIZONTAL_ALIGNMENT_CENTER, size.x, 12, UI.INK)
+			draw_string(UI.SEMI, r.position + Vector2(0, 13), "HELD", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, UI.INK)
 
 
 class PayTable extends Control:
-	## The pay table, two columns; the last result lights up.
+	## The pays on the felt, quiet, as on a real machine; the winning hand lights gold.
 	var highlight := "":
 		set(v):
 			if v != highlight:
@@ -226,16 +247,14 @@ class PayTable extends Control:
 				queue_redraw()
 
 	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), UI.PANEL)
-		var f: Font = UI.SEMI
 		var rows := PokerMath.PAYTABLE.size()
-		var h := (size.y - 12.0) / float(rows)
+		var h := (size.y - 4.0) / float(rows)
 		for i in rows:
 			var p: Array = PokerMath.PAYTABLE[i]
-			var y := 6.0 + h * float(i)
+			var y := 2.0 + h * float(i)
 			var lit := String(p[0]) == highlight
 			if lit:
-				draw_rect(Rect2(Vector2(6, y), Vector2(size.x - 12, h)), UI.GOLD)
-			var col: Color = UI.INK if lit else (UI.TEXT if i < 4 else UI.SUB)
-			draw_string(f, Vector2(16, y + h * 0.72), String(p[1]), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, 13, col)
-			draw_string(f, Vector2(size.x * 0.6, y + h * 0.72), "x%s" % str(int(p[2])), HORIZONTAL_ALIGNMENT_RIGHT, size.x * 0.4 - 16, 13, col)
+				draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(8, y), Vector2(size.x - 16, h)), 6.0), UI.GOLD)
+			var col: Color = UI.INK if lit else Color(UI.TEXT, 0.8)
+			draw_string(UI.SEMI, Vector2(18, y + h * 0.74), String(p[1]), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, 13, col)
+			draw_string(UI.SEMI, Vector2(size.x * 0.6, y + h * 0.74), "×%d" % int(p[2]), HORIZONTAL_ALIGNMENT_RIGHT, size.x * 0.4 - 18, 13, UI.INK if lit else UI.GOLD)

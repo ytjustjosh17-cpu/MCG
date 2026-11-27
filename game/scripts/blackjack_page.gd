@@ -1,5 +1,5 @@
 class_name BlackjackPage
-extends Page
+extends CasinoGame
 ## Blackjack at a felt table with real cards (Kenney, CC0). Six decks,
 ## shuffled for every hand; dealer stands on 17; blackjack pays 3 to 2;
 ## double on any two cards; split once.
@@ -16,7 +16,6 @@ const CARD := Vector2(62, 84)
 
 var _bj := BlackjackMath.new()
 var _table: TableView
-var _status: Label
 var _chip_row: HBoxContainer
 var _idle_row: HBoxContainer
 var _play_row: HBoxContainer
@@ -41,84 +40,80 @@ func _init() -> void:
 	super("Blackjack", true)
 
 
-func build() -> void:
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+func build_game() -> void:
 	_table = TableView.new()
-	_table.custom_minimum_size = Vector2(0, 420)
-	body.add_child(_table)
-	var sr := HBoxContainer.new()
-	sr.add_theme_constant_override("separation", 8)
-	body.add_child(sr)
-	_status = UI.label("", 13, UI.SUB)
-	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sr.add_child(_status)
-	var buy := UI.pill("+ Chips", UI.RAISED, UI.TEXT, 15, 16)
-	buy.custom_minimum_size = Vector2(88, 48)
-	buy.pressed.connect(func():
-		Kit.tick()
-		if Game.cash < 0.01:
-			Kit.toast("No cash to spend")
-			return
-		TradeSheet.open("chips", "", "chips_in"))
-	Kit.press_fx(buy)
-	sr.add_child(buy)
-	_chip_row = HBoxContainer.new()
-	_chip_row.add_theme_constant_override("separation", 8)
-	_chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(_chip_row)
-	# Before a hand: clear the bet or deal.
+	_table.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	area.add_child(_table)
+	# Dock, before a hand: chips to add to the bet and Clear, then Deal.
 	_idle_row = HBoxContainer.new()
-	_idle_row.add_theme_constant_override("separation", 6)
-	body.add_child(_idle_row)
-	_clear_b = _btn("Clear", false, _on_clear)
-	_clear_b.custom_minimum_size.x = 88
+	_idle_row.add_theme_constant_override("separation", 8)
+	_idle_row.custom_minimum_size = Vector2(0, 52)
+	dock.add_child(_idle_row)
+	_chip_row = HBoxContainer.new()
+	_chip_row.add_theme_constant_override("separation", 4)   # 5 chips + Clear fit 358 px
+	_chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_idle_row.add_child(_chip_row)
+	_clear_b = _btn(quiet("Clear", Callable()), _on_clear)
+	_clear_b.custom_minimum_size.x = 58
+	_clear_b.size_flags_horizontal = Control.SIZE_FILL
 	_idle_row.add_child(_clear_b)
-	_deal_b = _btn("Deal", true, _on_deal)
-	_deal_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_idle_row.add_child(_deal_b)
-	# During a hand: Hint, Split, Double, Hit, Stand (Stand nearest the thumb).
+	# During a hand: Hint, Split, Double; then Hit and Stand (Stand nearest the thumb).
 	_play_row = HBoxContainer.new()
-	_play_row.add_theme_constant_override("separation", 6)
-	body.add_child(_play_row)
-	_hint_b = _btn("?", false, _on_hint)
-	_hint_b.custom_minimum_size.x = 48
+	_play_row.add_theme_constant_override("separation", 8)
+	_play_row.custom_minimum_size = Vector2(0, 52)
+	dock.add_child(_play_row)
+	_hint_b = _btn(quiet("?", Callable()), _on_hint)
+	_hint_b.size_flags_horizontal = Control.SIZE_FILL
+	_hint_b.custom_minimum_size.x = 52
 	_play_row.add_child(_hint_b)
-	_split_b = _btn("Split", false, _on_split)
-	_double_b = _btn("Double", false, _on_double)
-	_hit_b = _btn("Hit", true, _on_hit)
-	_stand_b = _btn("Stand", true, _on_stand)
-	for b in [_split_b, _double_b, _hit_b, _stand_b]:
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_play_row.add_child(b)
+	_split_b = _btn(quiet("Split", Callable()), _on_split)
+	_play_row.add_child(_split_b)
+	_double_b = _btn(quiet("Double", Callable()), _on_double)
+	_play_row.add_child(_double_b)
+	var pr := HBoxContainer.new()
+	pr.add_theme_constant_override("separation", 8)
+	dock.add_child(pr)
+	_deal_b = primary("Deal", _on_deal)
+	pr.add_child(_deal_b)
+	_hit_b = _btn(quiet("Hit", Callable()), _on_hit)
+	_hit_b.custom_minimum_size.y = PRIMARY_H
+	_hit_b.add_theme_font_size_override("font_size", 17)
+	pr.add_child(_hit_b)
+	_stand_b = primary("Stand", _on_stand)
+	pr.add_child(_stand_b)
 
 
-func _ready() -> void:
-	super()
-	await get_tree().process_frame
-	if not is_instance_valid(_table):
-		return
-	var used := body.get_combined_minimum_size().y - _table.custom_minimum_size.y
-	_table.custom_minimum_size.y = maxf(340.0, get_viewport_rect().size.y - 4.0 - 104.0 - used)
+func info_content() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.add_child(note("Get closer to 21 than the dealer without going over. Tap chips to bet, then deal.\n", UI.TEXT))
+	for p in [["Blackjack", "3 to 2"], ["Win", "1 to 1"], ["Push (a tie)", "bet back"]]:
+		box.add_child(pay_line(p[0], p[1]))
+	box.add_child(note("\nSix decks, shuffled every hand. The dealer stands on all 17s. Double on any two cards, split once. ? shows the best play. Pays back about 99.5% with perfect play."))
+	return box
 
 
-func _btn(t: String, primary: bool, call: Callable) -> Button:
-	var b := UI.pill(t, UI.TEXT if primary else UI.RAISED, UI.INK if primary else UI.TEXT, 16, 18)
-	b.custom_minimum_size = Vector2(0, 52)
+func _btn(b: Button, call: Callable) -> Button:
+	## A dock button that shakes when its move isn't allowed now.
 	b.pressed.connect(func():
 		if b.get_meta("blocked", false):
 			Motion.shake(b)
 			return
 		call.call())
-	Kit.press_fx(b)
 	return b
+
+
+func _pick(b: Button, on: bool) -> void:
+	## Quiet buttons: RAISED when allowed, faded when not (still tappable).
+	b.set_meta("blocked", not on)
+	b.modulate.a = 1.0 if on else 0.4
 
 
 # ---- chips and bet ----------------------------------------------------------
 
 func _rebuild_chips() -> void:
-	var d := RoulettePage.denoms(Game.casino_max_bet())
+	var d := CasinoGame.denoms(Game.casino_max_bet())
 	if d == _denoms:
 		return
 	_denoms = d
@@ -126,7 +121,7 @@ func _rebuild_chips() -> void:
 		ch.queue_free()
 	for i in range(_denoms.size()):
 		var v: float = _denoms[i]
-		var cb := RoulettePage.ChipButton.new(v, i)
+		var cb := ChipButton.new(v, i)
 		cb.pressed.connect(func(): _add_bet(v, cb))
 		_chip_row.add_child(cb)
 	if _bet <= 0.0 or _bet > Game.casino_max_bet():
@@ -169,7 +164,7 @@ func _on_deal() -> void:
 		Motion.shake(_deal_b)
 		return
 	if _bet > Game.chips() + 0.001:
-		Kit.toast("Not enough chips · tap + Chips")
+		Kit.toast("Not enough chips · tap +")
 		Motion.shake(_deal_b)
 		return
 	if not Game.casino_stake(_bet):
@@ -274,17 +269,8 @@ func _show_result() -> void:
 		outs.append(String(h["outcome"]))
 	_table.outcomes = outs
 	_table.queue_redraw()
-	var net := _paid - _staked
-	if _paid > _staked + 0.001:
-		Kit.haptic("success")
-		var bj := outs.has("blackjack")
-		Kit.toast(("Blackjack · +" if bj else "You win · +") + Game.money_short(net), true)
-		if bj:
-			Kit.sound("fanfare")
-	elif absf(net) <= 0.001:
-		Kit.toast("Push · bet back")
-	else:
-		Kit.haptic("light")
+	# The tags on the felt say win, push or lose; the win counts up in the status row.
+	win_fx(_paid, _staked, 2.5 if outs.has("blackjack") else 99.0, _table.get_global_rect().get_center())
 	refresh()
 
 
@@ -353,27 +339,30 @@ func _total_text(cards: Array) -> String:
 
 
 func refresh() -> void:
-	if _status == null:
+	if _deal_b == null:
 		return
 	_rebuild_chips()
 	var playing := _bj.phase == "player"
-	var chips_shown := Game.chips() - (_hidden_win if _revealing else 0.0)
+	status.set_chips(Game.chips() - (_hidden_win if _revealing else 0.0))
 	var on := _staked if (playing or _revealing) else _bet
-	_status.text = "Bet %s · limit %s\nChips %s" % [Game.money_short(on), Game.money_short(Game.casino_max_bet()), Game.money(chips_shown)]
 	_table.bet_amount = on
 	_table.queue_redraw()
 	_idle_row.visible = not playing
 	_play_row.visible = playing
-	Page.set_enabled(_deal_b, _bet > 0.0 and not _revealing)
+	_deal_b.visible = not playing
+	_hit_b.visible = playing
+	_stand_b.visible = playing
+	_deal_b.text = "Deal · " + Game.money_short(_bet) if _bet > 0.0 else "Deal"
+	set_go(_deal_b, _bet > 0.0 and not _revealing)
+	_pick(_clear_b, _bet > 0.0 and not _revealing)
 	if playing:
-		Page.set_enabled(_hit_b, _bj.can_hit())
-		Page.set_enabled(_stand_b, true)
-		Page.set_enabled(_double_b, _bj.can_double(), false)
-		Page.set_enabled(_split_b, _bj.can_split(), false)
-		Page.set_enabled(_hint_b, true, false)
+		_pick(_hit_b, _bj.can_hit())
+		_pick(_double_b, _bj.can_double())
+		_pick(_split_b, _bj.can_split())
+		set_go(_stand_b, true)
 	for ch in _chip_row.get_children():
-		if ch is RoulettePage.ChipButton:
-			(ch as Control).modulate.a = 0.45 if playing else 1.0
+		if ch is ChipButton:
+			(ch as Control).modulate.a = 0.4 if _revealing else 1.0
 
 
 class TableView extends Control:
@@ -494,23 +483,18 @@ class TableView extends Control:
 		# Table rules, printed on the felt like a real layout.
 		var mid := size.y * 0.47
 		draw_string(f, Vector2(0, mid - 26.0), "BLACKJACK PAYS 3 TO 2", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, UI.GOLD)
-		draw_string(f, Vector2(0, mid - 8.0), "Dealer stands on all 17s", HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, Color(UI.TEXT, 0.55))
+		draw_string(f, Vector2(0, mid - 8.0), "Dealer stands on all 17s", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(UI.TEXT, 0.6))
 		# Dealer total.
-		draw_string(f, Vector2(14, 22), "DEALER", HORIZONTAL_ALIGNMENT_LEFT, 120, 11, UI.SUB)
+		draw_string(f, Vector2(14, 22), "DEALER", HORIZONTAL_ALIGNMENT_LEFT, 120, 13, UI.SUB)
 		if dealer_label != "":
 			_tag(Vector2(size.x * 0.5, 34.0 + BlackjackPage.CARD.y + 18.0), dealer_label, UI.TEXT, UI.SIDE)
 		# Bet circle with a chip stack.
 		var bc := Vector2(size.x * 0.5, mid + 30.0)
 		draw_arc(bc, 26.0, 0.0, TAU, 48, UI.FELT_LINE, 2.0, true)
 		if bet_amount > 0.0:
-			var ds := RoulettePage.denoms(Game.casino_max_bet())
-			var tier := 0
-			for i in range(ds.size()):
-				if bet_amount >= float(ds[i]):
-					tier = i
 			for k in 3:
 				draw_circle(bc + Vector2(0, 6 - k * 3), 19.0, Color(UI.INK, 0.4))
-			RoulettePage.draw_chip(self, bc, 19.0, tier, RoulettePage.chip_text(bet_amount))
+			CasinoGame.draw_chip(self, bc, 19.0, CasinoGame.chip_tier(bet_amount), CasinoGame.chip_text(bet_amount))
 		# Player totals and outcomes.
 		for i in range(hand_labels.size()):
 			var hl: Dictionary = hand_labels[i]

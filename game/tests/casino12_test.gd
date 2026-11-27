@@ -1,6 +1,8 @@
 extends SceneTree
 ## 1.2 casino games: payback and limits for video poker, crash, plinko and
-## races, plus a wobbly tap on each new page and the daily wheel.
+## races, plus a wobbly tap on each new page and the daily wheel. Also the
+## shared layout: every game has the i, the status row, and one 56 px primary
+## ending at the same height above the nav bar.
 ##   $G --headless --path . -s res://tests/casino12_test.gd
 ## (The touch part needs pointing/emulate_touch_from_mouse=true in override.cfg;
 ## tools/check_all.sh runs it that way.)
@@ -178,6 +180,7 @@ func _small(page: Control) -> Array:
 func _pages() -> void:
 	var g = root.get_node("Game")
 	g.reset_game(true)
+	root.size = Vector2i(390, 844)   # the phone's screen in game units (as fit_test)
 	var main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await create_timer(1.0).timeout
@@ -189,6 +192,31 @@ func _pages() -> void:
 	g.recalc()
 	main.show_page(3)
 	await create_timer(0.5).timeout
+	# One layout on every game (design pass): the "i", the status row, and one
+	# primary button whose bottom sits at the same height, just above the nav bar.
+	var bottom: float = root.get_visible_rect().size.y - 104.0
+	for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
+			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
+			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+		var lp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
+		main.push(lp)
+		await create_timer(0.8).timeout
+		var name: String = pa[0].get_file().get_basename()
+		var last: Control = lp.dock.get_child(lp.dock.get_child_count() - 1)
+		var end_y: float = last.get_global_rect().end.y
+		_ok(absf(end_y - bottom) <= 1.0 and last.size.y >= 55.5, "%s: the primary is 56 px and ends at y %.0f (%.0f)" % [name, bottom, end_y])
+		_ok(lp.info_b != null and lp.info_b.is_visible_in_tree() and lp.status.is_visible_in_tree(), "%s: has the i button and the status row" % name)
+		var wide: float = root.get_visible_rect().size.x
+		_ok(lp.body.get_global_rect().end.x <= wide - 15.5, "%s: nothing pushes the page wider than the screen (%.0f)" % [name, lp.body.get_global_rect().end.x])
+		var small := _small(lp)
+		_ok(small.is_empty(), "%s: every button is at least 48 px %s" % [name, str(small)])
+		lp.show_info()
+		await create_timer(0.3).timeout
+		_ok(root.get_node("Kit").has_open(), "%s: i opens the rules" % name)
+		while root.get_node("Kit").close_top():
+			await create_timer(0.3).timeout
+		main.pop()
+		await create_timer(0.5).timeout
 	for path in ["res://scripts/video_poker_page.gd", "res://scripts/crash_page.gd", "res://scripts/plinko_page.gd", "res://scripts/race_page.gd"]:
 		var pg = load(path).new()
 		main.push(pg)

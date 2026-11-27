@@ -99,6 +99,7 @@ func _run() -> void:
 	if OS.get_cmdline_user_args().size() > 0:
 		out = OS.get_cmdline_user_args()[0]
 	g = root.get_node("Game")
+	root.size = Vector2i(390, 844)   # the phone's screen in game units (as fit_test)
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	await create_timer(0.8).timeout
