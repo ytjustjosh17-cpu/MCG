@@ -1,5 +1,15 @@
 # Changelog
 
+## More money, combos that pay, miner upgrades
+
+- Tapping in a row pays more: from a 10 combo each tap is worth more, up to
+  x2 at 100 in a row (shown next to the combo), then it stops climbing.
+  The auto clicker doesn't get it.
+- Companies earn 6% more. The game now takes about a month to finish
+  instead of five weeks.
+- Miner upgrades (Invest > Crypto): Faster chips (+15% mining a level) and
+  Better cooling (lets mining pay more of your company income).
+
 ## Landscape
 
 - Turn your phone: every screen works sideways as well as upright. The tab

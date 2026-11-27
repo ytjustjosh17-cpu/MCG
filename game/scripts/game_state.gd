@@ -143,7 +143,16 @@ func now() -> float:
 # ==== tapping and levels =================================================
 
 func tap_value() -> float:
-	return (Data.tap_base(level) + income_per_hour * 0.0012) * (1.5 if has_up("tap") else 1.0) * (1.0 + rb("tap"))
+	return (Data.tap_base(level) + income_per_hour * Data.TAP_INCOME_SHARE) * (1.5 if has_up("tap") else 1.0) * (1.0 + rb("tap"))
+
+
+static func combo_mult(combo: int) -> float:
+	## Keep tapping without a pause and each tap pays more: from a 10 combo it
+	## climbs to x2 at 100, and stops there (no endless scaling).
+	if combo < Data.COMBO_START:
+		return 1.0
+	var t := clampf(float(combo - Data.COMBO_START) / float(Data.COMBO_FULL - Data.COMBO_START), 0.0, 1.0)
+	return 1.0 + (Data.COMBO_MAX_MULT - 1.0) * t
 
 
 # ---- auto clicker --------------------------------------------------------
@@ -326,9 +335,10 @@ func tap_tired() -> bool:
 	return _tap_heat - cool > Data.TAP_HEAT_MAX
 
 
-func tap() -> float:
+func tap(combo_bonus := 1.0) -> float:
 	## At most 7 paid taps a second (faster than any thumb); extra taps still
-	## light the tower but earn nothing.
+	## light the tower but earn nothing. combo_bonus comes from the tower's
+	## combo counter (real taps only; the auto clicker never gets it).
 	var t := Time.get_ticks_msec()
 	_tap_tokens = minf(7.0, _tap_tokens + float(t - _tap_ms) / 1000.0 * 7.0)
 	_tap_ms = t
@@ -351,7 +361,7 @@ func tap() -> float:
 	if last_tap_crit:
 		mult *= crit_mult()
 		_bump("crits")
-	var v := tap_value() * mult
+	var v := tap_value() * mult * clampf(combo_bonus, 1.0, Data.COMBO_MAX_MULT)
 	_record("best_tap", v)
 	taps += 1
 	last_tap_at = now()
@@ -957,7 +967,8 @@ func buy_miner() -> bool:
 	if mine_target == "":
 		set_mine_target(_first_coin_owned())
 	cash -= p
-	miners = {"n": rigs_total() + 1, "hash": float(miners.get("hash", 0.0)) + p}
+	miners["n"] = rigs_total() + 1
+	miners["hash"] = float(miners.get("hash", 0.0)) + p
 	_bump("rigs_bought")
 	GameLog.info("invest", "Miner bought (%s), mining %s" % [money(p), mine_target])
 	recalc()
@@ -985,7 +996,9 @@ func miner_gain() -> float:
 	var keep_t := mine_target
 	if mine_target == "":
 		mine_target = _first_coin_owned()   # what the first miner would mine
-	miners = {"n": rigs_total() + 1, "hash": float(keep.get("hash", 0.0)) + rig_price()}
+	miners = keep.duplicate()
+	miners["n"] = rigs_total() + 1
+	miners["hash"] = float(keep.get("hash", 0.0)) + rig_price()
 	var after := mining_value_per_hour()
 	miners = keep
 	mine_target = keep_t
@@ -996,12 +1009,50 @@ func rig_gain(_sym: String = "") -> float:
 	return miner_gain()
 
 
+# ---- miner upgrades (1.2) -------------------------------------------------
+# Kept inside `miners` ("speed", "cool"), so they save, load and reset on a
+# rebirth with the miners themselves. Old saves simply have level 0.
+
+func miner_up_level(kind: String) -> int:
+	return int(miners.get(kind, 0))
+
+
+func miner_up_max(kind: String) -> int:
+	return int(Data.MINER_UPS[kind]["max"])
+
+
+func miner_up_cost(kind: String) -> float:
+	## Faster chips: priced from what mining makes now. Cooling: from what
+	## companies make (it raises mining's share of that). Each level dearer.
+	var u: Dictionary = Data.MINER_UPS[kind]
+	var k := miner_up_level(kind)
+	if k >= int(u["max"]):
+		return 0.0
+	var base := _mine_raw_value() if kind == "speed" else float(_income_parts.get("biz", 0.0))
+	return maxf(float(u["min"]), base * float(u["hours"])) * pow(float(u["growth"]), k)
+
+
+func buy_miner_up(kind: String) -> bool:
+	if not Data.MINER_UPS.has(kind) or rigs_total() <= 0:
+		return false
+	var c := miner_up_cost(kind)
+	if c <= 0.0 or cash < c:
+		return false
+	_save_soon = true
+	cash -= c
+	miners[kind] = miner_up_level(kind) + 1
+	GameLog.info("invest", "Miner upgrade %s to level %d (%s)" % [kind, miner_up_level(kind), money(c)])
+	recalc()
+	return true
+
+
 func _mine_raw_value() -> float:
 	## Mining value per hour in £ before the cap. Each miner earns the same in £
 	## whichever coin it digs, so switching coins never changes what you earn.
 	if mine_target == "" or rigs_total() <= 0:
 		return 0.0
-	return float(miners.get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(mine_target, 1.0)) * (1.25 if has_up("mine") else 1.0)
+	return float(miners.get("hash", 0.0)) * Data.MINE_YIELD * float(mine_eff.get(mine_target, 1.0)) * (1.25 if has_up("mine") else 1.0) \
+		* (1.0 + float(Data.MINER_UPS["speed"]["step"]) * miner_up_level("speed"))
 
 
 func _mine_scale() -> float:
@@ -1014,12 +1065,12 @@ func _mine_scale() -> float:
 
 
 func _mine_cap_value() -> float:
-	return maxf(Data.MINE_CAP_FLOOR, Data.MINE_CAP * float(_income_parts.get("biz", 0.0)))
+	return maxf(Data.MINE_CAP_FLOOR, mine_cap() * float(_income_parts.get("biz", 0.0)))
 
 
 func mine_cap() -> float:
-	## Share of company income all mining can pay.
-	return Data.MINE_CAP
+	## Share of company income all mining can pay (cooling upgrades raise it).
+	return Data.MINE_CAP + float(Data.MINER_UPS["cool"]["step"]) * miner_up_level("cool")
 
 
 func mine_per_hour(sym: String) -> float:

@@ -12,16 +12,20 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.8 to 10.5 |
-| 50% complete | 15 to 21 | 17.3 to 17.9 |
-| 75% complete | 28 to 38 | 27.8 to 28.9 |
-| 90% complete | 33 to 46 | 36.3 to 38.9 |
+| 25% complete | 6 to 10 | 7.5 to 8.3 |
+| 50% complete | 12 to 18 | 13.3 to 14.5 |
+| 75% complete | 21 to 30 | 23.5 to 25.8 |
+| 90% complete | 27 to 38 | 29.3 to 31.3 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message. Earlier than the range is not allowed (the game must never get easier); later is fine with a reason.
 
-Last measured: 1.2 balance pass (seeds 1234, 99, 7, the greedy miner robot, and the rate, gamble and loan robot). 25% on seed 7 lands at day 10.5, half a day late: accepted, later is the safe side.
+1.2 earnings boost (owner: "it seems slow to make money"): companies earn 6% more (`INCOME_SCALE` 0.85), and taps in a row pay up to x2 (`combo_mult`: from a 10 combo to x2 at 100, then flat; real taps only, never the auto clicker). The targets moved about a fifth earlier on purpose: 90% at about a month instead of five weeks. A flat x2.5 combo with a bigger tap share put 90% at day 19, far too quick.
+
+Miner upgrades (1.2): Faster chips (+15% mining a level, 5 levels, priced from what mining makes) and Better cooling (+5 points on the mining cap a level, 3 levels, priced from company income). Kept in `miners`, so they reset on a rebirth. The greedy miner robot stays no faster than normal play (90% day 31.3).
+
+Earlier: 1.2 balance pass (seeds 1234, 99, 7, the greedy miner robot, and the rate, gamble and loan robot). 25% on seed 7 lands at day 10.5, half a day late: accepted, later is the safe side.
 
 ## Expansion prices (1.2)
 

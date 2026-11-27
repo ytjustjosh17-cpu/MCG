@@ -146,6 +146,12 @@ const RIG_MAX := 40              # miners in total
 const MINE_YIELD := 0.04         # a miner earns 4% of its price an hour (pays back in about a day)
 const MINE_CAP := 0.25           # all mining pays at most a quarter of company income (1.2)...
 const MINE_CAP_FLOOR := 2000.0   # ...but never less than £2K an hour, so early miners still pay
+# Miner upgrades (1.2): faster chips add mining speed, cooling lifts the cap.
+# Cost = max(min, hours x what it scales from) x growth ^ level.
+const MINER_UPS := {
+	"speed": {"name": "Faster chips", "step": 0.15, "max": 5, "hours": 8.0, "growth": 1.8, "min": 50000.0},
+	"cool": {"name": "Better cooling", "step": 0.05, "max": 3, "hours": 3.0, "growth": 2.0, "min": 100000.0},
+}
 const NEWS_MINE_UP := ["%s mining gets faster", "%s miners earn more"]
 const NEWS_MINE_DOWN := ["%s mining pays less", "%s miners earn less"]
 
@@ -213,7 +219,7 @@ const SYNERGIES := [
 	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 1.5e12],
 ]
 # One dial for all company income, set so 1.1's new bonuses keep the same pace.
-const INCOME_SCALE := 0.8
+const INCOME_SCALE := 0.85  # 1.2: companies earn 6% more (owner: money felt slow; was 0.8)
 const ACH_BONUS := 0.002      # each achievement adds 0.2% to all income (cap lands near the last ones)
 const ACH_BONUS_CAP := 0.15   # but never more than +15% in total
 # ---- head office (1.1): one-off upgrades that change the rules -----------
@@ -244,6 +250,10 @@ const CASINO_MIN_WIN_CAP := 1.0e5
 # AUTO_IDLE_S without a touch), so leaving the phone on can't farm money.
 const AUTO_LEVELS := [[2.5e4, 2.0], [4.0e5, 1.5], [8.0e6, 1.0], [2.5e8, 0.75], [1.0e10, 0.5]]
 const AUTO_TAP_SHARE := 0.5
+const TAP_INCOME_SHARE := 0.0012  # each tap also pays this many hours of income
+const COMBO_START := 10           # taps in a row before the combo pays
+const COMBO_FULL := 100           # combo where the bonus tops out...
+const COMBO_MAX_MULT := 2.0       # ...at x2 a tap
 const TAP_HEAT_MAX := 1200.0     # tap "heat" before taps tire (about 4 min at 7 a second)
 const TAP_HEAT_COOL := 2.0       # heat lost per second
 const TAP_TIRED_MULT := 0.25     # tired taps pay a quarter
@@ -410,9 +420,9 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.2"
 const WHATS_NEW := [
+	"Tap combos pay up to x2; companies earn more.",
+	"Miner upgrades: faster chips, better cooling.",
 	"Turn your phone: every screen works in landscape.",
-	"Records: your all-time bests, in Profile.",
-	"30 rivals and a bigger rebirth tree.",
+	"Records, 30 rivals and a bigger rebirth tree.",
 	"Items show what they give you in £ an hour.",
-	"Cheaper late expansions; fairer prices.",
 ]

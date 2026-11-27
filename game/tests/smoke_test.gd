@@ -58,11 +58,13 @@ func _run() -> void:
 	_check(game.level_up(), "level up")
 	_check(game.level == 2 and is_equal_approx(game.cash, before - 1000.0), "level 2, cost paid")
 
+	# Combo pay: nothing below 10 in a row, then up to x2.5, never more.
+	_check(game.combo_mult(9) == 1.0 and is_equal_approx(game.combo_mult(100), Data.COMBO_MAX_MULT) and is_equal_approx(game.combo_mult(100000), Data.COMBO_MAX_MULT), "combo pays from 10 in a row and stops at x2.5")
 	# Boost.
 	_check(game.start_boost(), "boost starts")
 	var c0: float = game.cash
 	card._do_tap(Vector2(250, 100))
-	var want_x := 3.0 * (Data.CRIT_MULT if game.last_tap_crit else 1.0)   # 1 in 25 taps crits
+	var want_x: float = 3.0 * (Data.CRIT_MULT if game.last_tap_crit else 1.0) * game.combo_mult(card._combo)   # 1 in 25 taps crits; earlier taps may have built a combo
 	_check(is_equal_approx(game.cash - c0, game.tap_value() * want_x), "boosted tap is x3 (x15 on a crit)")
 	_check(not game.start_boost(), "boost on cooldown")
 
@@ -659,6 +661,20 @@ func _run() -> void:
 	var mine_cap_v := maxf(Data.MINE_CAP_FLOOR, Data.MINE_CAP * game.business_per_hour())
 	_check(absf(game.mining_value_per_hour() - minf(raw_mine, mine_cap_v)) < 1.0, "each miner earns 4% of its price an hour, up to a quarter of company income")
 	_check(raw_mine > mine_cap_v, "30 miners on a small empire hit the mining cap")
+	# Miner upgrades: cooling lifts the cap, chips speed mining up; both stop at their max.
+	game.cash = 1.0e30
+	var capped_before: float = game.mining_value_per_hour()
+	_check(game.buy_miner_up("cool") and game.miner_up_level("cool") == 1 and is_equal_approx(game.mine_cap(), Data.MINE_CAP + 0.05), "cooling raises the mining cap")
+	_check(game._mine_cap_value() >= mine_cap_v and game.mining_value_per_hour() >= capped_before, "a higher cap never pays less (the £2K floor may still rule on a tiny empire)")
+	for k in 10:
+		game.buy_miner_up("cool")
+		game.buy_miner_up("speed")
+	_check(game.miner_up_level("cool") == Data.MINER_UPS["cool"]["max"] and game.miner_up_level("speed") == Data.MINER_UPS["speed"]["max"] and game.miner_up_cost("speed") == 0.0, "miner upgrades stop at their max")
+	var mk_raw: float = game._mine_raw_value()
+	_check(absf(mk_raw - float(game.miners["hash"]) * Data.MINE_YIELD * float(game.mine_eff.get(game.mine_target, 1.0)) * 1.75) < 1.0, "five chip levels mine 75% faster")
+	var mup_old: Dictionary = game.to_dict()
+	mup_old["miners"] = {"n": 3, "hash": 100.0}
+	_check(int(mup_old["miners"].get("speed", 0)) == 0, "old saves have no miner upgrades")
 	for k in 20:
 		game.cash = 1.0e30
 		game.buy_miner()

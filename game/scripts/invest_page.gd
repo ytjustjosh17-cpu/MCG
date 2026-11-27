@@ -40,6 +40,7 @@ var _mine_tile_box: Control
 var _mine_count: Label
 var _mine_target_sym := ""
 var _rig_btn: Button
+var _mup_rows := {}   # miner upgrades: "speed" / "cool" -> Row
 var _hint: Label
 var _sort_pills: Array = []
 var _order_key := {}   # list -> last order, so rows only move when it changes
@@ -646,7 +647,60 @@ func _mining_section() -> Control:
 	_mine_note = UI.label("", 13, UI.SUB)
 	_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sp.add_child(_mine_note)
+	# Miner upgrades (1.2): faster chips and better cooling.
+	var uh := UI.label("Miner upgrades", 17, UI.TEXT, true)
+	box.add_child(uh)
+	var uc := card(box)
+	var first := true
+	for kind in ["speed", "cool"]:
+		if not first:
+			separator(uc, 50)
+		first = false
+		var r := Row.new("cpu" if kind == "speed" else "gauge", "", false)
+		r.pressed.connect(_on_miner_up.bind(kind))
+		uc.add_child(r)
+		_mup_rows[kind] = r
 	return box
+
+
+func _on_miner_up(kind: String) -> void:
+	Kit.tick()
+	var r: Row = _mup_rows[kind]
+	if Game.rigs_total() <= 0:
+		Kit.toast("Buy a miner first")
+		return
+	if Game.miner_up_level(kind) >= Game.miner_up_max(kind):
+		return
+	var c := Game.miner_up_cost(kind)
+	if Game.buy_miner_up(kind):
+		Kit.haptic("success")
+		Motion.pop(r, 1.03)
+		Kit.toast("%s · level %d" % [String(Data.MINER_UPS[kind]["name"]), Game.miner_up_level(kind)], true)
+		Game.flush_changes()
+	else:
+		Kit.haptic("error")
+		Motion.shake(r)
+		Kit.toast("Need %s more" % Game.money_short(c - Game.cash))
+
+
+func _refresh_miner_ups() -> void:
+	for kind in _mup_rows.keys():
+		var r: Row = _mup_rows[kind]
+		var u: Dictionary = Data.MINER_UPS[kind]
+		var lvl := Game.miner_up_level(kind)
+		var mx := Game.miner_up_max(kind)
+		var sub := ""
+		if kind == "speed":
+			sub = "Mining +%d%% · level %d of %d" % [int(round(float(u["step"]) * 100.0 * lvl)), lvl, mx] if lvl > 0 else "+%d%% mining a level · %d levels" % [int(round(float(u["step"]) * 100.0)), mx]
+		else:
+			sub = "Cap %d%% of company income · level %d of %d" % [int(round(Game.mine_cap() * 100.0)), lvl, mx]
+		if lvl >= mx:
+			r.set_texts(String(u["name"]), sub)
+			BusinessPage.plain_value(r, "Max", UI.SUB)
+		else:
+			var c := Game.miner_up_cost(kind)
+			r.set_texts(String(u["name"]), sub)
+			BusinessPage.price_pill(r, Game.money_short(c), Game.cash >= c and Game.rigs_total() > 0)
 
 
 func _refresh_mining() -> void:
@@ -681,6 +735,7 @@ func _refresh_mining() -> void:
 	if Game.mining_capped():
 		notes.append("Mining pays at most %d%% of your company income." % int(round(Game.mine_cap() * 100.0)))
 	_mine_note.text = "\n".join(notes)   # one fact a line
+	_refresh_miner_ups()
 
 
 func _on_buy_rig() -> void:

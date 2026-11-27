@@ -139,7 +139,9 @@ func _session(active_s: float) -> void:
 				g._earn(g.income_per_hour * Data.RUSH_S / 3600.0)
 	var taps := int(active_s * 3.0)
 	for i in taps:
-		g.tap()
+		# Taps come in bursts of about 40 s (120 taps), so combos build up and
+		# drop like a real thumb's would (1.2 combo pay).
+		g.tap(g.combo_mult(i % 120 + 1))
 	for k in int(active_s):
 		g.auto_tick(1.0)   # the auto clicker runs while the robot plays
 	# Buy the next auto clicker level when it costs under a tenth of cash.
@@ -193,6 +195,11 @@ func _spend() -> void:
 					rsym = rc[0]
 		if trader not in ["news", "dip", "hold", "nomine"] and g.rigs_total() < Data.RIG_MAX and rsym != "" and rbest * 72.0 >= g.rig_price():
 			g.buy_rig(rsym); bought = true
+		# Miner upgrades when they cost under a tenth of cash.
+		for mk in ["speed", "cool"]:
+			var mc: float = g.miner_up_cost(mk)
+			if g.rigs_total() > 0 and mc > 0.0 and mc < g.cash * 0.1 and (mk == "speed" or g.mining_capped()):
+				g.buy_miner_up(mk); bought = true
 		# Head office upgrades when they cost under a fifth of cash.
 		for up in Data.UPGRADES:
 			if not g.has_up(up[0]) and float(up[3]) <= g.cash * 0.2:

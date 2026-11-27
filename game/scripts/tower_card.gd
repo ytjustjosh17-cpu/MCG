@@ -303,14 +303,15 @@ var _fx_ms := 0
 
 
 func _do_tap(pos: Vector2) -> void:
-	var v := Game.tap()
+	# The combo counts this tap first, so its bonus applies to it.
+	_combo_tick(pos)
+	var v := Game.tap(Game.combo_mult(_combo))
 	# Very fast tapping (or a tapping app): sound and buzz at most ~14 a second.
 	var ms := Time.get_ticks_msec()
 	var fx_ok := ms - _fx_ms >= 70
 	if fx_ok:
 		_fx_ms = ms
 		Kit.sound("tap")
-	_combo_tick(pos)
 	if _rows > 0:
 		_flash_index = randi() % (COLS * _rows)
 	_flash_time = 0.12
@@ -325,7 +326,7 @@ func _do_tap(pos: Vector2) -> void:
 		_spawn_float(pos, v)
 
 
-# ---- tap combo (just for fun, no extra money) ----------------------------------
+# ---- tap combo: taps in a row pay more, up to x2.5 (Game.combo_mult) ------------
 
 const COMBO_GAP_MS := 900
 const COMBO_MARKS := [50, 100, 250, 500, 1000]
@@ -347,11 +348,12 @@ func _combo_tick(pos: Vector2) -> void:
 		timer.autostart = true
 		timer.timeout.connect(_combo_fade)
 		add_child(timer)
-	_combo_l.size = Vector2(220, 40)
-	_combo_l.position = Vector2(size.x - 236, 10)
+	_combo_l.size = Vector2(300, 40)
+	_combo_l.position = Vector2(size.x - 316, 10)
 	_combo_l.visible = _combo >= 10
 	_combo_l.modulate.a = 1.0
-	_combo_l.text = "%d combo" % _combo
+	var cm := Game.combo_mult(_combo)
+	_combo_l.text = ("%d combo  x%.1f" % [_combo, cm]) if cm > 1.0 else "%d combo" % _combo
 	if _combo in COMBO_MARKS:
 		# Stays TEXT: red would vanish against the sun behind it.
 		Kit.haptic("medium")
