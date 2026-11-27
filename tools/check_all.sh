@@ -36,8 +36,10 @@ if ! python3 "$ROOT/tools/check_rules.py" >/tmp/sol_rules.txt 2>&1; then cat /tm
 ( cd "$ROOT/game" && "$G" --headless --path . --import >/dev/null 2>&1 )
 WORK="$(mktemp -d /tmp/sol-check.XXXX)"
 # Every lane starts from an empty user folder, like CI (a kept save made
-# local runs differ from CI and one stress check flaky).
-rm -rf "$HOME/.local/share/sol-check-"* 2>/dev/null
+# local runs differ from CI and one stress check flaky). The folder name
+# carries this run's id, so two runs at once never wipe each other's saves.
+RUN_ID="$$"
+rm -rf "$HOME/.local/share/sol-check-$RUN_ID-"* 2>/dev/null
 
 # lane name | touch emulation (1/0) | suites (with optional args after ':')
 if [ $QUICK = 1 ]; then
@@ -52,7 +54,7 @@ run_lane() {
 	local dir="$WORK/$name"
 	mkdir -p "$dir" && cp -r "$ROOT/game/." "$dir/"
 	{
-		printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-check-%s"\n' "$name"
+		printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-check-%s-%s"\n' "$RUN_ID" "$name"
 		[ "$touch" = 1 ] && printf '\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n'
 	} > "$dir/override.cfg"
 	for s in $suites; do
@@ -85,6 +87,6 @@ for l in "${LANES[@]}"; do
 		fi
 	done
 done
-rm -rf "$WORK"
+rm -rf "$WORK" "$HOME/.local/share/sol-check-$RUN_ID-"* 2>/dev/null
 echo "== $( [ $FAIL = 0 ] && echo ALL PASS || echo FAILED ) in $(( $(date +%s) - START )) s"
 exit $FAIL
