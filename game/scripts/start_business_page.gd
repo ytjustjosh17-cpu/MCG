@@ -20,7 +20,8 @@ func build() -> void:
 	_cash = UI.label("You own every kind of company.", 15, UI.SUB)
 	body.add_child(_cash)
 	_grid = GridContainer.new()
-	_grid.columns = 2
+	_grid.columns = 3 if Kit.landscape else 2   # the wider landscape column fits three tiles
+	Kit.layout_changed.connect(_on_layout)
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	body.add_child(_grid)
@@ -153,3 +154,8 @@ func _rank(b: Dictionary) -> int:
 	if Game.owns(b["id"]):
 		return 2
 	return 0 if Game.cash >= float(b["cost"]) else 1
+
+
+func _on_layout(land: bool) -> void:
+	if _grid != null:
+		_grid.columns = 3 if land else 2

@@ -729,10 +729,14 @@ func _on_pick_target() -> void:
 	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	now.add_child(nl)
 	var grid := GridContainer.new()
-	grid.columns = 3
+	grid.columns = 6 if Kit.landscape else 3   # landscape: two rows, so it fits the short screen
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	box.add_child(grid)
+	box.set_meta("wide_sheet", true)
+	var relay := func(land: bool): grid.columns = 6 if land else 3
+	Kit.layout_changed.connect(relay)
+	grid.tree_exiting.connect(func(): Kit.layout_changed.disconnect(relay))
 	for c in Data.COINS:
 		var sym: String = c[0]
 		if sym == cur:

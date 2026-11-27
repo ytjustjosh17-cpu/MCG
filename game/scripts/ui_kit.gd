@@ -84,8 +84,12 @@ func column_width() -> float:
 	return w
 
 
-func sheet_width() -> float:
-	return minf(screen().x - SHEET_MARGIN * 2.0, 420.0) if landscape else screen().x - SHEET_MARGIN * 2.0
+func sheet_width(wide := false) -> float:
+	## Pop-up card width. In landscape cards stay narrow (420) unless their
+	## content asks for room (an `extra` with meta "wide_sheet", e.g. TradeSheet).
+	if not landscape:
+		return screen().x - SHEET_MARGIN * 2.0
+	return minf(screen().x - SHEET_MARGIN * 2.0, 720.0 if wide else 420.0)
 
 
 func _on_node_added(n: Node) -> void:
@@ -243,7 +247,8 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 
 	# A card that floats in the middle of the screen (owner's choice).
 	var pad := 20.0
-	var w := sheet_width()
+	var wide := extra != null and extra.has_meta("wide_sheet")
+	var w := sheet_width(wide)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	col.position = Vector2(pad, 22)
@@ -265,6 +270,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 	col.add_child(gap)
 	var closing := [false]
 	var panel := GlassPanel.new(28.0, SHEET_TINT, 10.0)
+	panel.set_meta("wide_sheet", wide)
 	var close := func(after: Callable = Callable()):
 		if closing[0]:
 			return
@@ -366,7 +372,7 @@ func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect,
 		sc.add_child(col)
 		panel.add_child(sc)
 		h = avail
-	var sw := sheet_width()
+	var sw := sheet_width(bool(panel.get_meta("wide_sheet", false)))
 	panel.size = Vector2(sw, h)
 	panel.position.x = (scr.x - sw) * 0.5
 	# Centred; a tall card starts under the status bar and stays on screen.

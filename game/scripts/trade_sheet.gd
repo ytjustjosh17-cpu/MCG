@@ -27,6 +27,16 @@ var _typed := -1.0        # an amount typed in £ (-1 = use the slider)
 var _amount := 0.0        # what the button shows, in £
 var _panel: Control       # the sheet, lifted above the phone keyboard
 var _rest_y := NAN
+# Landscape (1.2): the same parts in two columns (what you get on the left,
+# how much on the right) so the button fits the short screen. Parts are
+# moved, never rebuilt, so a turn of the phone keeps the amount.
+var _parts := {}          # name -> Control
+var _order: Array = []    # names in portrait order
+var _cols: HBoxContainer
+var _lcol: VBoxContainer
+var _rcol: VBoxContainer
+var _go_row: HBoxContainer
+var _grid: GridContainer
 
 
 static func open(k: String, s: String, m: String) -> void:
@@ -35,21 +45,23 @@ static func open(k: String, s: String, m: String) -> void:
 	ts.sym = s
 	ts.mode = m
 	var title: String = {"buy": "Buy ", "sell": "Sell ", "convert": "Convert ", "lock": "Lock ", "chips_in": "Buy chips", "chips_out": "Cash out", "bank_in": "Deposit", "bank_out": "Withdraw", "loan": "Borrow"}[m] + s
+	ts.set_meta("wide_sheet", true)   # two columns need a wider card in landscape
 	Kit.sheet(title, "", [{"text": "Close", "style": "plain"}], true, ts)
 
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 12)
 	_have = UI.label("", 15, UI.SUB)
-	add_child(_have)
+	_put("have", _have)
 	if mode == "convert":
-		add_child(UI.label("Into", 13, UI.SUB))
+		_put("into", UI.label("Into", 13, UI.SUB))
 		# The other 12 coins, 3 across, so no coin sits alone on a row.
 		var grid := GridContainer.new()
 		grid.columns = 3
 		grid.add_theme_constant_override("h_separation", 8)
 		grid.add_theme_constant_override("v_separation", 8)
-		add_child(grid)
+		_put("grid", grid)
+		_grid = grid
 		for c in Data.COINS:
 			if c[0] == sym:
 				continue
@@ -66,14 +78,14 @@ func _ready() -> void:
 		to_sym = "BTC" if sym != "BTC" else "ETH"
 		_paint_targets()
 	_big = UI.display("", 40)
-	add_child(_big)
+	_put("big", _big)
 	_sub = UI.label("", 15, UI.TEXT)
 	_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(_sub)
+	_put("sub", _sub)
 	var wh := HBoxContainer.new()
 	wh.add_theme_constant_override("separation", 8)
 	wh.visible = false
-	add_child(wh)
+	_put("warn", wh)
 	_warn = wh
 	var wi := Icon.new("clock", UI.TEXT, 18.0)
 	wi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -88,10 +100,10 @@ func _ready() -> void:
 		_typed = -1.0
 		frac = v
 		_update())
-	add_child(_slider)
+	_put("slider", _slider)
 	var chips := HBoxContainer.new()
 	chips.add_theme_constant_override("separation", 6)
-	add_child(chips)
+	_put("chips", chips)
 	for p in [0.25, 0.5, 0.75, 1.0]:
 		var pv: float = p
 		var b := UI.pill("Max" if pv >= 1.0 else "%d%%" % int(pv * 100.0), UI.RAISED, UI.TEXT, 15, 16)
@@ -110,7 +122,7 @@ func _ready() -> void:
 	var fb := PanelContainer.new()
 	fb.add_theme_stylebox_override("panel", _field_style())
 	fb.visible = false   # shown by a tap, so the amount isn't on screen three times
-	add_child(fb)
+	_put("field", fb)
 	_field_box = fb
 	var fh := HBoxContainer.new()
 	fh.add_theme_constant_override("separation", 6)
@@ -147,20 +159,97 @@ func _ready() -> void:
 	_type_btn.pressed.connect(func():
 		Kit.haptic("selection")
 		show_field())
-	add_child(_type_btn)
+	_put("type", _type_btn)
 	_after = UI.label("", 13, UI.SUB)
 	_after.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(_after)
+	_put("after", _after)
 	_go = UI.pill("", UI.TEXT, UI.INK, 17, 24)
 	_go.custom_minimum_size = Vector2(0, 52)
 	_go.pressed.connect(_confirm)
 	Kit.press_fx(_go)
-	add_child(_go)
+	_put("go", _go)
 	frac = {"buy": 0.1, "lock": 1.0, "chips_in": 0.1, "chips_out": 1.0, "bank_in": 0.5, "bank_out": 1.0, "loan": 0.5}.get(mode, 0.5)
 	_slider.set_value(frac)
 	_update()
 	Game.changed.connect(_update)   # cash and prices move while it is open
+	_arrange(Kit.landscape)
+	Kit.layout_changed.connect(_arrange)
 	_field.focus_exited.connect(func(): _field.text = _plain(_amount))
+
+
+func _put(name: String, c: Control) -> void:
+	_parts[name] = c
+	_order.append(name)
+	add_child(c)
+
+
+func _arrange(land: bool) -> void:
+	## Portrait: one column in the original order. Landscape: what you own on
+	## top (and, to convert, all coins in two rows of six), then two columns:
+	## the amount and what you get on the left; the slider, quick amounts, the
+	## amount box and the button on the right. The separate Close button hides
+	## (a tap outside or a flick down still closes) so the button always fits.
+	if _cols == null:
+		_cols = HBoxContainer.new()
+		_cols.add_theme_constant_override("separation", 20)
+		_lcol = VBoxContainer.new()
+		_rcol = VBoxContainer.new()
+		for c in [_lcol, _rcol]:
+			c.add_theme_constant_override("separation", 10)
+			c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_cols.add_child(c)
+		_go_row = HBoxContainer.new()
+		_go_row.add_theme_constant_override("separation", 8)
+	for n in _order:
+		_detach(_parts[n])
+	_detach(_cols)
+	_detach(_go_row)
+	add_theme_constant_override("separation", 10 if land else 12)
+	_close_button_visible(not land)
+	if _grid != null:
+		_grid.columns = 6 if land else 3
+		_grid.add_theme_constant_override("v_separation", 6 if land else 8)
+	if not land:
+		for n in _order:
+			add_child(_parts[n])
+		for n in ["field", "type", "go"]:
+			(_parts[n] as Control).size_flags_horizontal = Control.SIZE_FILL
+		return
+	# Converting puts the coins on top; what you own then joins the left column
+	# so the button still fits the short screen.
+	var top: Array = ["grid"] if mode == "convert" else ["have"]   # "Into" stays portrait only
+	var left: Array = ["have", "big", "sub", "warn", "after"] if mode == "convert" else ["big", "sub", "warn", "after"]
+	for n in top:
+		if _parts.has(n):
+			add_child(_parts[n])
+	add_child(_cols)
+	for n in left:
+		if _parts.has(n):
+			_lcol.add_child(_parts[n])
+	for n in ["slider", "chips"]:
+		_rcol.add_child(_parts[n])
+	_rcol.add_child(_go_row)
+	for n in ["field", "type", "go"]:
+		(_parts[n] as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_go_row.add_child(_parts[n])
+
+
+func _close_button_visible(on: bool) -> void:
+	## Kit puts the sheet's "Close" button after this content, in the same column.
+	var col := get_parent()
+	if col == null:
+		if is_inside_tree():
+			return
+		ready.connect(func(): _close_button_visible(on), CONNECT_ONE_SHOT)
+		return
+	for ch in col.get_children():
+		if ch is Button and (ch as Button).text == "Close":
+			ch.visible = on
+
+
+static func _detach(c: Node) -> void:
+	if c != null and c.get_parent() != null:
+		c.get_parent().remove_child(c)
 
 
 func show_field() -> void:
@@ -294,7 +383,11 @@ func _update() -> void:
 func _process(_d: float) -> void:
 	# Lift the sheet so the amount box and button sit above the phone keyboard.
 	if _panel == null:
-		_panel = get_parent().get_parent() as Control
+		# The card itself (Kit may wrap a tall sheet's content in a scroll view).
+		var n := get_parent()
+		while n != null and not (n is GlassPanel):
+			n = n.get_parent()
+		_panel = n as Control
 		return
 	var kb := 0.0
 	if _field.has_focus() and DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
