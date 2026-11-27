@@ -196,16 +196,16 @@ func _run() -> void:
 	main._show_deal()
 	await create_timer(0.5).timeout
 	await _shot("21_streak")
+	# Page shots must show the page, not a left-over pop-up on top of it.
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
 	await create_timer(2.6).timeout
 	var card = main.find_child("TowerCard", true, false)
 	for k in 60:
 		card._do_tap(card.size * 0.5)
 		await create_timer(0.02).timeout
 	await _shot("22_combo")
-	# Page shots must show the page, not a left-over pop-up on top of it.
-	g.streak_unseen = []
-	while root.get_node("Kit").close_top():
-		await create_timer(0.3).timeout
 	main.show_page(4)
 	await create_timer(0.6).timeout
 	main.push(SettingsPage.new())
