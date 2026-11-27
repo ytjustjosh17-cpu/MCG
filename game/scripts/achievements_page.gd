@@ -1,6 +1,6 @@
 class_name AchievementsPage
 extends Page
-## Achievements with a filter. Locked first with progress, unlocked at the bottom.
+## Achievements as medals: one per kind, climbing a tier at a time, with a filter.
 
 const FILTERS := [["all", "All"], ["taps", "Taps"], ["worth", "Net worth"], ["biz", "Companies"], ["invest", "Investing"], ["other", "Other"]]
 const GROUP := {
@@ -57,41 +57,50 @@ func refresh() -> void:
 		return
 	_pill.text = _label(_filter) + "  ▾"
 	_bonus.text = "+%.1f%% income from achievements (max %d%%)" % [Game.ach_bonus() * 100.0, int(Data.ACH_BONUS_CAP * 100.0)]
-	var locked: Array = []
-	var got: Array = []
-	for a in Game.achievements():
-		if _filter != "all" and String(GROUP.get(a["m"], "other")) != _filter:
+	# One medal per kind of achievement. Waiting rewards first, then the ones
+	# under way (closest first), finished medals last.
+	var gs: Array = []
+	for grp in Game.medal_groups():
+		if _filter != "all" and String(GROUP.get(grp["metric"], "other")) != _filter:
 			continue
-		if Game.achieved.has(a["id"]):
-			got.append(a)
-		else:
-			locked.append(a)
-	# Rebuild only when the filter or the unlocked set changes; otherwise just retext.
-	var sig := _filter + str(Game.achieved.size())
+		gs.append(grp)
+	gs.sort_custom(func(x, y):
+		return _rank(x) > _rank(y))
+	var sig := _filter
+	for grp in gs:
+		sig += "|%s:%d:%d" % [grp["metric"], int(grp["level"]), _waiting(grp)]
 	if sig != _sig:
 		_sig = sig
 		_rows.clear()
 		for ch in _list.get_children():
 			ch.queue_free()
-		var all := locked + got
-		for i in range(all.size()):
+		for i in range(gs.size()):
 			if i > 0:
-				separator(_list, 50)
-			var a: Dictionary = all[i]
-			var done := i >= locked.size()
-			# Each kind of achievement has its own icon; done ones are lit.
-			var r := Row.new(KIND_ICON.get(String(a.get("m", "")), "trophy"), "", false)
-			r.custom_minimum_size = Vector2(0, 56)
-			var ic: Icon = r.lead
-			ic.set_style(UI.TEXT if done else UI.DIM, done)
-			r.title_l.add_theme_color_override("font_color", UI.TEXT if done else UI.SUB)
-			r.value_l.add_theme_font_size_override("font_size", 13)
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
+				separator(_list, 68)
+			var grp: Dictionary = gs[i]
+			var r := MedalRow.new(grp, KIND_ICON.get(String(grp["metric"]), "trophy"))
 			_list.add_child(r)
-			_rows.append([a, r, done])
-	for e in _rows:
-		var r: Row = e[1]
-		r.set_texts(e[0]["title"], "" if e[2] else _progress(e[0]), "Done" if e[2] else "")
+			_rows.append(r)
+	else:
+		# Same medals in the same order: just update their progress.
+		for i in range(mini(_rows.size(), gs.size())):
+			(_rows[i] as MedalRow).set_group(gs[i])
+
+
+static func _waiting(grp: Dictionary) -> int:
+	var n := 0
+	for t in grp["tiers"]:
+		if t["done"] and not t["claimed"]:
+			n += 1
+	return n
+
+
+static func _rank(grp: Dictionary) -> float:
+	if _waiting(grp) > 0:
+		return 3.0
+	if int(grp["next"]) < 0:
+		return 0.0   # every tier done
+	return 1.0 + float(grp["progress"])
 
 
 static func _progress(a: Dictionary) -> String:

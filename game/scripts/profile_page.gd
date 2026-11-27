@@ -17,6 +17,12 @@ var _bank_row: Row
 var _ach_row: Row
 var _rival_row: Row
 var _rec_row: Row
+var _days_row: Row
+var _rank_l: Label
+var _rank_next: Label
+var _rank_bar: ProgressBar
+var _show_box: HBoxContainer
+var _show_sig := "-"
 var _upd_card: PanelContainer
 var _upd_title: Label
 var _upd_btn: Button
@@ -40,6 +46,23 @@ func build() -> void:
 	id.add_child(_fortune)
 	_stats = UI.label("", 13, UI.SUB)
 	id.add_child(_stats)
+	# Rank title for your net worth, with a thin bar to the next one.
+	var rk := VBoxContainer.new()
+	rk.add_theme_constant_override("separation", 4)
+	body.add_child(rk)
+	_rank_l = UI.label("", 15, UI.TEXT, true)
+	rk.add_child(_rank_l)
+	_rank_bar = ProgressBar.new()
+	_rank_bar.show_percentage = false
+	_rank_bar.custom_minimum_size = Vector2(0, 4)
+	_rank_bar.max_value = 1000
+	_rank_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 2))
+	_rank_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 2))
+	rk.add_child(_rank_bar)
+	_rank_next = UI.label("", 13, UI.SUB)
+	_rank_next.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_rank_next.clip_text = true
+	rk.add_child(_rank_next)
 	# Past week, only once there is a week to show (2+ saved points).
 	_chart = NetChart.new()
 	_chart.custom_minimum_size = Vector2(0, 72)
@@ -94,6 +117,22 @@ func build() -> void:
 	_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 3))
 	cp.add_child(_bar)
 
+	# Showcase: four favourite items, picked from what you own.
+	var shh := HBoxContainer.new()
+	body.add_child(shh)
+	var stl := UI.label("Showcase", 17, UI.TEXT, true)
+	stl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shh.add_child(stl)
+	var edit := UI.text_btn("Edit")
+	edit.pressed.connect(_pick_showcase)
+	Kit.press_fx(edit)
+	shh.add_child(edit)
+	var shc := card()
+	var shp := padded(shc, 12, 0)
+	_show_box = HBoxContainer.new()
+	_show_box.add_theme_constant_override("separation", 8)
+	shp.add_child(_show_box)
+
 	var ac := card()
 	_reb_row = _link(ac, "sparkle", func(): return RebirthPage.new())
 	separator(ac, 50)
@@ -104,6 +143,10 @@ func build() -> void:
 	_rival_row = _link(ac, "goal", func(): return RivalsPage.new())
 	separator(ac, 50)
 	_rec_row = _link(ac, "star", func(): return RecordsPage.new())
+	separator(ac, 50)
+	_days_row = Row.new("clock", "", false)
+	_days_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ac.add_child(_days_row)
 
 	# Money: one stacked bar, then a list biggest first with each share.
 	section("Money")
@@ -163,6 +206,14 @@ func refresh() -> void:
 		return
 	_fortune.set_value(Game.net_worth())
 	_stats.text = "Lv %d  ·  %s taps" % [Game.level, Game.group(Game.taps)]
+	var rk: Dictionary = Game.rank_title()
+	_rank_l.text = String(rk["title"])
+	_rank_bar.value = float(rk["progress"]) * 1000.0
+	_rank_bar.visible = String(rk["next_title"]) != ""
+	_rank_next.text = ("Next: %s at %s" % [rk["next_title"], Game.money_short(float(rk["next_at"]))]) if String(rk["next_title"]) != "" else "The top rank"
+	var nd := Game.next_days_milestone()
+	_days_row.set_texts("Days played", ("Next reward on day %d" % nd) if nd > 0 else "Every milestone reached", Game.group(Game.days_played()))
+	_fill_showcase()
 	_chart.visible = NetChart.week_points() >= 2
 	var c := clampf(Game.completion(), 0.0, 1.0)
 	_pct.text = "%d%%" % int(c * 100.0)
@@ -275,3 +326,122 @@ class MoneyBar extends Control:
 			if w > 0.5:
 				draw_rect(Rect2(x, 0, maxf(1.0, w - 1.0), size.y), COLS[i % COLS.size()])
 			x += w
+
+
+# ---- showcase ----------------------------------------------------------------
+
+static func item_name(key: String) -> String:
+	var parts := key.split(":")
+	if parts.size() != 2:
+		return key
+	for c in Game.collections():
+		if String(c["id"]) == parts[0]:
+			var list: Array = c["items"]
+			var i := int(parts[1])
+			return String(list[i][0]) if i >= 0 and i < list.size() else key
+	return key
+
+
+func _fill_showcase() -> void:
+	var keys: Array = Game.showcase()
+	var sig := ",".join(keys)
+	if sig == _show_sig:
+		return
+	_show_sig = sig
+	for ch in _show_box.get_children():
+		ch.queue_free()
+	for i in range(Data.SHOWCASE_MAX):
+		var slot := Button.new()
+		slot.focus_mode = Control.FOCUS_NONE
+		slot.custom_minimum_size = Vector2(0, 76)
+		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+			slot.add_theme_stylebox_override(st, UI.box(UI.RAISED, 12))
+		slot.pressed.connect(_pick_showcase)
+		Kit.press_fx(slot)
+		_show_box.add_child(slot)
+		if i < keys.size():
+			var p := String(keys[i]).split(":")
+			var art := ItemArt.new(p[0], int(p[1]), 52.0)
+			art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			art.offset_left = 8
+			art.offset_right = -8
+			art.offset_top = 8
+			art.offset_bottom = -8
+			slot.add_child(art)
+		else:
+			var plus := Icon.new("plus", UI.SUB, 20.0)
+			plus.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+			plus.offset_left = -10
+			plus.offset_top = -10
+			plus.offset_right = 10
+			plus.offset_bottom = 10
+			slot.add_child(plus)
+
+
+func _pick_showcase() -> void:
+	## A sheet of everything you own; tap up to four, then Done.
+	Kit.tick()
+	var owned: Array = []
+	for c in Game.collections():
+		for i in range((c["items"] as Array).size()):
+			var key := "%s:%d" % [c["id"], i]
+			if Game.items.has(key):
+				owned.append(key)
+	if owned.is_empty():
+		Kit.toast("Buy an item first (Items tab)")
+		return
+	var sel: Array = Game.showcase().duplicate()
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	var tiles := {}
+	var paint := func():
+		for k in tiles.keys():
+			var on: bool = sel.has(k)
+			for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+				(tiles[k] as Button).add_theme_stylebox_override(st, _ring_box() if on else UI.box(UI.RAISED, 12))
+	for key in owned:
+		var b := Button.new()
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(72, 72)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.tooltip_text = item_name(key)
+		var p := String(key).split(":")
+		var art := ItemArt.new(p[0], int(p[1]), 48.0)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		art.offset_left = 10
+		art.offset_right = -10
+		art.offset_top = 10
+		art.offset_bottom = -10
+		b.add_child(art)
+		b.pressed.connect(func():
+			Kit.tick()
+			if sel.has(key):
+				sel.erase(key)
+			elif sel.size() >= Data.SHOWCASE_MAX:
+				Kit.toast("Four at most: tap one to take it off")
+				return
+			else:
+				sel.append(key)
+			paint.call())
+		grid.add_child(b)
+		tiles[key] = b
+	paint.call()
+	Kit.sheet("Showcase", "Pick up to four items to show on your profile.", [
+		{"text": "Done", "style": "primary", "call": func():
+			Game.set_showcase(sel)
+			_show_sig = "-"
+			refresh()},
+		{"text": "Close", "style": "plain"},
+	], true, grid)
+
+
+static func _ring_box() -> StyleBoxFlat:
+	var sb := UI.box(UI.RAISED, 12)
+	sb.border_color = UI.TEXT
+	sb.set_border_width_all(2)
+	return sb

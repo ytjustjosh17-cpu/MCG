@@ -9,6 +9,7 @@ const MONTHS := ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", 
 var _hero_v: Label
 var _hero_when: Label
 var _rows: Array = []
+var _days: Row
 
 
 func _init() -> void:
@@ -32,6 +33,10 @@ func build() -> void:
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lc.add_child(r)
 		_rows.append(r)
+	separator(lc, 16)
+	_days = Row.new("", "", false)
+	_days.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lc.add_child(_days)
 	refresh()
 
 
@@ -47,6 +52,7 @@ func refresh() -> void:
 		var v := float(rec[1])
 		var sub := when_text(float(rec[2]), "") if v > 0.0 else "Not yet"
 		r.set_texts(str(rec[0]), sub, value_text(v, str(rec[3])) if v > 0.0 else "-")
+	_days.set_texts("Days played", "Counts every day you open the game", value_text(float(Game.days_played()), "days"))
 
 
 static func value_text(v: float, kind: String) -> String:

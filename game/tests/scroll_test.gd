@@ -487,6 +487,23 @@ func _run() -> void:
 	ivp._prop_seg.select(0, true)
 	ivp._seg.select(0, true)
 	await create_timer(0.3).timeout
+	# Batch 3 screens A: season card, medals, profile rank/showcase/days.
+	var gp3 = load("res://scripts/goals_page.gd").new()
+	main.push(gp3)
+	await create_timer(0.6).timeout
+	_ok(gp3._season_bar != null and gp3._season_bar.is_visible_in_tree() and gp3._season_bar._icons.size() == Data.SEASON.size(), "goals: season bar shows a marker per milestone")
+	main.pop()
+	await create_timer(0.6).timeout
+	var ap3 = load("res://scripts/achievements_page.gd").new()
+	main.push(ap3)
+	await create_timer(0.6).timeout
+	_ok(ap3._rows.size() == g.medal_groups().size() and ap3._rows.size() < g.achievements().size(), "achievements: one medal row per kind (%d medals for %d achievements)" % [ap3._rows.size(), g.achievements().size()])
+	main.pop()
+	await create_timer(0.6).timeout
+	main.show_page(4)
+	await create_timer(0.5).timeout
+	var pp3 = main._pages[4]
+	_ok(pp3._rank_l.text == String(g.rank_title()["title"]) and pp3._show_box.get_child_count() == Data.SHOWCASE_MAX and pp3._days_row.title_l.text == "Days played", "profile: rank title, four showcase slots and days played")
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
 

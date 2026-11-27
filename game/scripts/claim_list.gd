@@ -73,9 +73,12 @@ func refresh() -> void:
 		all.custom_minimum_size = Vector2(0, 48)
 		all.pressed.connect(func():
 			var got := 0.0
+			var boosts := 0
 			for r in _mine():
+				if String(r.get("boost", "")) != "":
+					boosts += 1
 				got += Game.claim(String(r["key"]))
-			_celebrate(got))
+			_celebrate(got, all.get_global_rect().get_center(), boosts > 0))
 		Kit.press_fx(all)
 		top.add_child(all)
 		_card.add_child(top)
@@ -105,12 +108,18 @@ func _sep() -> ColorRect:
 
 func _row(r: Dictionary) -> Control:
 	var kind := String(r.get("kind", ""))
-	var row := Row.new({"ach": "trophy", "goal": "goal", "streak": "star"}.get(kind, "star"), "", false)
+	var row := Row.new({"ach": "trophy", "goal": "goal", "streak": "star", "season": "sparkle", "days": "clock", "term": "lock"}.get(kind, "star"), "", false)
 	(row.lead as Icon).set_style(UI.TEXT, true)
 	row.title_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.title_l.clip_text = true
-	row.set_texts(String(r.get("title", "")), "", "+" + Game.money_short(float(r.get("amount", 0.0))))
+	var boost := String(r.get("boost", ""))
+	var val := "+" + Game.money_short(float(r.get("amount", 0.0)))
+	if boost == "rush":
+		val = "x2 income 10 min"
+	elif boost == "frenzy":
+		val = "x5 taps 20 s"
+	row.set_texts(String(r.get("title", "")), "", val)
 	# A visible "Claim" pill; the whole row is still the button.
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 16))
@@ -128,17 +137,21 @@ func _row(r: Dictionary) -> Control:
 	pill.add_child(pm)
 	row.value_l.get_parent().get_parent().add_child(pill)
 	var key := String(r["key"])
-	row.pressed.connect(func(): _celebrate(Game.claim(key)))
+	row.pressed.connect(func(): _celebrate(Game.claim(key), row.get_global_rect().get_center(), boost != ""))
 	Kit.press_fx(row)
 	return row
 
 
-func _celebrate(v: float) -> void:
-	if v <= 0.0:
+func _celebrate(v: float, from := Vector2.ZERO, boosted := false) -> void:
+	if v <= 0.0 and not boosted:
 		return
 	Kit.haptic("success")
 	Kit.sound("fanfare")
-	Kit.toast("+" + Game.money_short(v), true)
+	if v > 0.0:
+		Kit.toast("+" + Game.money_short(v), true)
+		Kit.fly_money(from, v)   # the money flies to the cash readout
+	else:
+		Kit.toast("Boost on", true)
 	if not Motion.reduced():
 		var c := Confetti.new(global_position - get_viewport_rect().position + Vector2(size.x * 0.5, 40), 60)
 		get_tree().root.get_node("Kit").add_child(c)

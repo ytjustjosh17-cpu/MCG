@@ -13,6 +13,9 @@ var _day_chip_l: Label
 var _day_done: Label
 var _week_done: Label
 var _sig := ""
+var _season_bar: SeasonBar
+var _season_title: Label
+var _season_note: Label
 
 
 func _init() -> void:
@@ -20,8 +23,24 @@ func _init() -> void:
 
 
 func build() -> void:
-	# Finished goals and the daily gift wait here for a tap.
-	body.add_child(ClaimList.new(["goal", "streak"]))
+	# The weekly season bar first: goals, golden suns and the day's first tap fill it.
+	var sc := card()
+	var sp := padded(sc, 16, 6)
+	var sh := HBoxContainer.new()
+	sp.add_child(sh)
+	_season_title = UI.label("Season", 17, UI.TEXT, true)
+	_season_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sh.add_child(_season_title)
+	_season_note = UI.label("", 13, UI.SUB)
+	_season_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sh.add_child(_season_note)
+	_season_bar = SeasonBar.new()
+	sp.add_child(_season_bar)
+	var hint := UI.label("Goals, golden suns and each day's first tap add points.", 13, UI.SUB)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sp.add_child(hint)
+	# Finished goals, season rewards, day milestones and the daily gift wait here for a tap.
+	body.add_child(ClaimList.new(["goal", "streak", "season", "days"]))
 	var d := _header()
 	_day_title = d[0]
 	_day_note = d[1]
@@ -63,6 +82,9 @@ func _header() -> Array:
 func refresh() -> void:
 	if _day_box == null:
 		return
+	_season_title.text = "Season · %d pts" % int(Game.season_pts())
+	_season_note.text = "Resets in " + Game.clock(Game.season_week_left_s())
+	_season_bar.refresh()
 	var left := 86400.0 - fmod(Game.now(), 86400.0)
 	_day_note.text = "Resets " + Game.clock(left)
 	_day_chip.visible = Game.streak > 1
