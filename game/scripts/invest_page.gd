@@ -363,14 +363,12 @@ func _today(book: Dictionary, coins: bool) -> float:
 	return d
 
 
-func _signed(v: float) -> String:
-	return ("▲ +" if v >= 0.0 else "▼ −") + Game.money_short(absf(v))
-
-
 func _sum_lines(v: float, today: float, gain: float) -> void:
-	## Today's move (coloured), then the all-time profit; each hidden when it's nothing.
-	_sum_line2.visible = v > 0.0 and absf(today) >= 0.01
-	_sum_line2.text = _signed(today) + " today"
+	## Today's market move as a % (coloured), then the all-time profit; each hidden when it's nothing.
+	# As a %: a £ move would count coins bought minutes ago as a day's loss.
+	var pct := today / maxf(v - today, 0.01) * 100.0
+	_sum_line2.visible = v > 0.0 and absf(pct) >= 0.05
+	_sum_line2.text = ("▲ +" if pct >= 0.0 else "▼ −") + "%.1f%% today" % absf(pct)
 	_sum_line2.add_theme_color_override("font_color", UI.change_color(today))
 	_sum_line3.visible = v > 0.0 and absf(gain) >= maxf(0.01, v * 0.001)
 	_sum_line3.text = "Profit " + ("+" if gain >= 0.0 else "−") + Game.money_short(absf(gain))
