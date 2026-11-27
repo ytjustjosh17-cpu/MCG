@@ -112,7 +112,10 @@ const STOCKS := [
 	["VLL", "Velle Auto", 176.30, 0.0030, "Transport"], ["BTN", "Black Tern", 33.80, 0.0055, "Energy"],
 	["LDF", "Larder Foods", 24.60, 0.0046, "Food"], ["TFS", "Tern Fisheries", 14.85, 0.0052, "Food"],
 ]
-const STOCK_DIV_SCALE := 0.006  # dividend per hour = price * div * scale
+# Dividends (1.2): each company pays a set 1% to 5% of its base price a
+# day, by its yield in STOCKS (0.0018 lowest, 0.0069 highest).
+static func div_yield_day(div: float) -> float:
+	return 0.01 + clampf((div - 0.0018) / (0.0069 - 0.0018), 0.0, 1.0) * 0.04
 const SECTORS := ["Energy", "Finance", "Tech", "Transport", "Retail", "Food", "Industry"]
 const SECTOR_VOL := {"Energy": 0.007, "Finance": 0.005, "Tech": 0.009, "Transport": 0.006,
 	"Retail": 0.006, "Food": 0.004, "Industry": 0.005}

@@ -4,13 +4,23 @@ extends Page
 
 var _list: VBoxContainer
 var _count := -1
+var _seg: Segmented
+var _filter := 0   # 0 all, 1 shares, 2 crypto
 
 
-func _init() -> void:
+func _init(start_filter := 0) -> void:
 	super("News", true)
+	_filter = start_filter
 
 
 func build() -> void:
+	_seg = Segmented.new(["All", "Shares", "Crypto"])
+	_seg.changed.connect(func(i: int):
+		_filter = i
+		_count = -1
+		refresh())
+	body.add_child(_seg)
+	_seg.select(_filter)
 	_list = card()
 
 
@@ -21,19 +31,25 @@ func refresh() -> void:
 	_count = n
 	for ch in _list.get_children():
 		ch.queue_free()
-	if Game.news.is_empty():
+	var shown: Array = []
+	for i in range(Game.news.size() - 1, -1, -1):
+		var sym := String(Game.news[i].get("sym", ""))
+		var is_coin := not Game._coin(sym).is_empty()
+		if _filter == 0 or (_filter == 1 and not is_coin) or (_filter == 2 and is_coin):
+			shown.append(Game.news[i])
+	if shown.is_empty():
 		var m := MarginContainer.new()
 		m.add_theme_constant_override("margin_left", 16)
 		m.custom_minimum_size = Vector2(0, 56)
 		_list.add_child(m)
-		var l := UI.label("No news yet", 15, UI.SUB)
+		var l := UI.label("No news yet" if _filter == 0 else ("No share news yet" if _filter == 1 else "No crypto news yet"), 15, UI.SUB)
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		m.add_child(l)
 		return
-	for i in range(Game.news.size() - 1, -1, -1):
-		if i < Game.news.size() - 1:
+	for i in range(shown.size()):
+		if i > 0:
 			separator(_list)
-		var item: Dictionary = Game.news[i]
+		var item: Dictionary = shown[i]
 		var target := String(item.get("sym", ""))
 		var opens := not Game._stock(target).is_empty() or not Game._coin(target).is_empty()
 		var r := news_row(item, opens)

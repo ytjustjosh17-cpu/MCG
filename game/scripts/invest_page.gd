@@ -231,7 +231,7 @@ func _news_card() -> Control:
 	r.value_l.add_theme_font_size_override("font_size", 15)
 	r.pressed.connect(func():
 		Kit.tick()
-		push_page.emit(NewsPage.new()))
+		push_page.emit(NewsPage.new({0: 1, 2: 2}.get(_seg.index, 0))))
 	pc.add_child(r)
 	_news_rows.append(r)
 	return pc

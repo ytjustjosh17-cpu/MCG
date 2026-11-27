@@ -1144,7 +1144,7 @@ func dividend_rate(sym: String) -> float:
 	var s := _stock(sym)
 	if s.is_empty():
 		return 0.0
-	return float(s[2]) * float(s[3]) * Data.STOCK_DIV_SCALE * global_mult() * (1.0 + rb("div") + rb("all"))
+	return float(s[2]) * Data.div_yield_day(float(s[3])) / 24.0 * global_mult() * (1.0 + rb("div") + rb("all"))
 
 
 func dividends_per_hour() -> float:
