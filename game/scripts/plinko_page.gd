@@ -98,7 +98,7 @@ func _on_landed(slot: int, paid: float, bet: float) -> void:
 	_hidden_win = maxf(0.0, _hidden_win - paid)
 	_board.flash(slot)
 	# Balls land quickly one after another: only a real win gets a buzz.
-	status.set_win(paid)
+	status.set_win(paid, paid > bet * 1.001)
 	if paid > bet * 1.01:
 		win_fx(paid, bet, 10.0, _board.slot_center(slot))
 	refresh()

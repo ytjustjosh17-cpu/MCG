@@ -47,7 +47,7 @@ func build_game() -> void:
 	fv.alignment = BoxContainer.ALIGNMENT_CENTER
 	felt.add_child(fv)
 	_pay = PayTable.new()
-	_pay.custom_minimum_size = Vector2(0, 9.0 * 17.0 + 4.0)
+	_pay.size_flags_vertical = Control.SIZE_EXPAND_FILL   # takes the room left; hides on a short screen
 	fv.add_child(_pay)
 	_result = UI.label("", 17, UI.TEXT, true)
 	_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -175,8 +175,8 @@ func _draw_now(animate: bool) -> void:
 			return
 		_hidden_win = 0.0
 		if paid > 0.0:
-			_result.text = PokerMath.name_of(id)
-			_result.add_theme_color_override("font_color", UI.GOLD)
+			_result.text = PokerMath.name_of(id) + ("" if paid > stake + 0.001 else ", bet back")
+			_result.add_theme_color_override("font_color", UI.GOLD if paid > stake + 0.001 else UI.TEXT)
 		else:
 			_result.text = "No win"
 			_result.add_theme_color_override("font_color", UI.SUB)
@@ -248,10 +248,13 @@ class PayTable extends Control:
 
 	func _draw() -> void:
 		var rows := PokerMath.PAYTABLE.size()
-		var h := (size.y - 4.0) / float(rows)
+		var h := minf(18.0, (size.y - 4.0) / float(rows))
+		if h < 14.0:
+			return   # too short to read: the i sheet has the pays
+		var y0 := (size.y - h * float(rows)) * 0.5
 		for i in rows:
 			var p: Array = PokerMath.PAYTABLE[i]
-			var y := 2.0 + h * float(i)
+			var y := y0 + h * float(i)
 			var lit := String(p[0]) == highlight
 			if lit:
 				draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(8, y), Vector2(size.x - 16, h)), 6.0), UI.GOLD)

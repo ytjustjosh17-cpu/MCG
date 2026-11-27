@@ -194,29 +194,52 @@ func _pages() -> void:
 	await create_timer(0.5).timeout
 	# One layout on every game (design pass): the "i", the status row, and one
 	# primary button whose bottom sits at the same height, just above the nav bar.
-	var bottom: float = root.get_visible_rect().size.y - 104.0
-	for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
-			["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
-			["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
-		var lp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
-		main.push(lp)
-		await create_timer(0.8).timeout
-		var name: String = pa[0].get_file().get_basename()
-		var last: Control = lp.dock.get_child(lp.dock.get_child_count() - 1)
-		var end_y: float = last.get_global_rect().end.y
-		_ok(absf(end_y - bottom) <= 1.0 and last.size.y >= 55.5, "%s: the primary is 56 px and ends at y %.0f (%.0f)" % [name, bottom, end_y])
-		_ok(lp.info_b != null and lp.info_b.is_visible_in_tree() and lp.status.is_visible_in_tree(), "%s: has the i button and the status row" % name)
-		var wide: float = root.get_visible_rect().size.x
-		_ok(lp.body.get_global_rect().end.x <= wide - 15.5, "%s: nothing pushes the page wider than the screen (%.0f)" % [name, lp.body.get_global_rect().end.x])
-		var small := _small(lp)
-		_ok(small.is_empty(), "%s: every button is at least 48 px %s" % [name, str(small)])
-		lp.show_info()
+	# Also with the phone's status bar and gesture bar taking room (main.gd's safe area).
+	for inset in [[0.0, 0.0], [44.0, 24.0]]:
+		main._content.offset_top = inset[0]
+		main._content.offset_bottom = -inset[1]
 		await create_timer(0.3).timeout
-		_ok(root.get_node("Kit").has_open(), "%s: i opens the rules" % name)
-		while root.get_node("Kit").close_top():
+		var screen_h := int(844.0 - inset[0] - inset[1])
+		var bottom: float = root.get_visible_rect().size.y - inset[1] - 104.0
+		for pa in [["res://scripts/slots_page.gd", "classic"], ["res://scripts/forge_page.gd", ""], ["res://scripts/roulette_page.gd", ""],
+				["res://scripts/blackjack_page.gd", ""], ["res://scripts/video_poker_page.gd", ""], ["res://scripts/crash_page.gd", ""],
+				["res://scripts/plinko_page.gd", ""], ["res://scripts/race_page.gd", ""]]:
+			var lp = load(pa[0]).new(pa[1]) if pa[1] != "" else load(pa[0]).new()
+			main.push(lp)
+			await create_timer(0.8).timeout
+			var name: String = pa[0].get_file().get_basename()
+			var last: Control = lp.dock.get_child(lp.dock.get_child_count() - 1)
+			var end_y: float = last.get_global_rect().end.y
+			_ok(absf(end_y - bottom) <= 1.0 and last.size.y >= 55.5, "%s at %d: the primary is 56 px and ends at y %.0f (%.0f)" % [name, screen_h, bottom, end_y])
+			_ok(lp.info_b != null and lp.info_b.is_visible_in_tree() and lp.status.is_visible_in_tree(), "%s: has the i button and the status row" % name)
+			var wide: float = root.get_visible_rect().size.x
+			_ok(lp.body.get_global_rect().end.x <= wide - 15.5, "%s: nothing pushes the page wider than the screen (%.0f)" % [name, lp.body.get_global_rect().end.x])
+			var small := _small(lp)
+			_ok(small.is_empty(), "%s: every button is at least 48 px %s" % [name, str(small)])
+			lp.show_info()
 			await create_timer(0.3).timeout
-		main.pop()
-		await create_timer(0.5).timeout
+			_ok(root.get_node("Kit").has_open(), "%s: i opens the rules" % name)
+			while root.get_node("Kit").close_top():
+				await create_timer(0.3).timeout
+			main.pop()
+			await create_timer(0.5).timeout
+	main._content.offset_top = 0.0
+	main._content.offset_bottom = 0.0
+	await create_timer(0.3).timeout
+	# No chips: a tap on SPIN still answers (it offers chips), it is not swallowed.
+	var chips_keep: float = g.casino["chips"]
+	g.casino["chips"] = 0.0
+	var zp = load("res://scripts/slots_page.gd").new("classic")
+	main.push(zp)
+	await create_timer(0.8).timeout
+	await _tap(zp._spin_b)
+	await create_timer(0.4).timeout
+	_ok(root.get_node("Kit").has_open(), "slots: SPIN with no chips offers chips")
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
+	main.pop()
+	await create_timer(0.5).timeout
+	g.casino["chips"] = chips_keep
 	for path in ["res://scripts/video_poker_page.gd", "res://scripts/crash_page.gd", "res://scripts/plinko_page.gd", "res://scripts/race_page.gd"]:
 		var pg = load(path).new()
 		main.push(pg)
