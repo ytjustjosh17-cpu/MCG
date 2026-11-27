@@ -164,7 +164,8 @@ func _refresh() -> void:
 	var maxed := Game.level >= Data.MAX_LEVEL
 	var prog := 1.0 if maxed else clampf(Game.level_progress(), 0.0, 1.0)
 	_lv_fill.size = Vector2(_lv_track.size.x * prog, 4)
-	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
+	# The guide says it already while it runs, so the chip waits for it to end.
+	_hint.visible = Game.taps < 10 and bool(Game.ui.get("guide_done", false)) and not (Game.frenzy_active() or Game.rush_active())
 	_tasks.set_state(UI.TEXT, -1.0, Game.unclaimed("goal") + Game.unclaimed("streak") > 0)   # a dot only when a reward waits
 	_tick()
 
