@@ -269,11 +269,17 @@ class Graph extends Control:
 		queue_redraw()
 
 	func _draw() -> void:
-		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), 16.0), UI.PANEL)
+		var _face := CasinoGame.draw_frame(self, Rect2(Vector2.ZERO, size), 16.0, UI.SIDE.lerp(UI.PANEL, 0.7))
 		var top := maxf(2.0, now * 1.15)
 		var pad := Vector2(16, 40)
 		var w := size.x - pad.x * 2.0
 		var h := size.y - pad.y - 56.0
+		# A fine time grid behind everything, like a flight display.
+		var vx := pad.x
+		while vx <= pad.x + w + 0.5:
+			draw_line(Vector2(vx, pad.y), Vector2(vx, pad.y + h), Color(UI.TEXT, 0.035), 1.0)
+			vx += w / 8.0
+		draw_line(Vector2(pad.x, pad.y + h), Vector2(pad.x + w, pad.y + h), Color(UI.TEXT, 0.18), 1.0)   # the 1x floor
 		# Grid lines at round multipliers.
 		var f: Font = UI.SEMI
 		for gm in [1.0, 2.0, 5.0, 10.0, 25.0, 100.0, 250.0, 1000.0]:
@@ -292,8 +298,25 @@ class Graph extends Control:
 			pts.append(Vector2(pad.x + w * (float(i) / float(steps)), pad.y + h - h * (m - 1.0) / (top - 1.0)))
 		var col: Color = UI.RED if crashed else UI.GOLD
 		if pts.size() > 1:
+			# A soft fill under the curve, then a glow, then the line itself.
+			var fill := pts.duplicate()
+			fill.append(Vector2(pts[pts.size() - 1].x, pad.y + h))
+			fill.append(Vector2(pts[0].x, pad.y + h))
+			draw_colored_polygon(fill, Color(col, 0.08))
+			draw_polyline(pts, Color(col, 0.12), 12.0, true)
+			draw_polyline(pts, Color(col, 0.25), 6.0, true)
 			draw_polyline(pts, col, 3.0, true)
-			draw_circle(pts[pts.size() - 1], 5.0, col)
+			# The sun rides the tip of the curve: red, with a halo while it climbs.
+			var tip := pts[pts.size() - 1]
+			if not crashed:
+				draw_circle(tip, 16.0, Color(UI.RED, 0.12))
+				draw_circle(tip, 11.0, Color(UI.RED, 0.22))
+			draw_circle(tip, 7.0, UI.RED if not crashed else UI.RED.darkened(0.3))
+			draw_circle(tip + Vector2(-2, -2), 2.5, Color(UI.FLASH, 0.8))
+			if crashed:   # a few sparks where it fell
+				for k in 6:
+					var a := TAU * float(k) / 6.0 + 0.3
+					draw_line(tip + Vector2(cos(a), sin(a)) * 9.0, tip + Vector2(cos(a), sin(a)) * 15.0, Color(UI.RED, 0.7), 2.0, true)
 		# The big number: gold while it climbs, red when it crashes.
 		# Once you've cashed out, the big number is YOUR multiplier: where it would
 		# have gone stays small, so there's no big number to chase.
@@ -317,6 +340,8 @@ class Graph extends Control:
 			var tw := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + 20.0
 			if x + tw > size.x - 12.0:
 				break
-			draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(x, size.y - 42), Vector2(tw, 28)), 14.0), UI.TRACK if float(v) >= 2.0 else UI.RAISED)
+			var hr := Rect2(Vector2(x, size.y - 42), Vector2(tw, 28))
+			draw_colored_polygon(UI.rounded_rect_poly(Rect2(hr.position + Vector2(0, 2), hr.size), 14.0), Color(UI.INK, 0.4))
+			draw_colored_polygon(UI.rounded_rect_poly(hr, 14.0), UI.TRACK if float(v) >= 2.0 else UI.RAISED)
 			draw_string(f, Vector2(x, size.y - 23), t, HORIZONTAL_ALIGNMENT_CENTER, tw, 13, UI.GOLD if float(v) >= 2.0 else UI.SUB)
 			x += tw + 6.0

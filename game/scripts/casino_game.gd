@@ -374,20 +374,131 @@ static func chip_tier(amount: float) -> int:
 
 
 static func draw_chip(ci: CanvasItem, c: Vector2, r: float, tier: int, text: String) -> void:
-	## A flat casino chip: coloured body, light edge marks, inner ring, value.
+	## A casino chip lit from the top left: a soft shadow, the edge with six
+	## inlaid stripes, a raised rim, a dashed inner ring and the value.
 	var col: Color = UI.CHIP_COL[tier % UI.CHIP_COL.size()]
 	var light := tier % UI.CHIP_COL.size() == 0
-	ci.draw_circle(c, r, col)
 	var mark: Color = UI.INK if light else UI.TEXT
-	for i in 6:
-		var a := TAU * float(i) / 6.0
-		ci.draw_arc(c, r * 0.86, a - 0.16, a + 0.16, 6, mark, r * 0.22, true)
-	ci.draw_circle(c, r * 0.64, col)
-	ci.draw_arc(c, r * 0.64, 0.0, TAU, 32, Color(mark, 0.6), 1.5, true)
+	ci.draw_circle(c + Vector2(0, r * 0.14), r * 1.02, Color(UI.INK, 0.45))   # shadow on the felt
+	ci.draw_circle(c, r, col.darkened(0.18))                                   # edge
+	ci.draw_circle(c + Vector2(0, -r * 0.05), r * 0.97, col)
+	for i in 6:   # inlaid edge stripes, a touch longer than wide
+		var a := TAU * float(i) / 6.0 + 0.26
+		ci.draw_arc(c, r * 0.84, a - 0.2, a + 0.2, 8, Color(mark, 0.92), r * 0.26, true)
+	ci.draw_circle(c, r * 0.66, col.lightened(0.06))                         # raised centre
+	ci.draw_arc(c, r * 0.66, 0.0, TAU, 40, Color(UI.INK, 0.35), 1.6, true)
+	var dash := 18
+	for i in dash:   # dashed inner ring
+		var a0 := TAU * float(i) / float(dash)
+		ci.draw_arc(c, r * 0.56, a0, a0 + TAU / float(dash) * 0.5, 3, Color(mark, 0.55), 1.0, true)
+	ci.draw_arc(c, r * 0.95, PI * 1.05, PI * 1.55, 12, Color(UI.TEXT, 0.35 if not light else 0.6), 1.4, true)   # top-left sheen
 	var fs := int(clampf(r * 0.62, 9.0, 15.0))
 	if text.length() > 3:
 		fs = int(fs * 0.8)
 	ci.draw_string(UI.SEMI, c + Vector2(-r, fs * 0.36), text, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, fs, UI.INK if light else UI.TEXT)
+
+
+static func draw_chip_stack(ci: CanvasItem, c: Vector2, r: float, tier: int, text: String, n := 3) -> void:
+	## A short stack: the lower chips show only their edges, the top one its face.
+	for k in range(n - 1, 0, -1):
+		var p := c + Vector2(0, float(k) * r * 0.22)
+		var col: Color = UI.CHIP_COL[(tier + k) % UI.CHIP_COL.size()]
+		ci.draw_circle(p + Vector2(0, r * 0.14), r * 1.02, Color(UI.INK, 0.35))
+		ci.draw_circle(p, r, col.darkened(0.25))
+		for i in 6:
+			var a := TAU * float(i) / 6.0
+			ci.draw_arc(p, r * 0.98, a + 0.35 - 0.12, a + 0.35 + 0.12, 4, Color(UI.TEXT, 0.55), r * 0.08, true)
+	draw_chip(ci, c, r, tier, text)
+
+
+static func draw_table(ci: CanvasItem, r: Rect2, radius := 20.0, rail := 7.0) -> Rect2:
+	## A card table: a padded rail around green felt with a soft pool of light
+	## in the middle and a faint weave. Returns the felt rect inside the rail.
+	ci.draw_colored_polygon(UI.rounded_rect_poly(r, radius), UI.SIDE)
+	ci.draw_colored_polygon(UI.rounded_rect_poly(r.grow(-1.0), radius - 1.0), UI.SIDE.lerp(UI.RAISED, 0.35))
+	ci.draw_polyline(_top_edge(r.grow(-1.5), radius - 1.5), Color(UI.TEXT, 0.18), 1.2, true)   # light on the rail's top edge
+	var felt := r.grow(-rail)
+	var fr := maxf(4.0, radius - rail)
+	ci.draw_colored_polygon(UI.rounded_rect_poly(felt.grow(1.5), fr + 1.5), Color(UI.INK, 0.6))   # rail's inner shadow
+	ci.draw_colored_polygon(UI.rounded_rect_poly(felt, fr), UI.FELT.darkened(0.12))
+	# Light pooled in the middle, fading to the edges (a few soft steps).
+	for k in 5:
+		var t := float(k + 1) / 6.0
+		var rr := Rect2(felt.position + felt.size * t * 0.18, felt.size * (1.0 - t * 0.36))
+		ci.draw_colored_polygon(UI.rounded_rect_poly(rr, maxf(4.0, fr * (1.0 - t * 0.4))), Color(UI.FELT.lightened(0.06), 0.28))
+	# The weave: faint diagonal threads, wide apart so it reads as cloth, not noise.
+	var weave := Color(UI.TEXT, 0.025)
+	var step := 9.0
+	var x := felt.position.x - felt.size.y
+	while x < felt.end.x:
+		var a := Vector2(x, felt.end.y)
+		var b := Vector2(x + felt.size.y, felt.position.y)
+		var lo := maxf(0.0, (felt.position.x - a.x) / felt.size.y)
+		var hi := minf(1.0, (felt.end.x - a.x) / felt.size.y)
+		if hi > lo:
+			ci.draw_line(a.lerp(b, lo), a.lerp(b, hi), weave, 1.0)
+		x += step
+	return felt
+
+
+static func _top_edge(r: Rect2, radius: float) -> PackedVector2Array:
+	## The upper arc of a rounded rect: left corner, top edge, right corner.
+	var pts := PackedVector2Array()
+	for i in 7:
+		var a := PI + PI * 0.5 * float(i) / 6.0
+		pts.append(Vector2(r.position.x + radius, r.position.y + radius) + Vector2(cos(a), sin(a)) * radius)
+	for i in 7:
+		var a := PI * 1.5 + PI * 0.5 * float(i) / 6.0
+		pts.append(Vector2(r.end.x - radius, r.position.y + radius) + Vector2(cos(a), sin(a)) * radius)
+	return pts
+
+
+static func draw_frame(ci: CanvasItem, r: Rect2, radius := 16.0, face: Color = UI.PANEL) -> Rect2:
+	## A bevelled machine frame: dark outer edge, a lit top bevel, a shadowed
+	## lower bevel and a recessed face. Returns the face rect.
+	ci.draw_colored_polygon(UI.rounded_rect_poly(r, radius), UI.SIDE)
+	ci.draw_colored_polygon(UI.rounded_rect_poly(r.grow(-1.0), radius - 1.0), face.lerp(UI.RAISED, 0.5))
+	ci.draw_polyline(_top_edge(r.grow(-1.5), radius - 1.5), Color(UI.TEXT, 0.22), 1.2, true)
+	var inner := r.grow(-5.0)
+	var ir := maxf(4.0, radius - 5.0)
+	ci.draw_colored_polygon(UI.rounded_rect_poly(inner.grow(1.0), ir + 1.0), Color(UI.INK, 0.7))
+	ci.draw_colored_polygon(UI.rounded_rect_poly(inner, ir), face)
+	ci.draw_polyline(_top_edge(Rect2(inner.position + Vector2(0, 1), inner.size), ir), Color(UI.INK, 0.5), 2.0, true)   # recess shadow
+	return inner
+
+
+static func draw_ball(ci: CanvasItem, p: Vector2, r: float, col: Color = UI.TEXT) -> void:
+	## A small polished ball: contact shadow, body, a darker lower half and a
+	## bright highlight up and to the left.
+	ci.draw_circle(p + Vector2(r * 0.25, r * 0.4), r * 1.05, Color(UI.INK, 0.45))
+	ci.draw_circle(p, r, col.darkened(0.25))
+	ci.draw_circle(p + Vector2(-r * 0.12, -r * 0.12), r * 0.84, col)
+	ci.draw_circle(p + Vector2(-r * 0.35, -r * 0.38), r * 0.3, Color(UI.TEXT.lightened(0.4), 0.95))
+
+
+static func draw_arc_text(ci: CanvasItem, center: Vector2, radius: float, a_mid: float, text: String, fs: int, col: Color, font: Font = null) -> void:
+	## Text printed along an arc (like the layout on a card table), centred on
+	## angle a_mid; letters stand upright facing the centre.
+	var f: Font = font if font != null else UI.SEMI
+	var widths: Array = []
+	var total := 0.0
+	for ch in text:
+		var w := f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		widths.append(w)
+		total += w
+	# On the lower half of the circle (a smile, like a card table's printed
+	# arc) the text runs the other way so it still reads left to right.
+	var lower := sin(a_mid) > 0.0
+	var dir := -1.0 if lower else 1.0
+	var a := a_mid - dir * total * 0.5 / radius
+	for i in text.length():
+		var w: float = widths[i]
+		var am := a + dir * w * 0.5 / radius
+		var p := center + Vector2(cos(am), sin(am)) * radius
+		ci.draw_set_transform(p, am - PI / 2.0 if lower else am + PI / 2.0)
+		ci.draw_string(f, Vector2(-w * 0.5, fs * 0.35), text[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+		a += dir * w / radius
+	ci.draw_set_transform(Vector2.ZERO, 0.0)
 
 
 # =====================================================================================
@@ -403,8 +514,11 @@ class StatusRow extends HBoxContainer:
 	var _ctw: Tween
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(0, 48)
+		custom_minimum_size = Vector2(0, 56)
 		add_theme_constant_override("separation", 12)
+		var pad := Control.new()   # inner padding: the row sits on its own panel
+		pad.custom_minimum_size = Vector2(2, 0)   # (12 px with the separation)
+		add_child(pad)
 		var lv := VBoxContainer.new()
 		lv.add_theme_constant_override("separation", -2)
 		lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -438,6 +552,15 @@ class StatusRow extends HBoxContainer:
 			TradeSheet.open("chips", "", "chips_in"))
 		Kit.press_fx(buy_b)
 		add_child(buy_b)
+		var pad2 := Control.new()
+		pad2.custom_minimum_size = Vector2(0, 0)   # 4 px after the + button
+		add_child(pad2)
+
+	func _draw() -> void:
+		# A quiet panel behind chips, limits and win, so they read as one unit.
+		var r := Rect2(Vector2.ZERO, size)
+		draw_colored_polygon(UI.rounded_rect_poly(r, 16.0), UI.PANEL)
+		draw_polyline(CasinoGame._top_edge(r.grow(-1.0), 15.0), Color(UI.TEXT, 0.06), 1.0, true)
 
 	func set_chips(v: float) -> void:
 		if _ctw and _ctw.is_valid():

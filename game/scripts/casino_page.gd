@@ -194,18 +194,59 @@ class CasinoArt extends Control:
 		var s := size
 		match kind:
 			"sign":
+				# Night sky in soft bands, the red sun glowing behind the casino.
 				draw_rect(Rect2(Vector2.ZERO, s), UI.SKY)
-				# A red sun rising behind a concrete block with a lit marquee.
-				draw_circle(Vector2(s.x * 0.5, s.y * 0.5), s.y * 0.36, UI.RED)
-				draw_rect(Rect2(Vector2(0, s.y * 0.78), Vector2(s.x, s.y * 0.22)), UI.FAR)
-				var blk := Rect2(Vector2(s.x * 0.14, s.y * 0.46), Vector2(s.x * 0.72, s.y * 0.54))
+				for k in 4:
+					draw_rect(Rect2(Vector2(0, s.y * 0.2 * float(k)), Vector2(s.x, s.y * 0.2)), Color(UI.HAZE, 0.06 * float(k)))
+				var sun := Vector2(s.x * 0.5, s.y * 0.48)
+				draw_circle(sun, s.y * 0.5, Color(UI.RED, 0.06))
+				draw_circle(sun, s.y * 0.43, Color(UI.RED, 0.1))
+				draw_circle(sun, s.y * 0.36, UI.RED)
+				draw_rect(Rect2(Vector2(0, s.y * 0.8), Vector2(s.x, s.y * 0.2)), UI.FAR)
+				# The building: a concrete block with columns and lit windows.
+				var blk := Rect2(Vector2(s.x * 0.12, s.y * 0.42), Vector2(s.x * 0.76, s.y * 0.58))
+				draw_rect(Rect2(blk.position + Vector2(4, 4), blk.size), Color(UI.INK, 0.5))
 				draw_rect(blk, UI.SIDE)
 				draw_rect(Rect2(blk.position, Vector2(blk.size.x, 3)), UI.TRACK)
-				for i in 11:
-					var on := fmod(_t * 3.0 + float(i) * 0.7, 2.0) < 1.4
-					draw_circle(Vector2(blk.position.x + 10.0 + (blk.size.x - 20.0) * float(i) / 10.0, blk.position.y + 10.0), 2.5, UI.GOLD if on else UI.TRACK)
+				var cols := 6
+				for ci in cols + 1:
+					var cx := blk.position.x + 6.0 + (blk.size.x - 12.0) * float(ci) / float(cols)
+					draw_rect(Rect2(Vector2(cx - 2.0, blk.position.y + s.y * 0.2), Vector2(4.0, blk.size.y - s.y * 0.2)), UI.SIDE.lerp(UI.RAISED, 0.6))
+				for wi in cols:
+					var wx := blk.position.x + 6.0 + (blk.size.x - 12.0) * (float(wi) + 0.5) / float(cols)
+					var lit := wi != 1 and wi != 4
+					draw_rect(Rect2(Vector2(wx - 5.0, blk.position.y + s.y * 0.24), Vector2(10.0, 7.0)), Color(UI.GOLD, 0.55) if lit else UI.WINDOW)
+				# The marquee: a framed sign with chasing bulbs all round.
+				var mq := Rect2(Vector2(blk.position.x + 8.0, blk.position.y - s.y * 0.06), Vector2(blk.size.x - 16.0, s.y * 0.22))
+				draw_rect(Rect2(mq.position + Vector2(3, 3), mq.size), Color(UI.INK, 0.5))
+				draw_rect(mq, UI.SIDE.lerp(UI.RAISED, 0.3))
+				draw_rect(mq.grow(-5.0), UI.INK)
+				var perim := 2.0 * (mq.size.x + mq.size.y)
+				var nb := int(perim / 12.0)
+				for i in nb:
+					var d := perim * float(i) / float(nb)
+					var bp := Vector2.ZERO
+					if d < mq.size.x:
+						bp = mq.position + Vector2(d, 2.5)
+					elif d < mq.size.x + mq.size.y:
+						bp = mq.position + Vector2(mq.size.x - 2.5, d - mq.size.x)
+					elif d < 2.0 * mq.size.x + mq.size.y:
+						bp = mq.position + Vector2(mq.size.x - (d - mq.size.x - mq.size.y), mq.size.y - 2.5)
+					else:
+						bp = mq.position + Vector2(2.5, mq.size.y - (d - 2.0 * mq.size.x - mq.size.y))
+					var on := fmod(_t * 3.0 + float(i) * 0.5, 2.0) < 1.2
+					if on:
+						draw_circle(bp, 3.2, Color(UI.GOLD, 0.25))
+					draw_circle(bp, 1.8, UI.GOLD if on else UI.TRACK)
 				var f: Font = UI.DISPLAY
-				draw_string(f, Vector2(blk.position.x, blk.position.y + blk.size.y * 0.72), "SOL CASINO", HORIZONTAL_ALIGNMENT_CENTER, blk.size.x, 28, UI.TEXT)
+				draw_string(f, Vector2(mq.position.x, mq.position.y + mq.size.y * 0.74), "SOL CASINO", HORIZONTAL_ALIGNMENT_CENTER, mq.size.x, 28, UI.TEXT)
+				# The entrance: warm light through the doors, a canopy and two steps.
+				var door := Rect2(Vector2(s.x * 0.5 - s.x * 0.09, s.y * 0.8), Vector2(s.x * 0.18, s.y * 0.2))
+				draw_rect(Rect2(door.position - Vector2(4, 0), door.size + Vector2(8, 0)), Color(UI.GOLD, 0.12))
+				draw_rect(door, Color(UI.GOLD, 0.55))
+				draw_line(Vector2(door.get_center().x, door.position.y), Vector2(door.get_center().x, door.end.y), UI.SIDE, 2.0)
+				draw_rect(Rect2(Vector2(door.position.x - 10.0, door.position.y - 5.0), Vector2(door.size.x + 20.0, 5.0)), UI.TRACK)
+				draw_rect(Rect2(Vector2(door.position.x - 6.0, s.y - 4.0), Vector2(door.size.x + 12.0, 4.0)), UI.RAISED)
 			"forge":
 				# A furnace window: an iron frame, a molten seam, gems inside.
 				var fr := Rect2(Vector2(s.x * 0.08, s.y * 0.14), Vector2(s.x * 0.84, s.y * 0.72))

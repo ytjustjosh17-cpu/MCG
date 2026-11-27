@@ -97,13 +97,20 @@ func _on_drop() -> void:
 
 func _on_landed(slot: int, paid: float, bet: float) -> void:
 	_hidden_win = maxf(0.0, _hidden_win - paid)
-	_board.flash(slot)
 	record_result(bet, paid)
+	_win_feedback(slot, paid, bet)
+	refresh()
+
+
+func _win_feedback(slot: int, paid: float, bet: float) -> void:
+	## Everything a landing shows and plays, in one place: the bucket pulses,
+	## the win counts up, big multipliers burst. Never blocks taps.
+	var m := paid / maxf(bet, 0.0001)
+	_board.flash(slot, m >= 10.0)
 	# Balls land quickly one after another: only a real win gets a buzz.
 	status.set_win(paid, paid > bet * 1.001)
 	if paid > bet * 1.01:
 		win_fx(paid, bet, 10.0, _board.slot_center(slot))
-	refresh()
 
 
 class Board extends Control:
@@ -113,6 +120,8 @@ class Board extends Control:
 	var risk := "medium"
 	var balls: Array = []     # {path, slot, paid, bet, t}
 	var _flash := {}          # slot -> time left
+	var _big := {}            # slot -> true when a big multiplier was hit (a wider burst)
+	var _hits := {}           # "row:k" -> time left: a peg glows briefly when the ball strikes it
 
 	func _init() -> void:
 		set_process(false)
@@ -121,8 +130,10 @@ class Board extends Control:
 		balls.append({"path": path, "slot": slot, "paid": paid, "bet": bet, "t": 0.0})
 		set_process(true)
 
-	func flash(slot: int) -> void:
-		_flash[slot] = 0.6
+	func flash(slot: int, big := false) -> void:
+		_flash[slot] = 0.9 if big else 0.6
+		if big:
+			_big[slot] = true
 		set_process(true)
 		queue_redraw()
 
@@ -135,7 +146,17 @@ class Board extends Control:
 	func _process(delta: float) -> void:
 		var done: Array = []
 		for b in balls:
+			var before := int(float(b["t"]) / STEP_S)
 			b["t"] = float(b["t"]) + delta
+			var now_step := int(float(b["t"]) / STEP_S)
+			if now_step != before and now_step <= PlinkoMath.ROWS:
+				# The ball just struck the peg of row `before`: light it for a moment.
+				var path: Array = b["path"]
+				var rights := 0
+				for i in mini(before, path.size()):
+					rights += int(path[i])
+				if before < PlinkoMath.ROWS:
+					_hits["%d:%d" % [before, rights + 1]] = 0.25
 			if float(b["t"]) >= STEP_S * float(PlinkoMath.ROWS + 1):
 				done.append(b)
 		for b in done:
@@ -145,7 +166,12 @@ class Board extends Control:
 			_flash[k] = float(_flash[k]) - delta
 			if float(_flash[k]) <= 0.0:
 				_flash.erase(k)
-		if balls.is_empty() and _flash.is_empty():
+				_big.erase(k)
+		for k in _hits.keys():
+			_hits[k] = float(_hits[k]) - delta
+			if float(_hits[k]) <= 0.0:
+				_hits.erase(k)
+		if balls.is_empty() and _flash.is_empty() and _hits.is_empty():
 			set_process(false)
 		queue_redraw()
 
@@ -179,34 +205,78 @@ class Board extends Control:
 		return Vector2(x, y)
 
 	func _draw() -> void:
-		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), 16.0), UI.PANEL)
+		# The cabinet: a bevelled frame around a deep back panel, lit from above.
+		var face := CasinoGame.draw_frame(self, Rect2(Vector2.ZERO, size), 16.0, UI.SIDE.lerp(UI.PANEL, 0.6))
+		for k in 6:   # soft light falling down the back panel
+			var t := float(k) / 6.0
+			var band := Rect2(face.position + Vector2(0, face.size.y * t * 0.5), Vector2(face.size.x, face.size.y * (1.0 - t * 0.5)))
+			draw_colored_polygon(UI.rounded_rect_poly(band, 11.0), Color(UI.HAZE, 0.05))
 		var g := _geo()
+		var gap := float(g["gap"])
+		var pr := clampf(gap * 0.13, 2.5, 4.5)
+		# A soft wash of light behind the peg triangle.
+		var apex := _peg(0, 1, g) + Vector2(0, -gap * 0.8)
+		var base_y := float(g["top"]) + float(PlinkoMath.ROWS - 1) * gap + gap * 0.6
+		var half := (float(PlinkoMath.ROWS + 2) * 0.5 + 0.6) * gap
+		draw_colored_polygon(PackedVector2Array([apex + Vector2(-gap, 0), apex + Vector2(gap, 0),
+			Vector2(float(g["cx"]) + half, base_y), Vector2(float(g["cx"]) - half, base_y)]), Color(UI.HAZE, 0.22))
 		for row in PlinkoMath.ROWS:
 			for k in row + 3:
-				draw_circle(_peg(row, k, g), 3.0, UI.SUB)
-		# Slots along the bottom: tonal, brighter as they pay more; gold for 10x and up.
+				var p := _peg(row, k, g)
+				var hit := float(_hits.get("%d:%d" % [row, k], 0.0))
+				draw_circle(p + Vector2(pr * 0.35, pr * 0.6), pr * 1.1, Color(UI.INK, 0.55))   # shadow on the panel
+				var body: Color = UI.SUB.lerp(UI.TEXT, 0.25)
+				if hit > 0.0:
+					var h := hit / 0.25
+					draw_circle(p, pr * (2.2 + h), Color(UI.GOLD, 0.18 * h))   # a quick glow where the ball struck
+					body = body.lerp(UI.GOLD, h)
+				draw_circle(p, pr, body.darkened(0.2))
+				draw_circle(p + Vector2(-pr * 0.12, -pr * 0.12), pr * 0.8, body)
+				draw_circle(p + Vector2(-pr * 0.35, -pr * 0.35), pr * 0.3, Color(UI.TEXT, 0.9))
+		# Buckets: raised boxes; the big multipliers at the edges are gold and lit.
 		var slots := PlinkoMath.ROWS + 1
-		var gap := float(g["gap"])
 		var sy := float(g["top"]) + float(PlinkoMath.ROWS) * gap + 8.0
 		var f: Font = UI.SEMI
 		for k in slots:
 			var x := float(g["cx"]) + (float(k) - float(slots - 1) * 0.5) * gap - gap * 0.5 + 1.0
 			var m := PlinkoMath.mult(risk, k)
-			var col: Color = UI.INK
+			var col: Color = UI.SIDE.lerp(UI.PANEL, 0.6)
 			var fg: Color = UI.SUB
 			if m >= 10.0:
 				col = UI.GOLD
 				fg = UI.INK
 			elif m >= 2.0:
-				col = Color(UI.GOLD, 0.35)
+				col = UI.GOLD.lerp(UI.SIDE, 0.6)
 				fg = UI.TEXT
 			elif m >= 1.0:
 				col = UI.RAISED
 				fg = UI.TEXT
-			if _flash.has(k):
-				col = col.lerp(UI.TEXT, clampf(float(_flash[k]) / 0.6, 0.0, 1.0) * 0.6)
-			draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(x, sy), Vector2(gap - 2.0, 30)), 6.0), col)
+			var fl := float(_flash.get(k, 0.0))
+			var pulse := clampf(fl / 0.6, 0.0, 1.0)
+			var br := Rect2(Vector2(x, sy + pulse * 3.0), Vector2(gap - 2.0, 30))   # pressed down a touch when hit
+			if m >= 10.0:
+				draw_colored_polygon(UI.rounded_rect_poly(br.grow(3.0), 9.0), Color(UI.GOLD, 0.16 + 0.3 * pulse))   # a steady halo, brighter on a hit
+			draw_colored_polygon(UI.rounded_rect_poly(Rect2(br.position + Vector2(0, 3), br.size), 6.0), Color(UI.INK, 0.5))
+			draw_colored_polygon(UI.rounded_rect_poly(br, 6.0), col.lerp(UI.TEXT, pulse * 0.45))
+			draw_line(br.position + Vector2(4, 1.5), Vector2(br.end.x - 4, br.position.y + 1.5), Color(UI.TEXT, 0.35 if m >= 2.0 else 0.15), 1.0, true)   # lit top lip
 			var t := PlinkoPage._num(m)
-			draw_string(f, Vector2(x, sy + 20), t, HORIZONTAL_ALIGNMENT_CENTER, gap - 2.0, 13, fg)
+			draw_string(f, Vector2(br.position.x - 6.0, br.position.y + 20), t, HORIZONTAL_ALIGNMENT_CENTER, br.size.x + 12.0, 13, fg)   # a little wider than the box so 1.4 isn't cut to "1."
+			if fl > 0.0:
+				# A ring of light rising out of the bucket that was hit; wider for a big one.
+				var life := 1.0 - fl / (0.9 if _big.has(k) else 0.6)
+				var rc := br.get_center()
+				var rad := (gap * 0.6) + life * gap * (2.2 if _big.has(k) else 1.2)
+				draw_arc(rc, rad, 0.0, TAU, 32, Color(UI.GOLD if m >= 2.0 else UI.TEXT, 0.5 * (1.0 - life)), 2.0, true)
+		# Balls with a fading trail and a little squash as they strike each peg.
+		var br_r := gap * 0.24
 		for b in balls:
-			draw_circle(_ball_pos(b, g), gap * 0.24, UI.TEXT)
+			for i in range(4, 0, -1):
+				var tb: Dictionary = b.duplicate()
+				tb["t"] = maxf(0.0, float(b["t"]) - float(i) * 0.03)
+				draw_circle(_ball_pos(tb, g), br_r * (1.0 - float(i) * 0.15), Color(UI.TEXT, 0.12 * float(5 - i) / 4.0))
+			var bp := _ball_pos(b, g)
+			var frac := fmod(float(b["t"]) / STEP_S, 1.0)
+			var sq := maxf(0.0, 0.18 - frac) * 1.2   # squashed right after a strike, round again in a blink
+			draw_set_transform(bp, 0.0, Vector2(1.0 + sq, 1.0 - sq))
+			CasinoGame.draw_ball(self, Vector2.ZERO, br_r)
+			draw_set_transform(Vector2.ZERO, 0.0)

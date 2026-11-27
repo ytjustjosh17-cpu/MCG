@@ -286,22 +286,30 @@ class Board extends Control:
 					col = Color(UI.RED, 0.25)
 				elif live and row == step:
 					col = UI.RAISED
-				draw_colored_polygon(UI.rounded_rect_poly(c, 10.0), col)
-				if live and row == step:
-					draw_polyline(UI.rounded_rect_poly(c, 10.0), Color(UI.TEXT, 0.5), 1.5, true)
+				_tile(c, col, live and row == step)
 				var mid := c.get_center()
 				var r := minf(c.size.x, c.size.y) * 0.18
 				if mark == "safe":
-					draw_circle(mid, r, UI.GOLD)
+					_gem(mid, r * 1.3)
 				elif mark == "bad":
+					# A cracked tile: a jagged split and a red X.
+					draw_polyline(PackedVector2Array([c.position + Vector2(c.size.x * 0.3, 2), mid + Vector2(-r * 0.3, -r * 0.4),
+						mid + Vector2(r * 0.2, r * 0.1), Vector2(c.position.x + c.size.x * 0.62, c.end.y - 2)]), Color(UI.INK, 0.6), 2.0, true)
 					draw_line(mid - Vector2(r, r), mid + Vector2(r, r), UI.TEXT, 3.0, true)
 					draw_line(mid + Vector2(-r, r), mid + Vector2(r, -r), UI.TEXT, 3.0, true)
 				elif reveal and bad_here:
 					draw_line(mid - Vector2(r, r), mid + Vector2(r, r), Color(UI.TEXT, 0.5), 2.0, true)
 					draw_line(mid + Vector2(-r, r), mid + Vector2(r, -r), Color(UI.TEXT, 0.5), 2.0, true)
-		# The ladder: each row's cash-out, your step in gold, the next one bright.
+		# The ladder: each row's cash-out, your step in gold, the next one bright,
+		# on its own recessed panel with rungs between the steps.
 		var lx := size.x - LADDER_W
 		var rh := size.y / float(_rows())
+		var lp := Rect2(Vector2(lx - 2.0, 0), Vector2(LADDER_W + 2.0, size.y))
+		draw_colored_polygon(UI.rounded_rect_poly(lp, 12.0), UI.SIDE)
+		draw_polyline(UI.rounded_rect_poly(lp.grow(-0.5), 11.5), Color(UI.TEXT, 0.06), 1.0, true)
+		for row in range(1, _rows()):
+			var ry := size.y - rh * float(row)
+			draw_line(Vector2(lx + 10.0, ry), Vector2(lx + LADDER_W - 10.0, ry), Color(UI.TEXT, 0.06), 1.0)
 		for row in _rows():
 			var k := row + 1
 			var y := size.y - rh * float(row + 1)
@@ -309,7 +317,8 @@ class Board extends Control:
 			var reached := not rnd.is_empty() and k <= step
 			var next := live and k == step + 1
 			if reached and k == step:
-				draw_colored_polygon(UI.rounded_rect_poly(r2, 10.0), UI.RAISED)
+				draw_colored_polygon(UI.rounded_rect_poly(r2.grow(-2.0), 9.0), Color(UI.GOLD, 0.18))
+				draw_polyline(UI.rounded_rect_poly(r2.grow(-2.0), 9.0), Color(UI.GOLD, 0.6), 1.2, true)
 			var m := TowerMath.mult(mode, k)
 			var t := "×" + TowerPage._num(m)
 			var tc: Color = UI.GOLD if reached else (UI.TEXT if next else UI.SUB)
@@ -317,3 +326,24 @@ class Board extends Control:
 			draw_string(f, Vector2(lx, r2.get_center().y + fs * 0.35), t, HORIZONTAL_ALIGNMENT_CENTER, LADDER_W, fs, tc)
 		if rnd.is_empty():
 			draw_string(f, Vector2(0, size.y * 0.5), "Bet, then pick a box", HORIZONTAL_ALIGNMENT_CENTER, _grid().size.x, 15, UI.SUB)
+
+	func _tile(c: Rect2, col: Color, lit: bool) -> void:
+		## A glassy box: shadow, a darker base, the face, and a lit top lip.
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(c.position + Vector2(0, 3), c.size), 10.0), Color(UI.INK, 0.45))
+		draw_colored_polygon(UI.rounded_rect_poly(c, 10.0), col.darkened(0.25))
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(c.position, c.size - Vector2(0, 3)), 10.0), col)
+		draw_line(c.position + Vector2(8, 2), Vector2(c.end.x - 8, c.position.y + 2), Color(UI.TEXT, 0.16 if not lit else 0.4), 1.2, true)
+		if lit:
+			draw_polyline(UI.rounded_rect_poly(c, 10.0), Color(UI.TEXT, 0.55), 1.5, true)
+
+	func _gem(p: Vector2, r: float) -> void:
+		## A small cut gem: crown and pavilion facets with one bright face.
+		var top := p + Vector2(0, -r * 0.55)
+		var l := p + Vector2(-r, -r * 0.1)
+		var rr := p + Vector2(r, -r * 0.1)
+		var bot := p + Vector2(0, r * 0.95)
+		draw_circle(p + Vector2(0, r * 0.2), r * 1.4, Color(UI.GOLD, 0.15))
+		draw_colored_polygon(PackedVector2Array([l, p + Vector2(-r * 0.55, -r * 0.55), p + Vector2(r * 0.55, -r * 0.55), rr]), UI.GOLD.lightened(0.15))
+		draw_colored_polygon(PackedVector2Array([l, rr, bot]), UI.GOLD.darkened(0.1))
+		draw_colored_polygon(PackedVector2Array([l, p + Vector2(0, -r * 0.1), bot]), UI.GOLD)
+		draw_line(top + Vector2(-r * 0.3, 0), top + Vector2(r * 0.1, 0), Color(UI.TEXT, 0.8), 1.2, true)

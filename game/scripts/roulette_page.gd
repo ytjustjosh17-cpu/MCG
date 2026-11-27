@@ -96,6 +96,12 @@ func build_game() -> void:
 	_mat = Control.new()
 	_mat.custom_minimum_size = Vector2(MAT_W, 14.0 * ROW_H + 15.0 * GAP)
 	_mat.mouse_filter = Control.MOUSE_FILTER_PASS
+	# The layout sits on its own felt with a printed gold line, like a real table.
+	_mat.draw.connect(func():
+		var r := Rect2(Vector2.ZERO, _mat.size)
+		_mat.draw_colored_polygon(UI.rounded_rect_poly(r, 10.0), UI.FELT.darkened(0.2))
+		_mat.draw_colored_polygon(UI.rounded_rect_poly(r.grow(-1.0), 9.0), UI.FELT.darkened(0.08))
+		_mat.draw_polyline(UI.rounded_rect_poly(r.grow(-1.0), 9.0), Color(UI.GOLD, 0.35), 1.0, true))
 	_mat_scroll.add_child(_mat)
 	_build_mat()
 	# A slim bar shows there's more mat below (columns and the rest).
@@ -196,8 +202,13 @@ func _cell(key: String, r: Rect2, text: String, bg: Color, fsize: int, type: Str
 func _paint_cell(b: Button, bg: Color, win: bool) -> void:
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		var sb := UI.box(bg.lerp(UI.INK, 0.2) if st == "pressed" else bg, 8)
-		sb.border_color = UI.GOLD if win else UI.FELT_LINE
+		sb.border_color = UI.GOLD if win else bg.lightened(0.18).lerp(UI.FELT_LINE, 0.5)
 		sb.set_border_width_all(3 if win else 1)
+		if not win:
+			sb.border_color = bg.lightened(0.14)   # a lit edge; the shadow below lifts it off the felt
+		sb.shadow_color = Color(UI.INK, 0.4)
+		sb.shadow_size = 2
+		sb.shadow_offset = Vector2(0, 2)
 		b.add_theme_stylebox_override(st, sb)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
@@ -540,13 +551,13 @@ class WheelView extends Control:
 		if Motion.reduced():   # Less motion: show the result at once
 			wheel_ang = w_end
 			ball_ang = target
-			ball_r = 0.74
+			ball_r = 0.67
 			queue_redraw()
 			_done.call()
 			return
 		_len = 4.6
 		_t = 0.0
-		ball_r = 0.95
+		ball_r = 0.915
 		_running = true
 		set_process(true)
 		Kit.sound("tap")
@@ -562,14 +573,14 @@ class WheelView extends Control:
 		ball_ang = _b0 - _b_total * (1.0 - pow(1.0 - p, 2.4))
 		# The ball rides the rim, then falls into the pockets with small bounces.
 		if p < 0.62:
-			ball_r = 0.95
+			ball_r = 0.915
 		else:
 			var q := (p - 0.62) / 0.38
-			ball_r = lerpf(0.95, 0.74, minf(1.0, q * 1.6)) + absf(sin(q * 14.0)) * 0.06 * (1.0 - q)
+			ball_r = lerpf(0.915, 0.67, minf(1.0, q * 1.6)) + absf(sin(q * 14.0)) * 0.06 * (1.0 - q)
 		queue_redraw()
 		if _t >= _len:
 			_running = false
-			ball_r = 0.74
+			ball_r = 0.67
 			queue_redraw()
 			if _done.is_valid():
 				_done.call()
@@ -577,36 +588,67 @@ class WheelView extends Control:
 	func _draw() -> void:
 		var c := size * 0.5
 		var R := minf(size.x, size.y) * 0.5
+		var gold_dim := UI.GOLD.lerp(UI.SIDE, 0.45)
+		# Bowl: a dark outer edge and a bevelled wooden rim lit from the top left.
+		draw_circle(c + Vector2(0, R * 0.03), R, Color(UI.INK, 0.6))
 		draw_circle(c, R, UI.SIDE)
-		draw_arc(c, R - 1.0, 0.0, TAU, 72, UI.FELT_LINE, 2.0, true)
-		var r_out := R * 0.9
+		for k in 4:
+			var t := float(k) / 4.0
+			draw_circle(c, R * (0.985 - t * 0.03), UI.SIDE.lerp(UI.RAISED, 0.55 - t * 0.12))
+		draw_arc(c, R * 0.975, PI * 1.0, PI * 1.6, 24, Color(UI.TEXT, 0.22), 1.5, true)
+		draw_arc(c, R * 0.975, PI * 0.05, PI * 0.6, 24, Color(UI.INK, 0.5), 1.5, true)
+		# Ball track: a dark sloping ring with a thin lip of light.
+		draw_circle(c, R * 0.94, UI.SIDE.darkened(0.25))
+		draw_circle(c, R * 0.89, UI.SIDE.lerp(UI.FELT, 0.25))
+		draw_arc(c, R * 0.935, PI * 1.05, PI * 1.55, 24, Color(UI.TEXT, 0.12), 1.0, true)
+		# Deflector diamonds on the track (fixed; the wheel turns under them).
+		for k in 8:
+			var a := TAU * float(k) / 8.0 + PI / 8.0
+			var p := c + Vector2(cos(a), sin(a)) * R * 0.915
+			var d := Vector2(cos(a), sin(a)) * R * 0.035
+			var e := Vector2(-sin(a), cos(a)) * R * 0.018
+			draw_colored_polygon(PackedVector2Array([p - d, p + e, p + d, p - e]), gold_dim)
+			draw_line(p - d, p + e, Color(UI.TEXT, 0.4), 1.0, true)
+		var r_out := R * 0.86
+		var r_num := R * 0.74
 		var r_in := R * 0.6
 		var f: Font = UI.SEMI
-		var fs := int(clampf(R * 0.09, 8.0, 12.0))   # pocket numbers: wheel art, the big number is in the strip
+		var fs := int(clampf(R * 0.085, 8.0, 12.0))   # pocket numbers: wheel art, the big number is in the strip
 		for i in 37:
 			var n: int = RouletteMath.WHEEL[i]
 			var a0 := wheel_ang + pocket_ang(i) - PI / 37.0 - PI / 2.0
 			var a1 := a0 + TAU / 37.0
 			var col: Color = UI.ROUL_GREEN if n == 0 else (UI.ROUL_RED if RouletteMath.color(n) == "red" else UI.ROUL_BLACK)
-			var pts := PackedVector2Array([
-				c + Vector2(cos(a0), sin(a0)) * r_in, c + Vector2(cos(a0), sin(a0)) * r_out,
-				c + Vector2(cos(a1), sin(a1)) * r_out, c + Vector2(cos(a1), sin(a1)) * r_in])
-			draw_colored_polygon(pts, col)
-			draw_line(c + Vector2(cos(a0), sin(a0)) * r_in, c + Vector2(cos(a0), sin(a0)) * r_out, UI.GOLD.lerp(UI.SIDE, 0.5), 1.0, true)
+			var u0 := Vector2(cos(a0), sin(a0))
+			var u1 := Vector2(cos(a1), sin(a1))
+			# Number band, then the pocket floor a shade deeper.
+			draw_colored_polygon(PackedVector2Array([c + u0 * r_num, c + u0 * r_out, c + u1 * r_out, c + u1 * r_num]), col)
+			draw_colored_polygon(PackedVector2Array([c + u0 * r_in, c + u0 * r_num, c + u1 * r_num, c + u1 * r_in]), col.darkened(0.35))
+			# The fret between pockets: a gold wall with its lit side.
+			draw_line(c + u0 * r_in, c + u0 * r_out, gold_dim, 1.6, true)
+			draw_line(c + u0 * r_in + u0.orthogonal() * 0.8, c + u0 * r_num + u0.orthogonal() * 0.8, Color(UI.TEXT, 0.18), 0.8, true)
 			# Number, upright along the radius.
 			var am := (a0 + a1) * 0.5
 			draw_set_transform(c + Vector2(cos(am), sin(am)) * R * 0.8, am + PI / 2.0)
 			draw_string(f, Vector2(-10, fs * 0.4), str(n), HORIZONTAL_ALIGNMENT_CENTER, 20, fs, UI.TEXT)
 			draw_set_transform(Vector2.ZERO, 0.0)
-		draw_circle(c, r_in, UI.FELT)
-		draw_arc(c, r_in, 0.0, TAU, 72, UI.GOLD.lerp(UI.SIDE, 0.4), 2.0, true)
-		# The turret in the middle turns with the wheel.
+		draw_arc(c, r_out, 0.0, TAU, 96, gold_dim, 1.5, true)
+		draw_arc(c, r_num, 0.0, TAU, 96, Color(gold_dim, 0.7), 1.0, true)
+		# The cone: wooden, lit from the top left, falling into shade.
+		draw_circle(c, r_in, UI.FELT.darkened(0.35))
+		for k in 5:
+			var t := float(k + 1) / 6.0
+			draw_circle(c + Vector2(-1, -1) * R * 0.04 * t, r_in * (1.0 - t * 0.55), UI.FELT.darkened(0.35).lerp(UI.FELT.lightened(0.08), t))
+		draw_arc(c, r_in, 0.0, TAU, 72, UI.GOLD.lerp(UI.SIDE, 0.3), 2.0, true)
+		# The turret turns with the wheel: four arms with knobs.
 		for k in 4:
 			var a := wheel_ang + TAU * float(k) / 4.0
-			draw_line(c, c + Vector2(cos(a), sin(a)) * r_in * 0.55, UI.GOLD, 3.0, true)
-		draw_circle(c, R * 0.12, UI.GOLD)
-		draw_circle(c, R * 0.06, UI.SIDE)
+			var tip := c + Vector2(cos(a), sin(a)) * r_in * 0.55
+			draw_line(c + Vector2(1, 1.5), tip + Vector2(1, 1.5), Color(UI.INK, 0.45), 3.5, true)
+			draw_line(c, tip, UI.GOLD, 3.0, true)
+			CasinoGame.draw_ball(self, tip, R * 0.035, UI.GOLD)
+		CasinoGame.draw_ball(self, c, R * 0.1, UI.GOLD)
+		draw_circle(c, R * 0.045, UI.GOLD.darkened(0.3))
 		if ball_r > 0.0:
 			var bp := c + Vector2(cos(ball_ang - PI / 2.0), sin(ball_ang - PI / 2.0)) * R * ball_r
-			draw_circle(bp + Vector2(1, 1.5), 6.0, Color(UI.INK, 0.5))
-			draw_circle(bp, 6.0, UI.TEXT)
+			CasinoGame.draw_ball(self, bp, maxf(4.5, R * 0.042))

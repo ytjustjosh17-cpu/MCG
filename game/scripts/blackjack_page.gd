@@ -446,6 +446,14 @@ class TableView extends Control:
 			node.set_meta("up", fr[2])
 			node.position = shoe_pos()
 			node.z_index = z
+			var sh := Panel.new()   # a soft shadow under the card, drawn behind it
+			sh.show_behind_parent = true
+			sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sh.position = Vector2(2, 4)
+			sh.size = BlackjackPage.CARD
+			var sb := UI.box(Color(UI.INK, 0.45), 6)
+			sh.add_theme_stylebox_override("panel", sb)
+			node.add_child(sh)
 			z += 1
 			add_child(node)
 			keep.append(node)
@@ -474,27 +482,40 @@ class TableView extends Control:
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
-		draw_colored_polygon(UI.rounded_rect_poly(r, 20.0), UI.FELT)
-		draw_arc(Vector2(size.x * 0.5, size.y * 0.06), size.x * 0.62, PI * 0.18, PI * 0.82, 64, UI.FELT_LINE, 1.5, true)
+		var felt := CasinoGame.draw_table(self, r, 20.0, 7.0)
 		var f: Font = UI.SEMI
-		# Shoe, top right.
-		var sp := shoe_pos()
-		draw_rect(Rect2(sp + Vector2(-5, -5), SHOE + Vector2(10, 10)), UI.SIDE)
-		# Table rules, printed on the felt like a real layout.
 		var mid := size.y * 0.47
-		draw_string(f, Vector2(0, mid - 26.0), "BLACKJACK PAYS 3 TO 2", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, UI.GOLD)
-		draw_string(f, Vector2(0, mid - 8.0), "Dealer stands on all 17s", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color(UI.TEXT, 0.6))
-		# Dealer total.
-		draw_string(f, Vector2(14, 22), "DEALER", HORIZONTAL_ALIGNMENT_LEFT, 120, 13, UI.SUB)
+		# The printed layout: two arcs of gold and cream lettering, like real felt.
+		var arc_r := size.x * 0.62
+		var arc_c := Vector2(size.x * 0.5, mid - 40.0 - arc_r)   # lowest letters sit well above the bet circle
+		draw_arc(arc_c, arc_r - 14.0, PI * 0.5 - 0.62, PI * 0.5 + 0.62, 64, Color(UI.GOLD, 0.35), 1.2, true)
+		CasinoGame.draw_arc_text(self, arc_c, arc_r, PI * 0.5, "BLACKJACK PAYS 3 TO 2", 13, UI.GOLD)
+		CasinoGame.draw_arc_text(self, arc_c, arc_r + 18.0, PI * 0.5, "DEALER STANDS ON ALL 17s", 13, Color(UI.TEXT, 0.55))
+		draw_arc(arc_c, arc_r + 30.0, PI * 0.5 - 0.5, PI * 0.5 + 0.5, 64, Color(UI.GOLD, 0.2), 1.0, true)
+		# Dealer plaque, top left.
+		var pl := Rect2(Vector2(felt.position.x + 8.0, felt.position.y + 8.0), Vector2(72, 22))
+		draw_colored_polygon(UI.rounded_rect_poly(pl, 11.0), Color(UI.INK, 0.35))
+		draw_string(f, Vector2(pl.position.x, pl.position.y + 16.0), "DEALER", HORIZONTAL_ALIGNMENT_CENTER, pl.size.x, 13, UI.SUB)
+		# The shoe, top right: a dark box with a slanted mouth the cards come out of.
+		var sp := shoe_pos()
+		var box := Rect2(sp + Vector2(-6, -6), SHOE + Vector2(12, 14))
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(box.position + Vector2(2, 4), box.size), 6.0), Color(UI.INK, 0.5))
+		draw_colored_polygon(UI.rounded_rect_poly(box, 6.0), UI.SIDE)
+		draw_colored_polygon(UI.rounded_rect_poly(box.grow(-2.0), 5.0), UI.SIDE.lerp(UI.RAISED, 0.5))
+		draw_line(box.position + Vector2(3, 2.5), Vector2(box.end.x - 3, box.position.y + 2.5), Color(UI.TEXT, 0.25), 1.0, true)
+		draw_colored_polygon(PackedVector2Array([Vector2(box.position.x, box.end.y - 10), Vector2(box.end.x, box.end.y - 14),
+			Vector2(box.end.x, box.end.y), Vector2(box.position.x, box.end.y)]), UI.SIDE.darkened(0.2))
 		if dealer_label != "":
 			_tag(Vector2(size.x * 0.5, 34.0 + BlackjackPage.CARD.y + 18.0), dealer_label, UI.TEXT, UI.SIDE)
-		# Bet circle with a chip stack.
+		# The betting circle: a printed ring with BET, and the stack of chips in it.
 		var bc := Vector2(size.x * 0.5, mid + 30.0)
-		draw_arc(bc, 26.0, 0.0, TAU, 48, UI.FELT_LINE, 2.0, true)
+		draw_circle(bc, 27.0, Color(UI.INK, 0.18))
+		draw_arc(bc, 27.0, 0.0, TAU, 48, Color(UI.GOLD, 0.55), 1.5, true)
+		draw_arc(bc, 23.0, 0.0, TAU, 48, Color(UI.GOLD, 0.25), 1.0, true)
 		if bet_amount > 0.0:
-			for k in 3:
-				draw_circle(bc + Vector2(0, 6 - k * 3), 19.0, Color(UI.INK, 0.4))
-			CasinoGame.draw_chip(self, bc, 19.0, CasinoGame.chip_tier(bet_amount), CasinoGame.chip_text(bet_amount))
+			CasinoGame.draw_chip_stack(self, bc - Vector2(0, 4), 18.0, CasinoGame.chip_tier(bet_amount), CasinoGame.chip_text(bet_amount), 3)
+		else:
+			draw_string(f, Vector2(bc.x - 30, bc.y + 5), "BET", HORIZONTAL_ALIGNMENT_CENTER, 60, 13, Color(UI.GOLD, 0.6))
 		# Player totals and outcomes.
 		for i in range(hand_labels.size()):
 			var hl: Dictionary = hand_labels[i]

@@ -39,8 +39,20 @@ func finish_for_test() -> void:
 
 func build_game() -> void:
 	var felt := PanelContainer.new()
-	felt.add_theme_stylebox_override("panel", UI.box(UI.FELT, 16, 8, 16))
+	var fsb := StyleBoxEmpty.new()   # the cabinet is drawn below; this only pads the content
+	fsb.content_margin_left = 8    # five cards just fit a 358 px column
+	fsb.content_margin_right = 8
+	fsb.content_margin_top = 16
+	fsb.content_margin_bottom = 16
+	felt.add_theme_stylebox_override("panel", fsb)
 	felt.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# A machine cabinet: a bevelled frame around a lit green screen.
+	felt.draw.connect(func():
+		var face := CasinoGame.draw_frame(felt, Rect2(Vector2.ZERO, felt.size), 18.0, UI.FELT.darkened(0.15))
+		for k in 4:
+			var t := float(k + 1) / 5.0
+			var rr := Rect2(face.position + face.size * t * 0.15, face.size * (1.0 - t * 0.3))
+			felt.draw_colored_polygon(UI.rounded_rect_poly(rr, 12.0), Color(UI.FELT.lightened(0.05), 0.25)))
 	area.add_child(felt)
 	var fv := VBoxContainer.new()
 	fv.add_theme_constant_override("separation", 10)
@@ -231,11 +243,14 @@ class CardSlot extends Button:
 		t.tween_property(_face, "scale:x", 1.0, Motion.d(0.12))
 
 	func _draw() -> void:
-		var r := Rect2(Vector2(0, VideoPokerPage.CARD.y + 3), Vector2(size.x, 17))
+		# A soft shadow under the card (the card face itself is a child, drawn on top).
+		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(2, 4), VideoPokerPage.CARD), 6.0), Color(UI.INK, 0.45))
+		var r := Rect2(Vector2(4, VideoPokerPage.CARD.y + 3), Vector2(size.x - 8, 17))
 		if held:
-			draw_rect(Rect2(Vector2(-2, -2), VideoPokerPage.CARD + Vector2(4, 4)), UI.GOLD, false, 3.0)
-			draw_rect(r, UI.GOLD)
-			draw_string(UI.SEMI, r.position + Vector2(0, 13), "HELD", HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, UI.INK)
+			draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(-5, -5), VideoPokerPage.CARD + Vector2(10, 10)), 9.0), Color(UI.GOLD, 0.25))
+			draw_polyline(UI.rounded_rect_poly(Rect2(Vector2(-2, -2), VideoPokerPage.CARD + Vector2(4, 4)), 7.0), UI.GOLD, 2.5, true)
+			draw_colored_polygon(UI.rounded_rect_poly(r, 8.5), UI.GOLD)
+			draw_string(UI.SEMI, r.position + Vector2(0, 13), "HELD", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 13, UI.INK)
 
 
 class PayTable extends Control:
@@ -248,15 +263,25 @@ class PayTable extends Control:
 
 	func _draw() -> void:
 		var rows := PokerMath.PAYTABLE.size()
-		var h := minf(18.0, (size.y - 4.0) / float(rows))
+		var h := minf(18.0, (size.y - 26.0) / float(rows))
 		if h < 14.0:
 			return   # too short to read: the i sheet has the pays
-		var y0 := (size.y - h * float(rows)) * 0.5
+		# A dark glass panel set into the cabinet, with a title and a gold divider.
+		var tot := h * float(rows) + 26.0
+		var pr := Rect2(Vector2(4, (size.y - tot) * 0.5), Vector2(size.x - 8, tot))
+		draw_colored_polygon(UI.rounded_rect_poly(pr, 10.0), Color(UI.INK, 0.45))
+		draw_polyline(UI.rounded_rect_poly(pr, 10.0), Color(UI.GOLD, 0.3), 1.0, true)
+		draw_string(UI.SEMI, Vector2(pr.position.x, pr.position.y + 16), "JACKS OR BETTER", HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 13, UI.GOLD)
+		var y0 := pr.position.y + 22.0
+		draw_line(Vector2(size.x * 0.62, y0), Vector2(size.x * 0.62, y0 + h * float(rows)), Color(UI.GOLD, 0.2), 1.0)
 		for i in rows:
 			var p: Array = PokerMath.PAYTABLE[i]
 			var y := y0 + h * float(i)
 			var lit := String(p[0]) == highlight
+			if i % 2 == 1:
+				draw_rect(Rect2(Vector2(pr.position.x + 4, y), Vector2(pr.size.x - 8, h)), Color(UI.TEXT, 0.03))
 			if lit:
+				draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(6, y - 2), Vector2(size.x - 12, h + 4)), 8.0), Color(UI.GOLD, 0.3))
 				draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2(8, y), Vector2(size.x - 16, h)), 6.0), UI.GOLD)
 			var col: Color = UI.INK if lit else Color(UI.TEXT, 0.8)
 			draw_string(UI.SEMI, Vector2(18, y + h * 0.74), String(p[1]), HORIZONTAL_ALIGNMENT_LEFT, size.x * 0.6, 13, col)

@@ -87,10 +87,24 @@ class WheelView extends Control:
 
 	func _draw() -> void:
 		var c := size * 0.5
-		var rad := minf(size.x, size.y) * 0.46
+		var rad := minf(size.x, size.y) * 0.41   # leaves room for the bulb rim and the pointer
 		var n := Data.WHEEL.size()
 		var f: Font = UI.SEMI
-		draw_circle(c, rad + 6.0, UI.SIDE)
+		# The rim: a dark ring with marquee bulbs, every other one lit.
+		draw_circle(c + Vector2(0, 4), rad + 12.0, Color(UI.INK, 0.5))
+		draw_circle(c, rad + 12.0, UI.SIDE)
+		draw_circle(c, rad + 10.0, UI.SIDE.lerp(UI.RAISED, 0.5))
+		draw_arc(c, rad + 10.5, PI * 1.05, PI * 1.6, 24, Color(UI.TEXT, 0.25), 1.2, true)
+		var bulbs := n * 2
+		for k in bulbs:
+			var ba := TAU * float(k) / float(bulbs) - PI / 2.0
+			var bp := c + Vector2(cos(ba), sin(ba)) * (rad + 6.0)
+			if k % 2 == 0:
+				draw_circle(bp, 4.0, Color(UI.GOLD, 0.25))
+				draw_circle(bp, 2.2, UI.GOLD)
+			else:
+				draw_circle(bp, 2.0, UI.TRACK)
+		draw_circle(c, rad + 1.0, UI.SIDE)
 		for i in n:
 			var a0 := angle + TAU * float(i) / float(n) - PI / 2.0
 			var a1 := angle + TAU * float(i + 1) / float(n) - PI / 2.0
@@ -106,6 +120,13 @@ class WheelView extends Control:
 			if float(seg[1]) >= 60.0:
 				col = UI.GOLD if top else UI.FELT
 			draw_colored_polygon(pts, col)
+			# Shade towards the hub and a light edge along the outer rim: a bevel.
+			var inner := PackedVector2Array([c])
+			for k in 9:
+				var a := lerpf(a0, a1, float(k) / 8.0)
+				inner.append(c + Vector2(cos(a), sin(a)) * rad * 0.45)
+			draw_colored_polygon(inner, Color(UI.INK, 0.18))
+			draw_arc(c, rad - 2.0, a0 + 0.03, a1 - 0.03, 8, Color(UI.TEXT, 0.18), 2.0, true)
 			draw_line(c, c + Vector2(cos(a0), sin(a0)) * rad, UI.SIDE, 2.0, true)
 			# Label: minutes of income, and a chip mark for chip prizes.
 			var mid := (a0 + a1) * 0.5
@@ -116,7 +137,18 @@ class WheelView extends Control:
 			if chips:
 				draw_circle(c + Vector2(cos(mid), sin(mid)) * rad * 0.88, 5.0, UI.INK if top else UI.GOLD)
 		draw_arc(c, rad, 0.0, TAU, 64, UI.GOLD, 2.0, true)
-		draw_circle(c, rad * 0.16, UI.GOLD)
-		draw_circle(c, rad * 0.08, UI.SIDE)
-		# Pointer at the top.
-		draw_colored_polygon(PackedVector2Array([c + Vector2(-11, -rad - 12), c + Vector2(11, -rad - 12), c + Vector2(0, -rad + 10)]), UI.TEXT)
+		# A soft sheen across the top left of the face.
+		draw_arc(c, rad * 0.8, PI * 1.08, PI * 1.45, 24, Color(UI.TEXT, 0.06), rad * 0.3, true)
+		# The hub: a polished gold boss.
+		draw_circle(c, rad * 0.19, UI.SIDE)
+		CasinoGame.draw_ball(self, c, rad * 0.16, UI.GOLD)
+		# Pointer at the top: gold, with a shadow and a round cap.
+		var tipy := -rad + 12.0
+		var tri := PackedVector2Array([c + Vector2(-12, -rad - 14), c + Vector2(12, -rad - 14), c + Vector2(0, tipy)])
+		var sh := PackedVector2Array()
+		for q in tri:
+			sh.append(q + Vector2(2, 3))
+		draw_colored_polygon(sh, Color(UI.INK, 0.5))
+		draw_colored_polygon(tri, UI.GOLD)
+		draw_line(c + Vector2(-12, -rad - 14), c + Vector2(0, tipy), Color(UI.TEXT, 0.5), 1.2, true)
+		CasinoGame.draw_ball(self, c + Vector2(0, -rad - 15), 6.0, UI.GOLD)
