@@ -9,7 +9,11 @@ var value_l: Label
 var note_l: Label
 var mark: ColorRect
 var lead: Control
+var lock_i: Icon       # small lock before the value (set_locked)
 var _h: HBoxContainer
+var _m: MarginContainer
+var _left: VBoxContainer
+var _right: VBoxContainer
 
 
 func _init(icon := "", art := "", chevron := true) -> void:
@@ -26,6 +30,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	m.add_theme_constant_override("margin_right", 14)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(m)
+	_m = m
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -46,6 +51,7 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	left.add_theme_constant_override("separation", 2)
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(left)
+	_left = left
 	var th := HBoxContainer.new()
 	th.add_theme_constant_override("separation", 6)
 	th.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -72,9 +78,19 @@ func _init(icon := "", art := "", chevron := true) -> void:
 	right.add_theme_constant_override("separation", 2)
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(right)
+	_right = right
+	var vh := HBoxContainer.new()
+	vh.alignment = BoxContainer.ALIGNMENT_END
+	vh.add_theme_constant_override("separation", 6)
+	vh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_child(vh)
+	lock_i = Icon.new("lock", UI.SUB, 15.0)
+	lock_i.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lock_i.visible = false
+	vh.add_child(lock_i)
 	value_l = UI.label("", 17)
 	value_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.add_child(value_l)
+	vh.add_child(value_l)
 	note_l = UI.label("", 13, UI.SUB)
 	note_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	right.add_child(note_l)
@@ -115,3 +131,42 @@ func set_lead(c: Control) -> void:
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_h.add_child(c)
 	_h.move_child(c, 0)
+
+
+func set_bold(on := true) -> void:
+	## Semibold title and value (list rows that name a thing: shares, coins, homes).
+	title_l.add_theme_font_override("font", UI.SEMI if on else UI.REG)
+	value_l.add_theme_font_override("font", UI.SEMI if on else UI.REG)
+
+
+func set_locked(on: bool) -> void:
+	## A small lock before the value: you can't buy this one yet.
+	lock_i.visible = on
+
+
+func align_top(pad := 12) -> void:
+	## For wrapped titles (headlines): both columns start at the first line,
+	## so the value lines up with it instead of floating in the middle.
+	_left.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_right.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_m.add_theme_constant_override("margin_top", pad)
+	_m.add_theme_constant_override("margin_bottom", pad)
+	grow_to_fit()
+
+
+func grow_to_fit() -> void:
+	## The row gets as tall as its wrapped text (a Button doesn't size to its
+	## children by itself). Pins the height, so set_texts leaves it alone.
+	set_meta("fixed_h", true)
+	if not _m.minimum_size_changed.is_connected(_grow):
+		_m.minimum_size_changed.connect(_grow)
+	_grow.call_deferred()
+
+
+func _grow() -> void:
+	custom_minimum_size.y = maxf(UI.ROW_H, _m.get_combined_minimum_size().y)
+
+
+func caption_on_top() -> void:
+	## The second line moves above the title, as a small caption ("News · DPW").
+	_left.move_child(sub_l, 0)

@@ -4,6 +4,7 @@ extends Page
 
 var _seg: Segmented
 var _views: Array = []
+var _park: VBoxContainer   # rows not in a list right now (filtered out) wait here, hidden but in the tree
 var _my_props_l: Label
 var _my_props: VBoxContainer
 var _all_props_l: Label
@@ -15,12 +16,13 @@ var _sum_value: Label
 var _sum_sub: Label
 var _sum_right: Label
 var _sum_right_sub: Label
+var _sum_right_note: Label
 var _sum_line2: Label
+var _sum_line3: Label
 var _share_rows := {}
 var _prop_rows := {}
 var _coin_rows := {}
 var _sector := ""
-var _chips := {}
 var _sector_pill: Button
 var _my_shares: VBoxContainer
 var _all_shares: VBoxContainer
@@ -30,11 +32,14 @@ var _my_coins: VBoxContainer
 var _all_coins: VBoxContainer
 var _my_coins_l: Label
 var _all_coins_l: Label
+var _counts := {}   # "Yours" label -> its count label
 var _mine_note: Label
-var _mine_target: Row
+var _mine_title: Label
+var _mine_sub: Label
+var _mine_tile_box: Control
+var _mine_count: Label
 var _mine_target_sym := ""
 var _rig_btn: Button
-var _mine_sig := ""
 var _hint: Label
 var _sort_pills: Array = []
 var _order_key := {}   # list -> last order, so rows only move when it changes
@@ -65,43 +70,9 @@ func build() -> void:
 			_sorted.clear())
 	_seg.select(int(Game.ui.get("invest_tab", 0)))
 	body.add_child(_seg)
-	var sc := card()
-	var sp := padded(sc, 16, 4)
-	var h := HBoxContainer.new()
-	sp.add_child(h)
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(left)
-	_sum_sub = UI.label("", 13, UI.SUB)
-	left.add_child(_sum_sub)
-	_sum_value = UI.label("", 22, UI.TEXT, true)
-	left.add_child(_sum_value)
-	var right := VBoxContainer.new()
-	h.add_child(right)
-	_sum_right_sub = UI.label("", 13, UI.SUB)
-	_sum_right_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.add_child(_sum_right_sub)
-	_sum_right = UI.label("", 17, UI.TEXT, true)
-	_sum_right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.add_child(_sum_right)
-	_sum_line2 = UI.label("", 13, UI.SUB)
-	sp.add_child(_sum_line2)
-	# For someone who owns nothing yet: what this tab is for, in one line.
-	_hint = UI.label("", 13, UI.SUB)
-	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sp.add_child(_hint)
-	# Crypto only: market mood as one line with a bar under it.
-	var mb := VBoxContainer.new()
-	mb.add_theme_constant_override("separation", 2)
-	sp.add_child(mb)
-	_mood_box = mb
-	_mood_label = UI.label("", 13, UI.SUB)
-	mb.add_child(_mood_label)
-	_mood_bar = Control.new()
-	_mood_bar.custom_minimum_size = Vector2(0, 14)
-	_mood_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_mood_bar.draw.connect(_draw_mood)
-	mb.add_child(_mood_bar)
+	_summary_card()
+	_park = VBoxContainer.new()
+	_park.visible = false
 
 	# ---- shares ----
 	var shares_box := VBoxContainer.new()
@@ -134,85 +105,149 @@ func build() -> void:
 		_sector = ""
 	_paint_chips()
 	# Your shares first, then the rest of the market.
-	_my_shares_l = UI.label("Yours", 17, UI.TEXT, true)
-	shares_box.add_child(_my_shares_l)
+	_my_shares_l = _head(shares_box, "Yours")
 	_my_shares = card(shares_box)
-	_all_shares_l = UI.label("Market", 17, UI.TEXT, true)
-	shares_box.add_child(_all_shares_l)
+	_all_shares_l = _head(shares_box, "Market")
 	_all_shares = card(shares_box)
 	for st in Data.STOCKS:
 		var r := Row.new()
 		var sym: String = st[0]
 		r.set_lead(AssetTile.new(sym))
+		r.set_bold()
 		r.pressed.connect(func(): _open("share", sym))
 		_share_rows[sym] = r
+		_park.add_child(r)
 
 	# ---- property ----
 	var props_box := VBoxContainer.new()
 	props_box.add_theme_constant_override("separation", 12)
 	body.add_child(props_box)
 	# "Yours" and "Market", like Shares and Crypto.
-	_my_props_l = UI.label("Yours", 17, UI.TEXT, true)
-	props_box.add_child(_my_props_l)
+	_my_props_l = _head(props_box, "Yours")
 	_my_props = card(props_box)
-	_all_props_l = UI.label("Market", 17, UI.TEXT, true)
-	props_box.add_child(_all_props_l)
+	_all_props_l = _head(props_box, "Market")
 	_all_props = card(props_box)
 	for i in range(Data.PROPERTIES.size()):
-		var r := Row.new("", String(Data.PROPERTIES[i][3]))   # its own little scene
-		(r.lead as Art.Scene).seed_id = String(Data.PROPERTIES[i][0])
-		var idx := i
-		r.pressed.connect(func(): _property(idx))
-		_prop_rows[i] = r
+		var r := _prop_row(String(Data.PROPERTIES[i][3]), String(Data.PROPERTIES[i][0]), i)
 		_prop_rows_s[str(i)] = r
+		_park.add_child(r)
 	# Island estates: a tree unlock, shown once you own the node.
-	_isles_l = UI.label("Island estates", 17, UI.TEXT, true)
-	props_box.add_child(_isles_l)
+	_isles_l = _head(props_box, "Island estates")
 	var isles_v := card(props_box)
 	_isles_card = isles_v.get_parent()
 	for k in range(Data.ISLES.size()):
-		var i := Data.PROPERTIES.size() + k
 		if k > 0:
-			separator(isles_v, 50)
-		var r := Row.new("", String(Data.ISLES[k][3]))
-		(r.lead as Art.Scene).seed_id = String(Data.ISLES[k][0])
-		var idx := i
-		r.pressed.connect(func(): _property(idx))
-		isles_v.add_child(r)
-		_prop_rows[i] = r
+			separator(isles_v)
+		isles_v.add_child(_prop_row(String(Data.ISLES[k][3]), String(Data.ISLES[k][0]), Data.PROPERTIES.size() + k))
 
 	# ---- crypto ----
 	var coins_box := VBoxContainer.new()
 	coins_box.add_theme_constant_override("separation", 12)
 	body.add_child(coins_box)
 	coins_box.add_child(_news_card())
-	# One-line header: "Coins" on the left, the sort drop-down on the right.
+	# One line: "Yours" and its count on the left, the sort drop-down on the right.
 	var sort_row := HBoxContainer.new()
-	_my_coins_l = UI.label("Yours", 17, UI.TEXT, true)   # "Yours · N" and Sort share one line
-	_my_coins_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_my_coins_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	sort_row.add_child(_my_coins_l)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sort_row.add_child(spacer)
+	sort_row.add_theme_constant_override("separation", 8)
+	coins_box.add_child(sort_row)
+	_my_coins_l = _head(sort_row, "Yours")
+	_my_coins_l.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_my_coins_l.get_parent().size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var csp := _sort_pill()
 	csp.custom_minimum_size.x = 150
 	sort_row.add_child(csp)
-	coins_box.add_child(sort_row)
 	_my_coins = card(coins_box)
-	# Mining has its own section: one place for all rigs.
+	# Mining is a section of Crypto: the rack, the coin, one button.
 	coins_box.add_child(_mining_section())
-	_all_coins_l = UI.label("Market", 17, UI.TEXT, true)
-	coins_box.add_child(_all_coins_l)
+	_all_coins_l = _head(coins_box, "Market")
 	_all_coins = card(coins_box)
 	for c in Data.COINS:
 		var r := Row.new()
 		var sym: String = c[0]
 		r.set_lead(AssetTile.new(sym))
+		r.set_bold()
 		r.pressed.connect(func(): _open("coin", sym))
 		_coin_rows[sym] = r
+		_park.add_child(r)
+	body.add_child(_park)
 	_views = [shares_box, props_box, coins_box]
 	refresh_view()
+
+
+func _head(parent: Control, text: String) -> Label:
+	## A section title with a small count beside it ("Yours  3").
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	parent.add_child(h)
+	var l := UI.label(text, 17, UI.TEXT, true)
+	h.add_child(l)
+	var n := UI.label("", 13, UI.SUB)
+	n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(n)
+	_counts[l] = n
+	return l
+
+
+func _prop_row(art: String, seed_id: String, i: int) -> Row:
+	var r := Row.new("", art)   # its own little scene
+	(r.lead as Art.Scene).seed_id = seed_id
+	# List thumbnails get a quiet sun; the big red one stays on the detail page.
+	if "muted" in r.lead:
+		r.lead.set("muted", true)
+	r.set_bold()
+	r.pressed.connect(func(): _property(i))
+	_prop_rows[i] = r
+	return r
+
+
+func _summary_card() -> void:
+	## One template for all three tabs: what it's worth on the left, what it
+	## earns an hour on the right.
+	var sc := card()
+	var sp := padded(sc, 16, 8)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	sp.add_child(h)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 2)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(left)
+	_sum_sub = UI.label("", 13, UI.SUB)
+	left.add_child(_sum_sub)
+	_sum_value = UI.display("", 28)
+	left.add_child(_sum_value)
+	_sum_line2 = UI.label("", 13, UI.SUB)
+	left.add_child(_sum_line2)
+	_sum_line3 = UI.label("", 13, UI.SUB)
+	left.add_child(_sum_line3)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 2)
+	h.add_child(right)
+	_sum_right_sub = UI.label("", 13, UI.SUB)
+	_sum_right_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(_sum_right_sub)
+	_sum_right = UI.label("", 17, UI.TEXT, true)
+	_sum_right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(_sum_right)
+	_sum_right_note = UI.label("", 13, UI.SUB)
+	_sum_right_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(_sum_right_note)
+	# For someone who owns nothing yet: what this tab is for, in one line.
+	_hint = UI.label("", 13, UI.SUB)
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sp.add_child(_hint)
+	# Crypto only: market mood as a word and a thin bar with one marker.
+	var mb := HBoxContainer.new()
+	mb.add_theme_constant_override("separation", 12)
+	sp.add_child(mb)
+	_mood_box = mb
+	_mood_label = UI.label("", 13, UI.SUB)
+	mb.add_child(_mood_label)
+	_mood_bar = Control.new()
+	_mood_bar.custom_minimum_size = Vector2(0, 16)
+	_mood_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mood_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mood_bar.draw.connect(_draw_mood)
+	mb.add_child(_mood_bar)
 
 
 func _news_card() -> Control:
@@ -220,15 +255,14 @@ func _news_card() -> Control:
 	var pc := PanelContainer.new()
 	pc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
 	pc.mouse_filter = Control.MOUSE_FILTER_PASS
-	var r := Row.new("news")
+	var r := Row.new()
+	r.caption_on_top()
 	r.title_l.add_theme_font_size_override("font_size", 15)
-	r.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Headlines get two lines instead of being cut off.
+	# A long headline wraps to a second line rather than being cut off.
 	r.title_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	r.title_l.max_lines_visible = 2
-	r.custom_minimum_size = Vector2(0, 64)
-	r.title_l.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.value_l.add_theme_font_size_override("font_size", 15)
+	r.align_top(10)
 	r.pressed.connect(func():
 		Kit.tick()
 		push_page.emit(NewsPage.new({0: 1, 2: 2}.get(_seg.index, 0))))
@@ -241,19 +275,14 @@ func _paint_chips() -> void:
 	if _sector_pill:
 		_sector_pill.text = ("All sectors" if _sector == "" else _sector) + "  ▾"
 
+
 func _draw_mood() -> void:
+	## A thin track with one marker: fear on the left, greed on the right.
 	var w := _mood_bar.size.x
-	var hgt := 6.0
-	var y := (_mood_bar.size.y - hgt) * 0.5
-	# Fear (coral) to calm (sand) to greed (mint).
-	var n := 40
-	for i in n:
-		var t := float(i) / float(n - 1)
-		var c := UI.DOWN.lerp(UI.SECTOR_COL["Finance"], t * 2.0) if t < 0.5 else UI.SECTOR_COL["Finance"].lerp(UI.UP, t * 2.0 - 1.0)
-		c.a = 1.0 if t * 100.0 <= _mood_value else 0.25
-		_mood_bar.draw_rect(Rect2(w * i / n, y, w / n - 1.0, hgt), c)
+	var y := _mood_bar.size.y * 0.5
+	_mood_bar.draw_line(Vector2(0, y), Vector2(w, y), UI.TRACK, 4.0, true)
 	var x := clampf(w * _mood_value / 100.0, 6.0, w - 6.0)
-	_mood_bar.draw_rect(Rect2(x - 6.0, y - 3.0, 12.0, 12.0), UI.TEXT)
+	_mood_bar.draw_circle(Vector2(x, y), 6.0, UI.TEXT)
 
 
 static func mood_name(v: float) -> String:
@@ -300,18 +329,49 @@ func _latest_news(kind: String) -> Dictionary:
 
 
 func _set_news(r: Row, it: Dictionary) -> void:
-	## One line: the headline, then the move it caused.
+	## A "News" caption with the ticker, the headline, then the move it caused.
 	r.get_parent().visible = not it.is_empty()   # no empty "No news" card
 	if it.is_empty():
 		return
-	else:
-		var pct := float(it["pct"])
-		var move := "%s%.1f%%" % ["▲ +" if pct >= 0.0 else "▼ −", absf(pct)]
-		if it.has("mine"):
-			move = "Mining ×%s" % str(snappedf(1.0 + pct / 100.0, 0.1))
-		r.set_texts(String(it["text"]), "", move)
-		r.title_l.add_theme_color_override("font_color", UI.TEXT)
-		r.value_l.add_theme_color_override("font_color", UI.change_color(pct))
+	var pct := float(it["pct"])
+	var move := AssetDetail.change_text(pct)
+	if it.has("mine"):
+		move = "Mining ×%s" % str(snappedf(1.0 + pct / 100.0, 0.1))
+	r.set_texts(String(it["text"]), "News · " + String(it["sym"]), move)
+	r.value_l.add_theme_color_override("font_color", UI.change_color(pct))
+
+
+static func qty_short(q: float) -> String:
+	## A count that always fits a row: 5,534 or 12.4M.
+	if q >= 1.0e6:
+		return Game.money_short(q).substr(Game.CUR.length())
+	return AssetDetail.qty_text(q)
+
+
+func _today(book: Dictionary, coins: bool) -> float:
+	## How much what you hold moved in the last 24 hours, in £.
+	var d := 0.0
+	for sym in book.keys():
+		var held := Game.holding(book, sym) + (Game.staked(sym) if coins else 0.0)
+		if held <= 0.0:
+			continue
+		var pct := Game.change_pct(sym, 1440)
+		var v := held * Game.price(sym)
+		d += v - v / (1.0 + pct / 100.0)
+	return d
+
+
+func _signed(v: float) -> String:
+	return ("▲ +" if v >= 0.0 else "▼ −") + Game.money_short(absf(v))
+
+
+func _sum_lines(v: float, today: float, gain: float) -> void:
+	## Today's move (coloured), then the all-time profit; each hidden when it's nothing.
+	_sum_line2.visible = v > 0.0 and absf(today) >= 0.01
+	_sum_line2.text = _signed(today) + " today"
+	_sum_line2.add_theme_color_override("font_color", UI.change_color(today))
+	_sum_line3.visible = v > 0.0 and absf(gain) >= maxf(0.01, v * 0.001)
+	_sum_line3.text = "Profit " + ("+" if gain >= 0.0 else "−") + Game.money_short(absf(gain))
 
 
 func refresh() -> void:
@@ -324,17 +384,13 @@ func refresh() -> void:
 	match _seg.index:
 		0:
 			var v := Game.book_value(Game.shares)
-			var gain := v - Game.book_cost(Game.shares)
 			_sum_sub.text = "My shares"
 			_sum_value.text = Game.money(v)
-			_sum_right_sub.text = "Dividends · next in %d min" % int(ceil(Game.next_dividend_in() / 60.0))
+			_sum_lines(v, _today(Game.shares, false), v - Game.book_cost(Game.shares))
+			_sum_right_sub.text = "Dividends"
 			_sum_right.text = Game.money_short(Game.dividends_per_hour()) + " /h"
-			_sum_right.add_theme_color_override("font_color", UI.TEXT)
-			var paid_out := float(Game.counters.get("dividends_earned", 0.0))
-			_sum_line2.text = "%s%s" % ["▲ +" if gain >= 0 else "▼ −", Game.money_short(absf(gain))]
-			if paid_out > 0.0:
-				_sum_line2.text += " · %s paid" % Game.money_short(paid_out)
-			_sum_line2.visible = v > 0.0 or paid_out > 0.0
+			_sum_right_note.text = "next in %d min" % int(ceil(Game.next_dividend_in() / 60.0))
+			_sum_right_note.visible = Game.dividends_per_hour() > 0.0
 			_mood_box.visible = false
 			_set_news(_news_rows[0], _latest_news("share"))
 			var stocks := _ordered(Data.STOCKS, "shares")
@@ -350,20 +406,24 @@ func refresh() -> void:
 			for st in mine + rest:
 				var r: Row = _share_rows[st[0]]
 				var held := Game.holding(Game.shares, st[0])
-				var sub: String = st[0] + (" · " + Game.money_short(held * Game.price(st[0])) if held > 0 else "")
+				var sub: String = st[0]
+				if held > 0.0:
+					sub = "%s shares · %s" % [qty_short(held), Game.money_short(held * Game.price(st[0]))]
 				r.set_texts(st[1], sub, AssetDetail.price_text(Game.price(st[0])))
 				r.set_change(Game.change_pct(st[0], 1440))
-				r.mark.visible = false
 		1:
-			_sum_sub.text = "Property · %d / %d" % [Game.props_owned(), Game.property_count()]
 			var isles := Game.rb("u_isles") > 0.0
 			_isles_l.visible = isles
 			_isles_card.visible = isles
+			_sum_sub.text = "My property"
 			_sum_value.text = Game.money(Game.props_value())
+			_sum_line2.visible = true
+			_sum_line2.text = "%d of %d owned" % [Game.props_owned(), Game.property_count()]
+			_sum_line2.add_theme_color_override("font_color", UI.SUB)
+			_sum_line3.visible = false
 			_sum_right_sub.text = "Rent"
 			_sum_right.text = Game.money_short(Game.rent_per_hour()) + " /h"
-			_sum_right.add_theme_color_override("font_color", UI.TEXT)
-			_sum_line2.visible = false
+			_sum_right_note.visible = false
 			_mood_box.visible = false
 			var pmine: Array = []
 			var prest: Array = []
@@ -379,21 +439,24 @@ func refresh() -> void:
 				var r: Row = _prop_rows[i]
 				if Game.prop_owned(i):
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
+					r.set_locked(false)
 				else:
-					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h" % Game.money_short(Game.rent_quote(i)))
-				r.mark.visible = false   # owned ones sit under "Yours"
-				r.modulate.a = 1.0 if (Game.prop_owned(i) or Game.cash >= Game.prop_price(i)) else 0.6
+					var price := Game.prop_price(i)
+					var can := Game.cash >= price
+					# Not affordable yet: a lock and what's still needed, not a faded row.
+					r.set_texts(p[0], p[1] if can else "Need " + Game.money_short(price - Game.cash), Game.money_short(price), "%s /h" % Game.money_short(Game.rent_quote(i)))
+					r.set_locked(not can)
 		2:
 			var v := Game.book_value(Game.coins)
-			var gain := v - Game.book_cost(Game.coins)
 			_sum_sub.text = "My crypto"
 			_sum_value.text = Game.money(v)
-			_sum_right_sub.text = "Profit"
-			_sum_right.text = ("▲ +" if gain >= 0 else "▼ −") + Game.money_short(absf(gain))
-			_sum_right.add_theme_color_override("font_color", UI.change_color(gain))
+			_sum_lines(v, _today(Game.coins, true), v - Game.book_cost(Game.coins))
 			var sph := Game.staking_per_hour()
-			_sum_line2.text = "Locked coins %s /h" % Game.money_short(sph)
-			_sum_line2.visible = sph > 0.0
+			var mph := Game.mining_value_per_hour()
+			_sum_right_sub.text = "Earns"
+			_sum_right.text = Game.money_short(sph + mph) + " /h"
+			_sum_right_note.visible = sph + mph > 0.0
+			_sum_right_note.text = "locks and miners" if sph > 0.0 and mph > 0.0 else ("from locks" if sph > 0.0 else "from miners")
 			_mood_box.visible = true
 			_mood_value = Game.market_mood()
 			_mood_label.text = "Mood · " + mood_name(_mood_value)
@@ -411,9 +474,11 @@ func refresh() -> void:
 			for c in cmine + crest:
 				var r: Row = _coin_rows[c[0]]
 				var held := Game.holding(Game.coins, c[0]) + Game.staked(c[0])
-				r.set_texts(c[1], c[0] + (" · " + Game.money_short(held * Game.price(c[0])) if held > 0 else ""), AssetDetail.price_text(Game.price(c[0])))
+				var sub: String = c[0]
+				if held > 0.0:
+					sub = "%s %s · %s" % [qty_short(held), c[0], Game.money_short(held * Game.price(c[0]))]
+				r.set_texts(c[1], sub, AssetDetail.price_text(Game.price(c[0])))
 				r.set_change(Game.change_pct(c[0], 1440))
-				r.mark.visible = false
 			_refresh_mining()
 
 
@@ -489,7 +554,8 @@ func _owned_set(key: String, book: Dictionary) -> Dictionary:
 
 
 func _place(key: String, mine: Array, rest: Array, rows: Dictionary, my_v: VBoxContainer, all_v: VBoxContainer, my_l: Label, all_l: Label) -> void:
-	## Puts rows into "Yours" and "Market"; only rebuilt when the split or order changes.
+	## Puts rows into "Yours" and "Market"; only rebuilt when the split or order
+	## changes. Every row stays in the tree: rows filtered out wait in a hidden list.
 	var sig := ""
 	for it in mine:
 		sig += String(it[0]) + ","
@@ -497,45 +563,86 @@ func _place(key: String, mine: Array, rest: Array, rows: Dictionary, my_v: VBoxC
 	for it in rest:
 		sig += String(it[0]) + ","
 	var has_mine := not mine.is_empty()
-	my_l.text = "Yours · %d" % mine.size()
-	my_l.visible = has_mine
+	_counts[my_l].text = str(mine.size())
+	my_l.get_parent().visible = has_mine
 	my_v.get_parent().visible = has_mine
-	all_l.visible = has_mine   # "Market" label only needed when there are two lists
+	all_l.get_parent().visible = has_mine   # "Market" title only needed when there are two lists
 	if _order_key.get(key, "") == sig:
 		return
 	_order_key[key] = sig
 	for v in [my_v, all_v]:
 		for ch in v.get_children():
-			v.remove_child(ch)
 			if not (ch is Row):
+				v.remove_child(ch)
 				ch.queue_free()
+	var placed := {}
 	for pair in [[mine, my_v], [rest, all_v]]:
-		var first := true
+		var at := 0
 		for it in pair[0]:
-			if not first:
+			var r: Row = rows[it[0]]
+			placed[r] = true
+			if r.get_parent() != pair[1]:
+				r.get_parent().remove_child(r)
+				pair[1].add_child(r)
+			if at > 0:
 				separator(pair[1])
-			first = false
-			pair[1].add_child(rows[it[0]])
+				pair[1].move_child(pair[1].get_child(pair[1].get_child_count() - 1), at)
+				at += 1
+			pair[1].move_child(r, at)
+			at += 1
+	for r in rows.values():
+		if not placed.has(r) and r.get_parent() != _park:
+			r.get_parent().remove_child(r)
+			_park.add_child(r)
 
 
 func _mining_section() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
-	box.add_child(UI.label("Crypto miners", 17, UI.TEXT, true))
+	var hh := HBoxContainer.new()
+	box.add_child(hh)
+	var hl := UI.label("Crypto miners", 17, UI.TEXT, true)
+	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hh.add_child(hl)
+	_mine_count = UI.label("", 13, UI.SUB)
+	_mine_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hh.add_child(_mine_count)
 	var mc := card(box)
 	mc.add_child(MinerRack.new())   # the machines at work
-	# One row: how many, what they make, which coin. Tap to switch coin.
-	_mine_target = Row.new()
-	_mine_target.pressed.connect(_on_pick_target)
-	mc.add_child(_mine_target)
-	_mine_note = UI.label("", 13, UI.SUB)
-	_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(_mine_note)
-	_rig_btn = UI.pill("Buy miner", UI.TEXT, UI.INK, 17, 24)
-	_rig_btn.custom_minimum_size = Vector2(0, 48)
+	var sp := padded(mc, 16, 12)
+	# Which coin they dig, what it makes, and a drop-down to switch coin.
+	var th := HBoxContainer.new()
+	th.add_theme_constant_override("separation", 12)
+	sp.add_child(th)
+	_mine_tile_box = Control.new()
+	_mine_tile_box.custom_minimum_size = Vector2(40, 40)
+	_mine_tile_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	th.add_child(_mine_tile_box)
+	var tv := VBoxContainer.new()
+	tv.add_theme_constant_override("separation", 2)
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	th.add_child(tv)
+	_mine_title = UI.label("", 17, UI.TEXT, true)
+	_mine_title.clip_text = true
+	_mine_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	tv.add_child(_mine_title)
+	_mine_sub = UI.label("", 13, UI.SUB)
+	tv.add_child(_mine_sub)
+	var chg := Kit.drop_pill("Change")
+	chg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chg.custom_minimum_size.x = 112
+	UI.paint(chg, UI.RAISED, UI.TEXT, 24)   # it sits on a card, so it needs its own fill
+	chg.pressed.connect(_on_pick_target)
+	Kit.press_fx(chg)
+	th.add_child(chg)
+	_rig_btn = UI.primary_btn("Buy miner")
 	_rig_btn.pressed.connect(_on_buy_rig)
 	Kit.press_fx(_rig_btn)
-	box.add_child(_rig_btn)
+	sp.add_child(_rig_btn)
+	_mine_note = UI.label("", 13, UI.SUB)
+	_mine_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sp.add_child(_mine_note)
 	return box
 
 
@@ -545,24 +652,29 @@ func _refresh_mining() -> void:
 	var c := Data.coin(tgt)
 	if _mine_target_sym != tgt:
 		_mine_target_sym = tgt
-		_mine_target.set_lead(AssetTile.new(tgt))
-	var mph := Game.mine_per_hour(tgt)
+		for ch in _mine_tile_box.get_children():
+			ch.queue_free()
+		_mine_tile_box.add_child(AssetTile.new(tgt))
+	_mine_count.text = "%d / %d" % [n, Data.RIG_MAX]
+	_mine_title.text = "Mining " + String(c[1])
 	if n > 0:
-		_mine_target.set_texts("%d/%d · %s" % [n, Data.RIG_MAX, String(c[1])], "%s /h · %s %s /h" % [Game.money_short(Game.mining_value_per_hour()), AssetDetail.qty_text(mph), tgt], "Change")
+		_mine_sub.text = "%s /h · %s %s /h" % [Game.money_short(Game.mining_value_per_hour()), qty_short(Game.mine_per_hour(tgt)), tgt]
 	else:
-		_mine_target.set_texts("No miners yet · %s" % String(c[1]), "They dig up coins for you", "Change")
-	var notes: Array = ["Mines while you're away (%d h max)." % int(Game.offline_cap_h())]
-	if Game.mining_capped():
-		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
-	_mine_note.text = " ".join(notes)
+		_mine_sub.text = "Miners dig up coins for you"
+	var notes: Array = []
 	if n >= Data.RIG_MAX:
 		_rig_btn.text = "All miners bought"
 		Page.set_enabled(_rig_btn, false)
 	else:
 		var gain := Game.miner_gain()
 		var back_h := Game.rig_price() / maxf(gain, 0.001)
-		_rig_btn.text = "Buy miner · %s · pays back ~%s" % [Game.money_short(Game.rig_price()), Game.clock(back_h * 3600.0)]
-		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price(), false)
+		_rig_btn.text = "Buy miner · " + Game.money_short(Game.rig_price())
+		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price())
+		notes.append("Earns it back in ~%s." % Game.clock(back_h * 3600.0))
+	notes.append("Mines while you're away (%d h max)." % int(Game.offline_cap_h()))
+	if Game.mining_capped():
+		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
+	_mine_note.text = "\n".join(notes)   # one fact a line
 
 
 func _on_buy_rig() -> void:
@@ -580,36 +692,54 @@ func _on_buy_rig() -> void:
 		Kit.toast("Need %s more" % Game.money_short(Game.rig_price() - Game.cash))
 
 
+static func coin_chip(sym: String, on: bool) -> Button:
+	## A coin to pick in a grid: logo and ticker. Used by Mine and Convert.
+	var b := UI.pill("", UI.TEXT if on else UI.RAISED, UI.INK if on else UI.TEXT, 15, 12)
+	b.custom_minimum_size = Vector2(0, 48)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tile := AssetTile.new(sym, 26.0)
+	tile.position = Vector2(8, 11)
+	b.add_child(tile)
+	var tl := UI.label(sym, 15, UI.INK if on else UI.TEXT, true)
+	tl.position = Vector2(40, 13)
+	tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(tl)
+	Kit.press_fx(b)
+	return b
+
+
 func _on_pick_target() -> void:
-	## A compact grid of coins (3 across): tap one and every miner switches to it.
+	## The coin being mined on top, then the other 12 in a 3 x 4 grid: tap one
+	## and every miner switches to it.
 	Kit.tick()
+	var cur := Game.mine_target if Game.mine_target != "" else Game._first_coin_owned()
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	var now := HBoxContainer.new()
+	now.add_theme_constant_override("separation", 12)
+	box.add_child(now)
+	now.add_child(AssetTile.new(cur, 32.0))
+	var nl := UI.label("Now mining " + String(Data.coin(cur)[1]), 15, UI.TEXT, true)
+	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	now.add_child(nl)
 	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	box.add_child(grid)
 	for c in Data.COINS:
 		var sym: String = c[0]
-		var on := sym == Game.mine_target
-		# Logo and ticker, like the Convert grid.
-		var b := UI.pill("", UI.TEXT if on else UI.RAISED, UI.INK if on else UI.TEXT, 13, 12)
-		b.custom_minimum_size = Vector2(0, 48)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var tile := AssetTile.new(sym, 26.0)
-		tile.position = Vector2(6, 11)
-		b.add_child(tile)
-		var tl := UI.label(sym, 13, UI.INK if on else UI.TEXT, true)
-		tl.position = Vector2(34, 14)
-		tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		b.add_child(tl)
+		if sym == cur:
+			continue
+		var b := coin_chip(sym, false)
 		b.pressed.connect(func():
 			Kit.close_top()
 			if Game.set_mine_target(sym):
 				Kit.haptic("selection")
 				Kit.toast("Miners now mine " + String(c[1]), true)
 				Game.flush_changes())
-		Kit.press_fx(b)
 		grid.add_child(b)
-	Kit.sheet("Mine which coin?", "All coins earn the same, unless news speeds one up.", [{"text": "Close", "style": "plain"}], true, grid)
+	Kit.sheet("Mine which coin?", "All coins earn the same, unless news speeds one up.", [{"text": "Close", "style": "plain"}], true, box)
 
 
 func _property(i: int) -> void:
@@ -629,11 +759,3 @@ func _property(i: int) -> void:
 				Kit.toast("You own " + String(p[0]), true)},
 		{"text": "Close", "style": "plain"},
 	])
-
-
-func _exit_tree() -> void:
-	# Rows not in a list right now (filtered out) aren't in the tree; free them too.
-	for d in [_share_rows, _coin_rows]:
-		for r in d.values():
-			if is_instance_valid(r) and r.get_parent() == null:
-				r.queue_free()

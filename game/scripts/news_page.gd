@@ -73,20 +73,21 @@ static func ago(t: float) -> String:
 
 
 static func news_row(item: Dictionary, chevron: bool) -> Row:
+	## Headline (wraps), ticker and age under it; the move on the right, level
+	## with the headline's first line, with an arrow so colour isn't the only signal.
 	var pct := float(item.get("pct", 0.0))
-	var r := Row.new("news", "", chevron)
-	r.custom_minimum_size = Vector2(0, 68)
+	var r := Row.new("", "", chevron)
 	r.title_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	r.title_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.title_l.add_theme_font_size_override("font_size", 15)
-	r.set_texts(String(item.get("text", "")), "%s · %s" % [item.get("sym", ""), ago(float(item.get("t", 0.0)))])
+	r.value_l.add_theme_font_size_override("font_size", 15)
+	r.align_top(10)
+	var move := AssetDetail.change_text(pct)
 	if item.has("mine"):
 		# Mining news changes how fast coins are mined, not the price.
-		r.value_l.text = "Mining ×%s" % str(snappedf(1.0 + pct / 100.0, 0.1))
-	else:
-		r.set_change(pct)
-	if r.lead is Icon:
-		(r.lead as Icon).set_style(UI.change_color(pct))
+		move = "Mining ×%s" % str(snappedf(1.0 + pct / 100.0, 0.1))
+	r.set_texts(String(item.get("text", "")), "%s · %s" % [item.get("sym", ""), ago(float(item.get("t", 0.0)))], move)
+	r.value_l.add_theme_color_override("font_color", UI.change_color(pct))
 	if not chevron:
 		# Read-only row: no press highlight.
 		r.disabled = true
