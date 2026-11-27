@@ -79,7 +79,7 @@ Pages never change state directly.
 
 `.github/workflows/android.yml`:
 1. `rules` job: `python3 tools/check_rules.py`.
-2. `android` job (Godot 4.4.1 container): download fonts, import, smoke, stress, market and touch tests, export and sign `Sol.apk`, write its SHA-256, stamp build provenance (`actions/attest-build-provenance`), on a by-hand run only (never on a push), publish release `v1.2.<run>` with grouped notes for every version, the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
+2. `tests` job: the four `tools/check_all.sh` lanes side by side (`--lane a` to `d`, Godot 4.4.1 container, fonts downloaded). 3. `build` job: export and sign `Sol.apk`, write its SHA-256 and build number, upload them as the `Sol-apk` artifact. 4. On a by-hand run only (never on a push): `find` looks for a passing push run of the same commit; if there is one, tests and build are skipped and `publish` takes that run's app. `publish` checks the SHA-256, stamps build provenance (`actions/attest-build-provenance`) and publishes release `v1.2.<run>` with grouped notes for every version, the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
 
 `.github/workflows/tidy-releases.yml` (by hand only) deletes every release but the newest, so the Releases page shows one release.
 

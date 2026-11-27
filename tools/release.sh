@@ -17,7 +17,11 @@ fi
 if [ -z "$(git log "origin/$BRANCH..HEAD" --oneline 2>/dev/null)" ]; then
 	echo "Nothing new to release."; exit 0
 fi
-"$ROOT/tools/check_all.sh" || { echo "Checks failed: not pushing."; exit 1; }
+if [ "$(cat .git/sol-checked 2>/dev/null)" = "$(git rev-parse HEAD)" ]; then
+	echo "All checks already passed on this exact version: skipping the local run."
+else
+	"$ROOT/tools/check_all.sh" || { echo "Checks failed: not pushing."; exit 1; }
+fi
 
 for i in 1 2 3 4; do
 	git push -q origin "$BRANCH" && break

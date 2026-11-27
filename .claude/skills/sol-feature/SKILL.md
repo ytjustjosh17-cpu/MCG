@@ -30,7 +30,8 @@ Replies: short, simple, British English, small chunks.
 10. **On "push":** `tools/release.sh` (checks again, pushes, waits for the
     checks). A push does NOT make a release.
 11. **On "release" only:** start the `android.yml` workflow by hand
-    (`actions_run_trigger`, run_workflow, ref = the working branch). When it
+    (`actions_run_trigger`, run_workflow, ref = the working branch). If the
+    push of this commit already passed, it only publishes (about a minute). When it
     passes, run `tidy-releases.yml` the same way so only the newest release
     stays. Tell the owner the version and "tap Update".
 

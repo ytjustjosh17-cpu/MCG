@@ -2,13 +2,16 @@
 # One command for every check before a commit or release.
 #   tools/check_all.sh          rules + all 9 test suites (4 lanes in parallel)
 #   tools/check_all.sh --quick  rules + smoke + touch test (while iterating)
+#   tools/check_all.sh --lane b one lane only (CI runs the four lanes at once)
 # Prints one line per suite and the failing checks. Exit code 0 = all pass.
 # Each lane runs in its own copy of the game with its own user folder, so
 # suites never share a save file.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 QUICK=0
+ONLY=""
 [ "${1:-}" = "--quick" ] && QUICK=1
+[ "${1:-}" = "--lane" ] && ONLY="${2:-}"
 
 # ---- Godot 4.4.1: $G, a cached copy, or download it once ----
 find_godot() {
@@ -30,7 +33,9 @@ G="$(find_godot)"
 START=$(date +%s)
 FAIL=0
 echo "== rules"
-if ! python3 "$ROOT/tools/check_rules.py" >/tmp/sol_rules.txt 2>&1; then cat /tmp/sol_rules.txt; FAIL=1; else tail -1 /tmp/sol_rules.txt; fi
+if [ -n "$ONLY" ]; then
+	echo "(rules run in their own CI job)"
+elif ! python3 "$ROOT/tools/check_rules.py" >/tmp/sol_rules.txt 2>&1; then cat /tmp/sol_rules.txt; FAIL=1; else tail -1 /tmp/sol_rules.txt; fi
 
 # Import once in the real project, then copy it per lane (fast: a few MB).
 ( cd "$ROOT/game" && "$G" --headless --path . --import >/dev/null 2>&1 )
@@ -47,6 +52,13 @@ if [ $QUICK = 1 ]; then
 else
 	LANES=("a|0|smoke_test market_test:20 fit_test:land landscape_test" "b|0|stress_test casino_test forge_test fit_test" \
 		"c|1|scroll_test tables_ui_test" "d|1|slots_ui_test forge_ui_test casino12_test")
+fi
+
+if [ -n "$ONLY" ]; then
+	keep=()
+	for l in "${LANES[@]}"; do [ "${l%%|*}" = "$ONLY" ] && keep+=("$l"); done
+	[ ${#keep[@]} -eq 1 ] || { echo "No lane '$ONLY'"; exit 2; }
+	LANES=("${keep[@]}")
 fi
 
 run_lane() {
@@ -90,4 +102,8 @@ for l in "${LANES[@]}"; do
 done
 rm -rf "$WORK" "$HOME/.local/share/sol-check-$RUN_ID-"* 2>/dev/null
 echo "== $( [ $FAIL = 0 ] && echo ALL PASS || echo FAILED ) in $(( $(date +%s) - START )) s"
+# Remember a full pass on a clean tree, so tools/release.sh needn't repeat it.
+if [ $FAIL = 0 ] && [ $QUICK = 0 ] && [ -z "$ONLY" ] && [ -d "$ROOT/.git" ] && [ -z "$(git -C "$ROOT" status --porcelain 2>/dev/null)" ]; then
+	git -C "$ROOT" rev-parse HEAD > "$ROOT/.git/sol-checked" 2>/dev/null
+fi
 exit $FAIL

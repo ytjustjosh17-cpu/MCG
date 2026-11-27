@@ -73,5 +73,5 @@ With every change a player can see, in the same commit:
 
 1. All checks pass.
 2. Commit, then ask. Push to the working branch only on "push". Every push runs the tests and builds, but publishes nothing.
-3. Only on "release": start the Android APK workflow by hand. It builds and signs `Sol.apk` (key and password from the repo Secrets `SOL_KEYSTORE_B64` and `SOL_KEYSTORE_PASSWORD`) and publishes `v1.2.<run number>` with notes for every version (`.github/release-notes/`). Then run Tidy releases so only the newest release stays.
+3. Only on "release": start the Android APK workflow by hand. If the push build of this exact commit passed, it just publishes that app (about a minute); otherwise it tests (four lanes at once) and builds and signs `Sol.apk` (key and password from the repo Secrets `SOL_KEYSTORE_B64` and `SOL_KEYSTORE_PASSWORD`) and publishes `v1.2.<run number>` with notes for every version (`.github/release-notes/`). Then run Tidy releases so only the newest release stays.
 4. The player taps Update in Profile.

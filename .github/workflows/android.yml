@@ -1,31 +1,104 @@
 name: Android APK
 
+# A push runs the rules, the four test lanes side by side (like
+# tools/check_all.sh) and builds a signed Sol.apk. Nothing is published.
+# A release is started by hand (Actions > Android APK > Run workflow). If
+# this exact commit already passed and built on a push, the release just
+# publishes that app (about a minute). Otherwise it tests and builds first.
 on:
   push:
     branches:
       - claude/mobile-game-samsung-s23-jipcyi
-  # A push only checks and builds. A release (the in-game Update) is made
-  # only when started by hand: Actions > Android APK > Run workflow.
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: read        # find the push build of this commit
   id-token: write      # for the build provenance stamp (attestation)
   attestations: write
 
 jobs:
   rules:
-    # Quick checks from CLAUDE.md; the build only runs if these pass.
+    # Quick checks from CLAUDE.md; nothing else runs if these fail.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Project rules (see CLAUDE.md)
         run: python3 tools/check_rules.py
 
-  android:
-    needs: rules
+  find:
+    # On a release: was this exact commit already tested and built?
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      reuse: ${{ steps.f.outputs.reuse }}
+      run_id: ${{ steps.f.outputs.run_id }}
+      number: ${{ steps.f.outputs.number }}
+    steps:
+      - id: f
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          echo "reuse=false" >> "$GITHUB_OUTPUT"
+          [ "${{ github.event_name }}" = "workflow_dispatch" ] || exit 0
+          row=$(gh api "repos/${{ github.repository }}/actions/workflows/android.yml/runs?head_sha=${{ github.sha }}&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0] | "\(.id) \(.run_number)"' 2>/dev/null || true)
+          [ -n "$row" ] && [ "$row" != "null null" ] || { echo "No tested push build of this commit: testing and building now."; exit 0; }
+          id=${row%% *}; num=${row##* }
+          n=$(gh api "repos/${{ github.repository }}/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "Sol-apk" and .expired == false)] | length' 2>/dev/null || echo 0)
+          [ "$n" -ge 1 ] || { echo "The push build's app has expired: building again."; exit 0; }
+          echo "Reusing push run $num (id $id)."
+          { echo "reuse=true"; echo "run_id=$id"; echo "number=$num"; } >> "$GITHUB_OUTPUT"
+
+  tests:
+    needs: [rules, find]
+    if: needs.find.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: barichello/godot-ci:4.4.1
+    strategy:
+      fail-fast: true
+      matrix:
+        lane: [a, b, c, d]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get fonts from Fontshare (not stored in this public repo)
+        working-directory: game
+        shell: bash
+        run: |
+          # Switzer and Tanker use the ITF Free Font License, which allows
+          # embedding in an app but not sharing the files in a public repo.
+          # Build 25 shipped without them by accident, so this step now stops
+          # the build if they are missing instead of quietly using Inter.
+          mkdir -p assets/fonts/ext /tmp/fonts
+          if ! command -v curl >/dev/null || ! command -v unzip >/dev/null; then
+            apt-get update -qq && apt-get install -y -qq curl unzip
+          fi
+          for f in switzer tanker; do
+            for i in 1 2 3 4; do
+              curl -fSL --retry 2 -A "Mozilla/5.0" -o /tmp/fonts/$f.zip \
+                "https://api.fontshare.com/v2/fonts/download/$f" && unzip -tq /tmp/fonts/$f.zip && break
+              echo "Try $i for $f failed"; sleep $((i * 5))
+            done
+          done
+          unzip -j -o -q /tmp/fonts/switzer.zip '*/WEB/fonts/Switzer-Regular.ttf' '*/WEB/fonts/Switzer-Semibold.ttf' -d assets/fonts/ext
+          unzip -j -o -q /tmp/fonts/tanker.zip '*/WEB/fonts/Tanker-Regular.ttf' -d assets/fonts/ext
+          ls -la assets/fonts/ext
+          for n in Switzer-Regular Switzer-Semibold Tanker-Regular; do
+            test -s assets/fonts/ext/$n.ttf || { echo "::error::Font $n is missing"; exit 1; }
+            cp assets/fonts/ext/$n.ttf assets/fonts/ext/$n.bin   # raw copy, packed as-is
+          done
+
+      - name: Test lane ${{ matrix.lane }} (see tools/check_all.sh)
+        shell: bash
+        run: G="$(command -v godot)" tools/check_all.sh --lane ${{ matrix.lane }}
+
+  build:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     container:
       image: barichello/godot-ci:4.4.1
     env:
@@ -92,52 +165,6 @@ jobs:
         working-directory: game
         run: godot --headless --import || true
 
-      - name: Smoke test
-        working-directory: game
-        run: godot --headless --path . -s res://tests/smoke_test.gd
-
-      - name: Stress test
-        working-directory: game
-        run: godot --headless --path . -s res://tests/stress_test.gd
-
-      - name: Market test (no easy trading edge)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/market_test.gd -- 20
-
-      - name: Fit test (nothing cut off or off screen)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/fit_test.gd
-
-      - name: Fit test, landscape (phone held sideways)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/fit_test.gd -- land
-
-      - name: Landscape test (every screen and trade sheet sideways)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/landscape_test.gd
-
-      - name: Casino test (the house always keeps a small edge)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/casino_test.gd
-
-      - name: Sun Forge test (tumble slot pays back about 96%)
-        working-directory: game
-        run: godot --headless --path . -s res://tests/forge_test.gd
-
-      - name: Scroll test (as a touchscreen)
-        working-directory: game
-        run: |
-          printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
-          godot --headless --path . -s res://tests/scroll_test.gd
-          godot --headless --path . -s res://tests/tables_ui_test.gd
-          printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-slots-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
-          godot --headless --path . -s res://tests/slots_ui_test.gd
-          printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-forge-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
-          godot --headless --path . -s res://tests/forge_ui_test.gd
-          printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-casino12-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg
-          godot --headless --path . -s res://tests/casino12_test.gd
-          rm override.cfg
-
       - name: Export APK
         working-directory: game
         run: |
@@ -159,74 +186,93 @@ jobs:
           echo "Fonts are in the APK"
 
       - name: Fingerprint (SHA-256)
-        id: sum
         working-directory: game
         shell: bash
         run: |
-          SUM=$(sha256sum build/Sol.apk | cut -d' ' -f1)
-          echo "sha256=$SUM" >> "$GITHUB_OUTPUT"
-          echo "$SUM  Sol.apk" > build/Sol.apk.sha256
-          echo "SHA-256: $SUM"
-
-      - name: Stamp where the APK came from (build provenance)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: game/build/Sol.apk
+          sha256sum build/Sol.apk | cut -d' ' -f1 | sed 's/$/  Sol.apk/' > build/Sol.apk.sha256
+          echo "$BUILD_NUMBER" > build/number.txt
+          cat build/Sol.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Sol-apk
-          path: game/build/Sol.apk
+          path: |
+            game/build/Sol.apk
+            game/build/Sol.apk.sha256
+            game/build/number.txt
           if-no-files-found: error
 
-      - name: Release notes (every version, grouped)
-        if: github.event_name == 'workflow_dispatch'
-        working-directory: game
+  publish:
+    # Releases only: the app from this run's build, or from the push build of
+    # the same commit when that already passed.
+    needs: [find, build]
+    if: always() && github.event_name == 'workflow_dispatch' && (needs.find.outputs.reuse == 'true' || needs.build.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the tested app
+        uses: actions/download-artifact@v4
+        with:
+          name: Sol-apk
+          path: out
+          run-id: ${{ needs.find.outputs.reuse == 'true' && needs.find.outputs.run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Version and notes
+        id: v
         shell: bash
         run: |
-          cat ../.github/release-notes/1.2.md ../.github/release-notes/1.1.md ../.github/release-notes/1.0.md > build/notes.md
+          N=$(cat out/number.txt)
+          SUM=$(cut -d' ' -f1 out/Sol.apk.sha256)
+          echo "n=$N" >> "$GITHUB_OUTPUT"
+          test "$(sha256sum out/Sol.apk | cut -d' ' -f1)" = "$SUM" || { echo "::error::Checksum mismatch"; exit 1; }
+          cat .github/release-notes/1.2.md .github/release-notes/1.1.md .github/release-notes/1.0.md > notes.md
           {
             echo "---"
             echo
-            echo "Build ${{ github.run_number }}. Install: open this on your phone and tap Sol.apk."
+            echo "Build $N. Install: open this on your phone and tap Sol.apk."
             echo
             echo "**Check this file is genuine**"
-            echo "- Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."
-            echo '- SHA-256: `${{ steps.sum.outputs.sha256 }}`'
-            echo '- Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`'
-            echo "- Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says \"not found\", upload the file there to scan it)."
-          } >> build/notes.md
+            echo "- Built by GitHub Actions from commit ${{ github.sha }}."
+            echo "- SHA-256: \`$SUM\`"
+            echo "- Proof it came from this repo: \`gh attestation verify Sol.apk -R ${{ github.repository }}\`"
+            echo "- Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/$SUM) (if it says \"not found\", upload the file there to scan it)."
+          } >> notes.md
+
+      - name: Stamp where the APK came from (build provenance)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/Sol.apk
 
       - name: Publish release
-        if: github.event_name == 'workflow_dispatch'
         id: publish
         continue-on-error: true  # GitHub sometimes errors here; the next step retries
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.${{ github.run_number }}
-          name: Sol 1.2.${{ github.run_number }}
+          tag_name: v1.2.${{ steps.v.outputs.n }}
+          name: Sol 1.2.${{ steps.v.outputs.n }}
           target_commitish: ${{ github.sha }}
           files: |
-            game/build/Sol.apk
-            game/build/Sol.apk.sha256
+            out/Sol.apk
+            out/Sol.apk.sha256
           make_latest: "true"
-          body_path: game/build/notes.md
+          body_path: notes.md
 
       - name: Wait before retrying
-        if: github.event_name == 'workflow_dispatch' && steps.publish.outcome == 'failure'
+        if: steps.publish.outcome == 'failure'
         run: sleep 60
 
       - name: Publish release (retry)
-        if: github.event_name == 'workflow_dispatch' && steps.publish.outcome == 'failure'
+        if: steps.publish.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.${{ github.run_number }}
-          name: Sol 1.2.${{ github.run_number }}
+          tag_name: v1.2.${{ steps.v.outputs.n }}
+          name: Sol 1.2.${{ steps.v.outputs.n }}
           target_commitish: ${{ github.sha }}
           files: |
-            game/build/Sol.apk
-            game/build/Sol.apk.sha256
+            out/Sol.apk
+            out/Sol.apk.sha256
           make_latest: "true"
-          body_path: game/build/notes.md
+          body_path: notes.md
