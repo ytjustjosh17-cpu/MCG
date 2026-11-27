@@ -295,6 +295,20 @@ const FRENZY_S := 20.0
 const SEASON_PTS := {"daily": 10.0, "weekly": 25.0, "sun": 2.0, "first_tap": 5.0}
 const SEASON := [[30, "cash", 1.5], [70, "rush"], [120, "cash", 3.0], [180, "frenzy"], [250, "cash", 6.0]]
 const SEASON_MIN_CASH := 2000.0
+# Days played (1.2): a count of days you opened the game that never resets.
+const DAYS_MILESTONES := [7, 14, 30, 60, 100, 200]
+const DAYS_REWARD_H := 1.0        # each milestone pays about an hour of income (a streak gift's size)
+const DAYS_REWARD_MIN := 500.0
+# Net worth rank titles (1.2), shown on Profile.
+const RANKS := [[0.0, "Corner trader"], [1.0e5, "Local name"], [1.0e7, "Town grandee"], [1.0e9, "City mover"],
+	[1.0e11, "Regional power"], [1.0e13, "National name"], [1.0e15, "Tycoon"], [1.0e18, "Old money"]]
+# Medal names (1.2): achievements grouped by what they measure.
+const MEDALS := {"taps": "Tapper", "worth": "Fortune", "biz": "Owner", "expansions": "Builder", "full50": "Full house",
+	"managers": "Boss", "synergies": "Partner", "upgrades": "Head office", "mergers": "Mergers", "deals": "Deal maker",
+	"rivals": "Rival", "goals": "Goal getter", "suns": "Sun catcher", "props": "Landlord", "shares": "Shareholder",
+	"crypto_profit": "Crypto", "dividends": "Dividends", "stake_earned": "Locked coins", "collections": "Collector",
+	"home": "Homes", "level": "Level", "boosts": "Booster"}
+const SHOWCASE_MAX := 4
 const RUSH_S := 600.0                # +1× income for 10 minutes, only while playing
 const CRIT_BASE := 0.04              # chance of a critical tap, +0.2% per level
 const CRIT_PER_LEVEL := 0.002

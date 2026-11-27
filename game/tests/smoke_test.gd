@@ -1078,6 +1078,37 @@ func _run() -> void:
 	_check(game._migrate(t17).has("bank"), "saves without terms still load")
 	game.sim_time = -1.0
 	game.reset_game(true)
+	# 1.2 days played, rank title, showcase and medals.
+	game.reset_game(true)
+	game.sim_time = 1.9e9
+	game.streak_day = -1
+	for dpi in 7:
+		game._check_streak()
+		game.sim_time += 86400.0
+	_check(game.days_played() == 7 and not game.reward_for("days:7").is_empty() and game.next_days_milestone() == 14, "days played: 7 days pays the first milestone")
+	game.sim_time -= 3.0 * 86400.0
+	game._check_streak()
+	_check(game.days_played() == 7, "days played: a clock set back adds nothing")
+	var keepd: float = float(game.counters["days_played"])
+	game.cash = 2.0e10
+	game.do_rebirth()
+	_check(float(game.counters.get("days_played", 0.0)) == keepd, "days played survives a rebirth")
+	game.sim_time = -1.0
+	var rk: Dictionary = game.rank_title(5.0e6)
+	_check(String(rk["title"]) == "Local name" and String(rk["next_title"]) == "Town grandee" and float(rk["progress"]) > 0.0 and float(rk["progress"]) < 1.0, "rank title and progress to the next")
+	_check(String(game.rank_title(1.0e30)["next_title"]) == "", "the top rank has no next")
+	game.items["watches:0"] = true
+	game.items["watches:1"] = true
+	game.set_showcase(["watches:0", "watches:1", "watches:0", "cars:5", "watches:9"])
+	_check(game.showcase() == ["watches:0", "watches:1"], "showcase keeps owned items only, no repeats")
+	game.items.erase("watches:1")
+	_check(game.showcase() == ["watches:0"], "a sold item leaves the showcase")
+	var mg: Array = game.medal_groups()
+	var n_tiers := 0
+	for g0 in mg:
+		n_tiers += (g0["tiers"] as Array).size()
+	_check(n_tiers == game.achievements().size() and mg.size() < game.achievements().size(), "medals group every achievement, fewer rows")
+	game.reset_game(true)
 	# 1.2 records and rivals.
 	_check(Data.RIVALS.size() >= 30, "at least 30 rivals")
 	var round_worths := 0

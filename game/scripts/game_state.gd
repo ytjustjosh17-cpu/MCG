@@ -2100,9 +2100,109 @@ func _check_streak() -> void:
 	streak_lost = old if (streak == 1 and old >= 2) else 0
 	streak_day = today
 	_record("best_streak", float(streak))
+	_count_day()
 	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
 	add_reward("streak:%d" % today, "streak", "Day %d in a row" % streak, gift)   # waits for a tap
 	streak_unseen = [streak, gift]
+
+
+# ---- days played (1.2) -----------------------------------------------------
+# One more each new calendar day the game is opened (a clock set back counts
+# nothing). Never resets, not even on a rebirth. Milestones pay about a
+# streak gift each, through the claim list.
+
+func _count_day() -> void:
+	counters["days_played"] = float(counters.get("days_played", 0.0)) + 1.0
+	var n := int(counters["days_played"])
+	if n in Data.DAYS_MILESTONES:
+		add_reward("days:%d" % n, "days", "%d days played" % n, maxf(Data.DAYS_REWARD_MIN, income_per_hour * Data.DAYS_REWARD_H))
+
+
+func days_played() -> int:
+	return int(counters.get("days_played", 0.0))
+
+
+func next_days_milestone() -> int:
+	## The next milestone day, or 0 once all are passed.
+	for m in Data.DAYS_MILESTONES:
+		if days_played() < int(m):
+			return int(m)
+	return 0
+
+
+# ---- rank title, showcase and medals (1.2, no money) ------------------------
+
+func rank_title(nw := -1.0) -> Dictionary:
+	## {title, next_title ("" at the top), next_at, progress 0..1 on a log scale}
+	if nw < 0.0:
+		nw = net_worth()
+	var i := 0
+	for k in range(Data.RANKS.size()):
+		if nw >= float(Data.RANKS[k][0]):
+			i = k
+	var out := {"title": String(Data.RANKS[i][1]), "next_title": "", "next_at": 0.0, "progress": 1.0}
+	if i + 1 < Data.RANKS.size():
+		var lo := maxf(1.0, float(Data.RANKS[i][0]))
+		var hi := float(Data.RANKS[i + 1][0])
+		out["next_title"] = String(Data.RANKS[i + 1][1])
+		out["next_at"] = hi
+		out["progress"] = clampf(log(maxf(nw, 1.0) / lo) / log(hi / lo), 0.0, 1.0)
+	return out
+
+
+func showcase() -> Array:
+	## Up to four item keys ("watches:2") chosen for Profile; ones no longer owned drop out.
+	var out: Array = []
+	for k in ui.get("showcase", []):
+		if items.has(String(k)) and out.size() < Data.SHOWCASE_MAX:
+			out.append(String(k))
+	return out
+
+
+func set_showcase(keys: Array) -> void:
+	var out: Array = []
+	for k in keys:
+		if items.has(String(k)) and not out.has(String(k)) and out.size() < Data.SHOWCASE_MAX:
+			out.append(String(k))
+	ui["showcase"] = out
+	_mark()
+
+
+func medal_groups() -> Array:
+	## Achievements grouped by what they measure, for medals that climb a tier
+	## at a time. Ids, rewards and the income bonus are unchanged.
+	## [{metric, title, tiers: [{id, title, goal, done, claimed}], level (tiers done), next (index or -1), progress 0..1 to the next}]
+	var by := {}
+	var order: Array = []
+	for a in _achievements:
+		var m := String(a["m"])
+		if not by.has(m):
+			by[m] = []
+			order.append(m)
+		by[m].append(a)
+	var out: Array = []
+	for m in order:
+		var list: Array = by[m]
+		list.sort_custom(func(x, y): return float(x["goal"]) < float(y["goal"]))
+		var tiers: Array = []
+		var level := 0
+		var nxt := -1
+		for i in range(list.size()):
+			var a: Dictionary = list[i]
+			var done := achieved.has(a["id"])
+			tiers.append({"id": a["id"], "title": a["title"], "goal": float(a["goal"]), "done": done,
+				"claimed": done and reward_for("ach:" + String(a["id"])).is_empty()})
+			if done:
+				level += 1
+			elif nxt < 0:
+				nxt = i
+		var prog := 1.0
+		if nxt >= 0:
+			var lo := float(list[nxt - 1]["goal"]) if nxt > 0 else 0.0
+			prog = clampf((metric(m) - lo) / maxf(1e-9, float(list[nxt]["goal"]) - lo), 0.0, 1.0)
+		out.append({"metric": m, "title": String(Data.MEDALS.get(m, String(list[-1]["title"]))), "tiers": tiers,
+			"level": level, "next": nxt, "progress": prog})
+	return out
 
 
 func _ensure_daily() -> void:
