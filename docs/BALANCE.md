@@ -129,12 +129,14 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 |---|---|
 | never | identical to before (first run 90% day 37.9) |
 | asap (rebirth at £10B) | 10 RBP a run, runs of about 20 days, 21 nodes by day 180. A trap, on purpose |
-| rate (rebirth when RBP per day stops rising) | 1st rebirth day 70 (+921), runs then 44, 28, 21, 17, 16, 12 days; whole tree day 163 |
+| rate (rebirth when RBP per day stops rising) | 1.2 (229 nodes, RBP soft cap): 1st rebirth day 207.9, +5,981 RBP, 185 of 229 nodes. Before 1.2: day 118, +87,446 (the whole tree). Older: day 70, +921 |
 
 - The rebirth card shows what ten times the net worth would give, so waiting is visible.
 - With the unlock nodes (Frontier raises late net worth a lot): never-rebirth run unchanged; rate robot rebirths on days 70, 115, 136, 159, whole tree day 158.5 (was 163). Gambler + rate: whole tree day 169.8, so the casino slows the tree, never speeds it.
 
 ## Open questions for the owner
+
+- 1.2: the rate robot waits until day 208 for its first rebirth and then buys 80% of the tree at once. A steeper cap or dearer deep nodes would spread the tree over more rebirths; not changed yet.
 
 - After the whole tree (around day 163 for the robot) RBP has nothing to buy. Options: repeatable nodes, a second tree ring.
 - The once-a-day player loses a lot to the 8-hour cap. Options: raise it, or pay a smaller rate beyond it.
