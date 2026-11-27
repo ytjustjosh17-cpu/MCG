@@ -35,6 +35,9 @@ if ! python3 "$ROOT/tools/check_rules.py" >/tmp/sol_rules.txt 2>&1; then cat /tm
 # Import once in the real project, then copy it per lane (fast: a few MB).
 ( cd "$ROOT/game" && "$G" --headless --path . --import >/dev/null 2>&1 )
 WORK="$(mktemp -d /tmp/sol-check.XXXX)"
+# Every lane starts from an empty user folder, like CI (a kept save made
+# local runs differ from CI and one stress check flaky).
+rm -rf "$HOME/.local/share/sol-check-"* 2>/dev/null
 
 # lane name | touch emulation (1/0) | suites (with optional args after ':')
 if [ $QUICK = 1 ]; then

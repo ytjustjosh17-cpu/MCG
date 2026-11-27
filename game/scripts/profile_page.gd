@@ -69,7 +69,7 @@ func build() -> void:
 	var chart := NetChart.new()
 	chart.custom_minimum_size = Vector2(0, 72)
 	body.add_child(chart)
-	Game.changed.connect(chart.queue_redraw)
+	Game.changed.connect(chart.refresh)
 
 	var cc := card()
 	var cp := padded(cc, 16, 8)

@@ -78,6 +78,37 @@ static func display(text: String, size: int, color: Color = TEXT) -> Label:
 	return l
 
 
+# ---- shared spec (1.2 design pass): use these, don't invent new sizes ----
+# Type scale: 40 (display), 28 (big value), 17 (body/title), 15 (secondary),
+# 13 (captions, never smaller). Rows: 56 px, 60 px with a second line.
+# Buttons: primary 52 px (one per screen), secondary 48 px, text buttons 48 px.
+const ROW_H := 56
+const ROW_H_SUB := 60
+const BTN_PRIMARY_H := 52
+const BTN_H := 48
+
+
+static func primary_btn(text: String) -> Button:
+	## The one main action on a screen: TEXT fill, INK label, 52 px.
+	var b := pill(text, TEXT, INK, 17, 26)
+	b.custom_minimum_size = Vector2(0, BTN_PRIMARY_H)
+	return b
+
+
+static func secondary_btn(text: String) -> Button:
+	## A second action: RAISED fill, TEXT label, 48 px.
+	var b := pill(text, RAISED, TEXT, 17, 24)
+	b.custom_minimum_size = Vector2(0, BTN_H)
+	return b
+
+
+static func text_btn(text: String, color: Color = SUB) -> Button:
+	## A quiet action (Close, Not now, Sell company): no fill, 15 px, 48 px tall.
+	var b := pill(text, Color(0, 0, 0, 0), color, 15, 24)
+	b.custom_minimum_size = Vector2(0, BTN_H)
+	return b
+
+
 static func label(text: String, size: int, color: Color = TEXT, semibold := false) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -125,6 +156,12 @@ static func pill(text: String, bg: Color, fg: Color, size := 17, radius := 22) -
 
 
 static func paint(b: Button, bg: Color, fg: Color, radius := 22) -> void:
+	# Repainting the same look makes 5 styleboxes and re-measures the
+	# button: skip it when nothing changed (pages repaint often).
+	var key := [bg, fg, radius]
+	if b.get_meta("ui_paint", []) == key:
+		return
+	b.set_meta("ui_paint", key)
 	b.add_theme_stylebox_override("normal", box(bg, radius, 16))
 	b.add_theme_stylebox_override("hover", box(bg, radius, 16))
 	b.add_theme_stylebox_override("pressed", box(bg.lerp(Color.BLACK, 0.15), radius, 16))

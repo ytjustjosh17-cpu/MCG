@@ -39,7 +39,6 @@ func _ready() -> void:
 		p.visible = false
 		if p.has_signal("push_page"):
 			p.push_page.connect(push)
-	earn.open_tab.connect(show_page)
 	(_pages[1] as BusinessPage).deal_open.connect(open_waiting_deal)
 	# Achievements are quiet: the round dot on Profile says one is waiting.
 	Game.goal_done.connect(func(scope: String, text: String, reward: float):
@@ -102,6 +101,26 @@ func _ready() -> void:
 	fade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	fade.offset_top = -120
 	add_child(fade)
+	# And a short one at the top, so scrolled content slips away under the
+	# status bar and the cash pill instead of running into them.
+	var top_fade := TextureRect.new()
+	var tgrad := Gradient.new()
+	tgrad.set_color(0, Color(UI.BG, 0.96))
+	tgrad.set_color(1, Color(UI.BG, 0.0))
+	var tgt := GradientTexture2D.new()
+	tgt.gradient = tgrad
+	tgt.fill_from = Vector2(0, 0)
+	tgt.fill_to = Vector2(0, 1)
+	tgt.width = 4
+	tgt.height = 64
+	top_fade.texture = tgt
+	top_fade.stretch_mode = TextureRect.STRETCH_SCALE
+	top_fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	top_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top_fade.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top_fade.offset_bottom = Kit.top_inset + 56.0
+	top_fade.name = "TopFade"
+	add_child(top_fade)
 	add_child(_nav)
 	_nav.tab_selected.connect(show_page)
 	# Back sits next to the tab bar on the right, where the thumb rests.
@@ -126,7 +145,7 @@ func _ready() -> void:
 	Kit.press_fx(back_btn)
 	add_child(back_btn)
 	# Cash you can spend, always in view (Earn already shows it big).
-	cash_pill = GlassPanel.new(20.0, Color(0.035, 0.133, 0.145, 0.85), 10.0)
+	cash_pill = GlassPanel.new(20.0, Color(0.035, 0.133, 0.145, 0.96), 10.0)   # near solid: readable over any content
 	cash_pill.name = "CashPill"
 	cash_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cash_pill.anchor_left = 1.0
@@ -381,6 +400,9 @@ func _apply_safe_area() -> void:
 	_update_cash()
 
 
+var _cash_len := -1
+
+
 func _update_cash() -> void:
 	## Top-right cash pill: hidden on Earn (the big number is there already).
 	if cash_pill == null:
@@ -388,7 +410,13 @@ func _update_cash() -> void:
 	cash_pill.visible = _current != 0 or not _stack.is_empty()
 	if not cash_pill.visible:
 		return
-	_cash_l.text = Game.cash_text(Game.cash)
+	var t := Game.cash_text(Game.cash)
+	if t == _cash_l.text and _cash_len == t.length():
+		return
+	_cash_l.text = t
+	if t.length() == _cash_len:
+		return   # same width class: no need to measure the text again
+	_cash_len = t.length()
 	var w := maxf(96.0, _cash_l.get_theme_font("font").get_string_size(_cash_l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 32.0)
 	cash_pill.offset_right = -16.0
 	cash_pill.offset_left = -16.0 - w

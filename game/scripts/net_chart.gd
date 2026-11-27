@@ -8,14 +8,41 @@ func _ready() -> void:
 	resized.connect(queue_redraw)
 
 
+var _hist_n := -1
+var _cache: Array = []
+var _last_ms := 0
+
+
+func refresh() -> void:
+	## Redraw when a history point is added, or once a second for the live
+	## end point (not on every game change: a week is up to 2,000 points).
+	var t := Time.get_ticks_msec()
+	if Game.history.size() != _hist_n or t - _last_ms >= 1000:
+		_last_ms = t
+		queue_redraw()
+
+
 func _points() -> Array:
-	var cutoff := Game.now() - Game.WEEK_S
-	var pts: Array = []
-	for p in Game.history:
-		if p[0] >= cutoff:
-			pts.append(p[1])
-	pts.append(Game.net_worth())
-	return pts
+	if Game.history.size() != _hist_n:
+		_hist_n = Game.history.size()
+		var cutoff := Game.now() - Game.WEEK_S
+		var pts: Array = []
+		for p in Game.history:
+			if p[0] >= cutoff:
+				pts.append(p[1])
+		# Thin to about 200 points: plenty for a phone-wide line.
+		if pts.size() > 200:
+			var step := float(pts.size()) / 200.0
+			var thin: Array = []
+			var i := 0.0
+			while int(i) < pts.size():
+				thin.append(pts[int(i)])
+				i += step
+			pts = thin
+		_cache = pts
+	var out := _cache.duplicate()
+	out.append(Game.net_worth())
+	return out
 
 
 func _draw() -> void:

@@ -2,7 +2,6 @@ class_name EarnPage
 extends Control
 ## Earn tab, tower first: net worth, the big tower to tap, and three icon buttons.
 
-signal open_tab(index: int)
 signal push_page(page: Control)
 
 const NAV_SPACE := 92.0
@@ -142,8 +141,8 @@ func _caption(text: String) -> Label:
 
 
 func _refresh() -> void:
-	if _worth == null:
-		return
+	if _worth == null or not is_visible_in_tree():
+		return   # nothing to update while another tab is showing
 	_worth.set_value(Game.cash)
 	var parts: Array = []
 	if Game.income_per_hour > 0.0:

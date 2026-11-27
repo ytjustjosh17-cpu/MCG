@@ -141,7 +141,7 @@ func _meter(parent: Control, cap: String, align: HorizontalAlignment) -> Label:
 	v.add_theme_constant_override("separation", 0)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(v)
-	var c := UI.label(cap, 11, UI.GOLD, true)
+	var c := UI.label(cap, 13, UI.GOLD, true)
 	c.horizontal_alignment = align
 	v.add_child(c)
 	var l := UI.label("", 17, UI.TEXT, true)
