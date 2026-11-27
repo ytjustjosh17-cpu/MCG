@@ -30,10 +30,9 @@ static func _car(ci: CanvasItem, o: Vector2, s: float, x: float, ink: Color, gla
 		_rect(ci, o, s, x + 22, 39, 10, 5, ink)
 
 
-static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2) -> void:
+static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2, red := UI.RED) -> void:
 	var ink := UI.INK
 	var win := UI.WINDOW
-	var red := UI.RED
 	match kind:
 		"shop":
 			_rect(ci, o, s, 20, 26, 80, 44, ink)
@@ -424,7 +423,7 @@ const SCENES := {
 }
 
 
-static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_c: Vector2, sun_r: float, sun_col: Color, seed_v := 7, opt := {}) -> void:
+static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_c: Vector2, sun_r: float, sun_col: Color, seed_v := 7, opt := {}, red := UI.RED) -> void:
 	## Dusk sky: the sun with a soft glow, a far skyline (or hills, or nothing),
 	## low mist, the ground, and on some pictures a pylon with hanging cables.
 	ci.draw_colored_polygon(clip, UI.SKY)
@@ -473,7 +472,7 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 						for k in rng.randi_range(0, 3):
 							var wp := r.position + Vector2(rng.randf_range(3.0, maxf(4.0, bw - 6.0)), rng.randf_range(6.0, maxf(7.0, bh - 6.0)))
 							var lit := rng.randf() < 0.25
-							_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(UI.RED, 0.55) if lit else UI.HAZE)
+							_fill(ci, UI.rect_poly(Rect2(wp, Vector2(3, 2))), clip, Color(red, 0.55) if lit else UI.HAZE)
 					x += bw + rng.randf_range(0.0, 0.03) * w
 			if sky == "cranes":
 				for k in 2:
@@ -495,7 +494,7 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 			while ry < h - 2.0:
 				var half := sun_r * (0.55 - k * 0.08) * rng.randf_range(0.7, 1.0)
 				if half > 2.0:
-					_fill(ci, UI.rect_poly(Rect2(Vector2(sun_c.x - half, o.y + ry), Vector2(half * 2.0, 1.5))), clip, Color(UI.RED, 0.45))
+					_fill(ci, UI.rect_poly(Rect2(Vector2(sun_c.x - half, o.y + ry), Vector2(half * 2.0, 1.5))), clip, Color(red, 0.45))
 				ry += maxf(3.0, gh * 0.18)
 				k += 1
 		"runway":
@@ -517,8 +516,11 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 		_wire(ci, t + Vector2(-w * 0.5, -h * 0.01), t, h * 0.05, clip, UI.INK, maxf(1.0, h * 0.006))
 
 
-static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2, seed_key := "") -> void:
+static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0, sun_r := 0.0, lit := 2, seed_key := "", muted := false) -> void:
 	## The kind's own backdrop and its silhouette, clipped to a rounded rect.
+	## Muted: a quieter sun and windows for small list pictures, so a list of
+	## ten rows is not ten red suns (the full red stays on big hero art).
+	var red := MUTED_RED if muted else UI.RED
 	var clip := UI.rounded_rect_poly(rect, radius)
 	var opt: Dictionary = SCENES.get(kind, SCENES["shop"])
 	var sun: Array = opt["sun"]
@@ -534,15 +536,19 @@ static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0
 	# Pylon on the left, clear of the building.
 	var o2 := opt.duplicate()
 	o2["pylon_x"] = 0.13   # left: the building always stands on the right
-	backdrop(ci, rect, clip, sc, r, UI.RED, sd, o2)
+	backdrop(ci, rect, clip, sc, r, red, sd, o2, red)
 	var s := minf(rect.size.x / 150.0, (rect.size.y - 10.0) / 78.0)
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
 	if String(opt.get("ground", "")) == "water":
 		o.y -= rect.size.y * 0.06
-	draw(ci, kind, o, s, lit)
+	draw(ci, kind, o, s, lit, red)
 	if String(opt.get("ground", "")) != "water":
 		var ground := Rect2(rect.position + Vector2(0, rect.size.y - 4.0 * s), Vector2(rect.size.x, 4.0 * s + 1.0))
 		_fill(ci, UI.rect_poly(ground), clip, UI.INK)
+
+
+# The sun in small list pictures: red sunk into the teal sky.
+static var MUTED_RED: Color = UI.RED.lerp(UI.SKY, 0.5)
 
 
 class Scene extends Control:
@@ -560,6 +566,11 @@ class Scene extends Control:
 			if v != seed_id:
 				seed_id = v
 				queue_redraw()
+	var muted := false:   # list thumbnails: a quieter sun (see draw_scene)
+		set(v):
+			if v != muted:
+				muted = v
+				queue_redraw()
 
 	func _init(k := "shop", r := 16.0) -> void:
 		kind = k
@@ -570,4 +581,4 @@ class Scene extends Control:
 	func _draw() -> void:
 		if size.x < 20.0 or size.y < 20.0:
 			return
-		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, 0.0, lit, seed_id)
+		Art.draw_scene(self, Rect2(Vector2.ZERO, size), kind, radius, 0.0, lit, seed_id, muted)

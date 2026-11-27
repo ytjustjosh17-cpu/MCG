@@ -4,7 +4,8 @@ extends Page
 
 var id := ""
 var _scene: Art.Scene
-var _type: Label
+var _stage_l: Label
+var _stage_bar: ProgressBar
 var _income: CountLabel
 var _units_title: Label
 var _units_value: Label
@@ -18,12 +19,12 @@ var _exp_title: Label
 var _exp_body: Label
 var _exp_bar: ProgressBar
 var _exp_btn: Button
+var _exp_eta: Label
 var _boost_note: Label
 var _hold: Timer
 var _held := 0
 var _buy_row: HBoxContainer
 var _mgr: Row
-var _mile: Label
 var _syn_rows := {}
 
 
@@ -34,12 +35,11 @@ func _init(biz_id := "") -> void:
 
 func build() -> void:
 	var b := Data.business(id)
-	_type = UI.label("", 15, UI.SUB)
-	body.add_child(_type)
-	_scene = Art.Scene.new(b["kind"], 22.0)
+	_scene = Art.Scene.new(b["kind"], 16.0)
 	_scene.seed_id = id
-	_scene.custom_minimum_size = Vector2(0, 190)
+	_scene.custom_minimum_size = Vector2(0, 180)
 	body.add_child(_scene)
+	# One stats row: income on the left, the stage and its bar on the right.
 	var row := HBoxContainer.new()
 	body.add_child(row)
 	row.add_theme_constant_override("separation", 6)
@@ -50,7 +50,24 @@ func build() -> void:
 	row.add_child(_income)
 	var ph := UI.label("/h", 15, UI.SUB)
 	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(ph)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 6)
+	sv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sv.custom_minimum_size = Vector2(112, 0)
+	row.add_child(sv)
+	_stage_l = UI.label("", 13, UI.SUB)
+	_stage_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	sv.add_child(_stage_l)
+	_stage_bar = ProgressBar.new()
+	_stage_bar.show_percentage = false
+	_stage_bar.max_value = Data.MAX_STAGE
+	_stage_bar.custom_minimum_size = Vector2(0, 6)
+	_stage_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stage_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 3))
+	_stage_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 3))
+	sv.add_child(_stage_bar)
 	_boost_note = UI.label("", 13, UI.SUB)
 	body.add_child(_boost_note)
 
@@ -71,13 +88,11 @@ func build() -> void:
 	up.add_child(_slots)
 	for i in range(Data.MAX_STAGE * Data.UNITS_PER_STAGE):
 		var sq := ColorRect.new()
-		sq.custom_minimum_size = Vector2(22, 12)
+		sq.custom_minimum_size = Vector2(22, 8)
 		sq.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_slots.add_child(sq)
 	_unit_note = UI.label("", 13, UI.SUB)
 	up.add_child(_unit_note)
-	_mile = UI.label("", 13, UI.TEXT)
-	up.add_child(_mile)
 	# How many to buy at once: 1, 10, 100 or as many as you can afford.
 	_mult_seg = Segmented.new(["×1", "×10", "×100", "Max"])
 	# Starts on ×1 every time, so a big Max from another company can't carry over.
@@ -91,6 +106,7 @@ func build() -> void:
 	up.add_child(bh)
 	_buy_row = bh
 	_buy = button("+1", true, _on_buy)
+	_buy.custom_minimum_size.y = UI.BTN_PRIMARY_H
 	# Hold to keep buying, getting quicker the longer you hold.
 	_hold = Timer.new()
 	_hold.one_shot = true
@@ -118,13 +134,15 @@ func build() -> void:
 	_exp_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 3))
 	_exp_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 3))
 	ep.add_child(_exp_bar)
-	_exp_btn = button("Expand", true, _on_expand)
+	_exp_btn = button("Expand", false, _on_expand)
 	ep.add_child(_exp_btn)
+	_exp_eta = UI.label("", 13, UI.SUB)
+	_exp_eta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ep.add_child(_exp_eta)
 
 	# Manager: expands for you when full, for a cut of the income.
 	var mc := card()
-	_mgr = Row.new("profile", "", false)
-	_mgr.custom_minimum_size = Vector2(0, 64)
+	_mgr = Row.new("profile")
 	_mgr.pressed.connect(_on_hire)
 	mc.add_child(_mgr)
 
@@ -141,15 +159,17 @@ func build() -> void:
 				separator(sc, 50)
 			var sy: Array = syns[i]
 			var r := Row.new("", String(Data.business(sy[2])["kind"]), false)   # the partner company's picture
-			r.custom_minimum_size = Vector2(0, 64)
+			(r.lead as Art.Scene).muted = true
+			(r.lead as Art.Scene).seed_id = String(sy[2])
 			var sid: String = sy[0]
 			r.pressed.connect(func(): _on_synergy(sid, r))
 			sc.add_child(r)
 			_syn_rows[sid] = r
-	# Sell the whole company: quiet, at the very bottom.
-	var sell := UI.pill("Sell company", UI.RAISED, UI.SUB, 15, 16)
-	sell.custom_minimum_size = Vector2(0, 48)
+	# Sell the whole company: a quiet text button at the very bottom (still
+	# easy to find; it asks first).
+	var sell := UI.text_btn("Sell company")
 	sell.pressed.connect(_on_sell)
+	Kit.press_fx(sell)
 	body.add_child(sell)
 	var t := Timer.new()
 	t.wait_time = 0.5
@@ -161,14 +181,15 @@ func build() -> void:
 
 
 func refresh() -> void:
-	if _type == null or not Game.biz.has(id):
+	if _stage_l == null or not Game.biz.has(id):
 		return
 	var b := Data.business(id)
 	var s: Dictionary = Game.biz[id]
 	var stage := int(s["stage"])
 	var units := int(s["units"])
 	var cap := Game.capacity(id)
-	_type.text = "Stage %d / %d" % [stage, Data.MAX_STAGE]
+	_stage_l.text = "Stage %d of %d" % [stage, Data.MAX_STAGE]
+	_stage_bar.value = stage
 	_scene.lit = 1 + stage / 4
 	_income.set_value(Game.biz_income(id))
 	var notes: Array = []
@@ -181,11 +202,10 @@ func refresh() -> void:
 	for i in range(_slots.get_child_count()):
 		var sq: ColorRect = _slots.get_child(i)
 		sq.visible = i < cap
-		sq.color = UI.RED if i < units else UI.TRACK
+		sq.color = UI.TEXT if i < units else UI.TRACK   # red stays for the sun
 	var per_unit := Game.biz_income(id) / float(maxi(1, units))
 	var nm := Game.next_milestone(id)
-	_mile.visible = false   # folded into the one hint line below
-	var mile_txt := "" if nm.is_empty() else "at %d: ×%s" % [int(nm[0]), str(nm[1])]
+	var mile_txt := "" if nm.is_empty() else "×%s at %d" % [str(nm[1]), int(nm[0])]
 	_refresh_synergies()
 	var cut := int(round(Game.manager_cut() * 100.0))
 	# A fully expanded company has nothing left for a manager to do.
@@ -198,13 +218,13 @@ func refresh() -> void:
 	else:
 		var mc := Game.manager_cost(id)
 		_mgr.set_texts("Hire a manager", "Auto-expands · takes %d%%" % cut, Game.money_short(mc))
-		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= mc else UI.SUB)
+		_mgr.value_l.add_theme_color_override("font_color", UI.TEXT)
 	if units >= cap:
 		_units_value.text = "%d / %d · Full" % [units, cap]
 		_buy_row.visible = false
 		_mult_seg.visible = false
 		_unit_note.visible = mile_txt != ""
-		_unit_note.text = "Next milestone " + mile_txt
+		_unit_note.text = "Next: income " + mile_txt
 	else:
 		var p := Game.unit_price(id)
 		_units_value.text = "%d / %d" % [units, cap]
@@ -222,6 +242,7 @@ func refresh() -> void:
 		_exp_body.visible = false
 		_exp_bar.visible = false
 		_exp_btn.visible = false
+		_exp_eta.visible = false
 	elif Game.expanding(id):
 		var total := Game.expansion_seconds(id)
 		var left := Game.expansion_left(id)
@@ -232,18 +253,25 @@ func refresh() -> void:
 		_exp_bar.max_value = total
 		_exp_bar.value = total - left
 		_exp_btn.visible = false
+		_exp_eta.visible = false
 	else:
 		_exp_title.text = "Expand to Stage %d" % (stage + 1)
 		_exp_body.visible = true
-		_exp_body.text = "+%d units · ×%.1f · %s" % [Data.UNITS_PER_STAGE, b["stage_mult"], _span(Game.expansion_seconds(id))]
+		_exp_body.text = "+%d %s · income ×%.1f" % [Data.UNITS_PER_STAGE, String(b["units"]), b["stage_mult"]]
 		_exp_bar.visible = false
 		_exp_btn.visible = true
 		var cost := Game.expansion_cost(id)
 		_exp_btn.text = "Expand · " + Game.money_short(cost)
+		var eta := "Builds in " + _span(Game.expansion_seconds(id))
 		var wait := Game.eta(cost)
-		if wait != "" and not Game.can_expand(id):
-			_exp_btn.text += " · " + wait
-		Page.set_enabled(_exp_btn, Game.can_expand(id))
+		if wait != "" and not Game.can_expand(id) and Game.cash < cost:
+			eta += " · afford in " + wait
+		_exp_eta.text = eta
+		_exp_eta.visible = true
+		# The main action while units are full; a second action while +1 shows.
+		var main_btn := units >= cap
+		_exp_btn.custom_minimum_size.y = UI.BTN_PRIMARY_H if main_btn else UI.BTN_H
+		Page.set_enabled(_exp_btn, Game.can_expand(id), main_btn)
 
 
 static func _span(sec: float) -> String:
@@ -317,14 +345,16 @@ func _refresh_synergies() -> void:
 		var r: Row = _syn_rows[sid]
 		var src_name: String = Game.biz[sy[2]]["name"] if Game.owns(sy[2]) else String(Data.business(sy[2])["name"])
 		var pct := "+%d%% income" % int(round((float(sy[5]) - 1.0) * 100.0))
-		r.value_l.add_theme_color_override("font_color", UI.SUB)
+		var price := Game.money_short(float(sy[6]))
 		if Game.synergies.has(sid):
-			r.set_texts(sy[1], pct, "Owned")
+			r.set_texts(sy[1], pct)
+			BusinessPage.plain_value(r, "Owned")
 		elif not Game.synergy_ready(sid):
-			r.set_texts(sy[1], "Needs %s at stage %d" % [src_name, int(sy[3])], Game.money_short(float(sy[6])))
+			r.set_texts(sy[1], "Needs %s at stage %d" % [src_name, int(sy[3])])
+			BusinessPage.plain_value(r, price)
 		else:
-			r.set_texts(sy[1], pct, "Buy · " + Game.money_short(float(sy[6])))
-			r.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= float(sy[6]) else UI.SUB)
+			r.set_texts(sy[1], pct)
+			BusinessPage.price_pill(r, price, Game.cash >= float(sy[6]))
 
 
 func _on_synergy(sid: String, r: Row) -> void:

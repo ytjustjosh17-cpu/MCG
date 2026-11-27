@@ -18,14 +18,23 @@ func build() -> void:
 	var p: Array = Data.property(index)
 	_place = UI.label(p[1], 15, UI.SUB)
 	body.add_child(_place)
-	var sc := Art.Scene.new(p[3], 22.0)
+	var sc := Art.Scene.new(p[3], 16.0)
 	sc.seed_id = String(p[0])
 	sc.custom_minimum_size = Vector2(0, 140)   # compact, so Sell sits above the bottom bar
 	body.add_child(sc)
-	_rent = UI.label("", 22, UI.TEXT, true)
-	body.add_child(_rent)
+	# Rent and worth on one line: the big value left, worth on the right.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	body.add_child(row)
+	_rent = UI.display("", 28)
+	row.add_child(_rent)
+	var ph := UI.label("/h", 15, UI.SUB)
+	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(ph)
 	_value = UI.label("", 13, UI.SUB)
-	body.add_child(_value)
+	_value.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_value)
 	section("Upgrades")
 	var c := card()
 	for k in range(Data.IMPROVEMENTS.size()):
@@ -45,27 +54,29 @@ func build() -> void:
 					Motion.shake(r))
 		c.add_child(r)
 		_imps.append(r)
-	body.add_child(button("Sell", false, _on_sell))
+	# Selling is quiet and last (it asks first).
+	var sell := UI.text_btn("Sell property")
+	sell.pressed.connect(_on_sell)
+	Kit.press_fx(sell)
+	body.add_child(sell)
 
 
 func refresh() -> void:
 	if _rent == null or not Game.prop_owned(index):
 		return
-	_rent.text = Game.money_short(Game.prop_rent(index)) + " /h"
+	_rent.text = Game.money_short(Game.prop_rent(index))
 	_value.text = "Worth " + Game.money_short(Game.prop_value(index))
 	var imps: Array = Game.props[str(index)]["imps"]
 	for k in range(_imps.size()):
 		var imp: Array = Data.IMPROVEMENTS[k]
 		var r: Row = _imps[k]
 		var cost := Game.prop_price(index) * float(imp[1])
+		# Every row keeps its sub-line, so done rows don't shrink the rhythm.
+		r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100))
 		if imps[k]:
-			r.set_texts(imp[0], "", "Done")
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
-			r.mark.visible = false
+			BusinessPage.plain_value(r, "Done")
 		else:
-			r.set_texts(imp[0], "+%d%% rent" % int(float(imp[2]) * 100), "Buy · " + Game.money_short(cost))
-			r.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= cost else UI.SUB)
-			r.mark.visible = false
+			BusinessPage.price_pill(r, Game.money_short(cost), Game.cash >= cost)
 
 
 func _on_sell() -> void:
