@@ -339,6 +339,9 @@ func _run() -> void:
 	_check(kit_r.landscape and root.get_visible_rect().size.y < 400.0, "turning the phone switches to the landscape layout")
 	_check(main._stack.size() == stack_n and kit_r.has_open(), "turning the phone keeps the open page and pop-up")
 	_check(main._nav.vertical and main.back_btn.visible, "landscape: tab rail on the left with back under it")
+	var sp: Control = kit_r._stack.back()["panel"]
+	var vw: float = root.get_visible_rect().size.x
+	_check(absf(sp.position.x + sp.size.x * 0.5 - vw * 0.5) < 2.0 and sp.size.x <= 421.0, "an open pop-up re-centres when the phone turns")
 	root.size = Vector2i(390, 844)
 	await create_timer(0.4).timeout
 	_check(not kit_r.landscape and not main._nav.vertical, "turning back restores portrait")

@@ -112,6 +112,10 @@ jobs:
         working-directory: game
         run: godot --headless --path . -s res://tests/fit_test.gd -- land
 
+      - name: Landscape test (every screen and trade sheet sideways)
+        working-directory: game
+        run: godot --headless --path . -s res://tests/landscape_test.gd
+
       - name: Casino test (the house always keeps a small edge)
         working-directory: game
         run: godot --headless --path . -s res://tests/casino_test.gd

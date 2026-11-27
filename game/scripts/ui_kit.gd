@@ -45,6 +45,7 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().root.size_changed.connect(_sync_orientation)
 	_sync_orientation()
+	layout_changed.connect(func(_l: bool): _refit_sheets.call_deferred())
 	apply_rotation_setting()
 
 
@@ -345,7 +346,8 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 				var dy: float = e.global_position.y - float(drag["y0"])
 				# Downwards follows the finger; upwards moves a little and pushes back.
 				panel.position.y = float(geo["rest"]) + (dy if dy >= 0.0 else -sqrt(-dy) * 2.5))
-	_stack.append({"root": root, "title": title, "close": func(): close.call() if dismissable else null})
+	_stack.append({"root": root, "title": title, "close": func(): close.call() if dismissable else null,
+		"panel": panel, "col": col, "geo": geo})
 	return root
 
 
@@ -382,6 +384,50 @@ func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect,
 	tw.tween_property(panel, "position:y", geo["rest"], Motion.d(0.32)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	tw.tween_property(panel, "modulate:a", 1.0, Motion.d(0.2))
 	tw.tween_property(dim, "color:a", DIM.a, Motion.d(0.25))
+
+
+func _refit_sheets() -> void:
+	## The phone turned with a pop-up open: resize and re-centre each card for
+	## the new screen (its content, typed amounts and scroll stay as they are).
+	await get_tree().process_frame
+	var scr := screen()
+	for it in _stack:
+		if not it.has("panel") or not is_instance_valid(it["panel"]):
+			continue
+		var panel: Control = it["panel"]
+		var col: Control = it["col"]
+		var geo: Dictionary = it["geo"]
+		var pad := 20.0
+		var old_inner := panel.size.x - pad * 2.0
+		var sw := sheet_width(bool(panel.get_meta("wide_sheet", false)))
+		var new_inner := sw - pad * 2.0
+		for ch in col.get_children():
+			if ch is Control and absf((ch as Control).custom_minimum_size.x - old_inner) < 1.0:
+				(ch as Control).custom_minimum_size.x = new_inner
+		col.size.x = new_inner
+		var inner := col.get_combined_minimum_size().y
+		var avail := scr.y - top_inset - bottom_inset - 24.0
+		var h := inner + 42.0
+		if col.get_parent() is ScrollContainer:
+			var sc := col.get_parent() as ScrollContainer
+			h = minf(h, avail)
+			sc.size = Vector2(new_inner, h - 42.0)
+		elif h > avail:
+			var sc2 := ScrollContainer.new()
+			sc2.scroll_deadzone = 10
+			sc2.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			sc2.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+			sc2.position = col.position
+			sc2.size = Vector2(new_inner, avail - 42.0)
+			panel.remove_child(col)
+			col.position = Vector2.ZERO
+			sc2.add_child(col)
+			panel.add_child(sc2)
+			h = avail
+		panel.size = Vector2(sw, h)
+		panel.position.x = (scr.x - sw) * 0.5
+		geo["rest"] = maxf(top_inset + 12.0, (scr.y - h) * 0.5)
+		panel.position.y = float(geo["rest"])
 
 
 # ---- centred alert ----------------------------------------------------------
