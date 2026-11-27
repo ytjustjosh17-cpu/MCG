@@ -1,100 +1,76 @@
 # Sol: rules for working on this project
 
-Sol is a personal idle tycoon game for one phone (Samsung S23, Android).
-It is built with Godot 4.4.1 and released by GitHub Actions.
-Read this file before changing anything. Then read the doc for the area you touch:
+Sol is a small idle tycoon game for Android, built with Godot 4.4.1 and released by GitHub Actions.
+Read this file first, then the doc for the area you touch:
 
-- [docs/DESIGN.md](docs/DESIGN.md): look, colours, type, motion, wording
-- [docs/BALANCE.md](docs/BALANCE.md): economy, pace targets, how to check them
+- [docs/DESIGN.md](docs/DESIGN.md): look, colours, type, motion, wording, patterns to avoid
+- [docs/BALANCE.md](docs/BALANCE.md): economy, pace targets, the pacing robot
 - [docs/TESTING.md](docs/TESTING.md): every test and how to run it
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): where things live and how they connect
 
-## The owner
+## Working style
 
-- Writes and reads in British English. Keep replies short, simple, in small chunks (the owner is dyslexic).
-- Wants a premium, clean, Apple-meets-brutalist look on a dark teal background with one red sun.
-- Wants the game to take weeks, not days. It must never become easy by accident.
-- Installs updates with the Update button in Profile. Every push to the working branch makes a release.
-- **Ask the owner before every push.** Releases should be less common: commit locally, batch changes, and push only when the owner says so (they may want to add more first).
+- British English. Replies short and simple, in small chunks.
+- Look: premium, clean, Apple-meets-brutalist, dark teal with one red sun.
+- Pace: the game takes weeks, not days. It must never become easy by accident.
+- **Ask before every push.** Every push to the working branch makes a release, so commit locally, batch changes and push only when told "push".
 
-## Never do these
+## Never
 
-1. Never change the package name `com.redsunholdings.game`. Phones would treat it as a new app and lose the save. (R6)
-2. Never commit Fontshare fonts (Switzer, Tanker). Their licence allows them inside the app, not in a public repo. CI downloads them. (R5)
-3. Never break old saves. New save fields need a default when loading and a step in `_migrate()`. Bump `SAVE_VERSION`. (R7)
-4. Never add money, multipliers or automation without running the pacing robot before and after. See BALANCE.md.
-5. Never show real brands or real companies. Companies, shares and places are made up. Crypto coins are real names with rough prices (owner's choice, 1.1); their prices in the game are still a made-up simulation.
-6. Never push a release with a failing test.
+1. Change the package name `com.redsunholdings.game` (saves would be lost). (R6)
+2. Commit Fontshare fonts (Switzer, Tanker). CI downloads them. (R5)
+3. Break old saves. New saved fields get a load default and a `_migrate()` step; bump `SAVE_VERSION`. (R7)
+4. Add money, multipliers or automation without running the pacing robot before and after (BALANCE.md).
+5. Show real brands or companies. Crypto coins use real names; their prices are a made-up simulation.
+6. Push with a failing test.
+7. Put personal details (names, emails, devices, health) in any file. The repo is public.
 
-## Fast path (use this)
+## Commands
 
-- Follow the `sol-feature` skill (`.claude/skills/sol-feature/SKILL.md`) for every change request.
-- `tools/check_all.sh --quick` while working (rules, smoke, touch: about 1 minute).
-- `tools/check_all.sh` before committing (rules and all 11 suites in 4 parallel lanes: about 2 minutes). It finds or downloads Godot 4.4.1 itself.
-- `tools/shots.sh` renders every screen to `/tmp/sol-shots`.
-- `tools/release.sh` only after the owner says "push": checks, pushes, waits for the build, prints the version.
+- `tools/check_all.sh --quick`: rules, smoke and touch tests (about 1 min) while working.
+- `tools/check_all.sh`: rules and all 11 suites (about 4 min). Must say ALL PASS before a commit. Finds or downloads Godot 4.4.1.
+- `tools/shots.sh <dir>`: renders every screen. Look at the ones you changed.
+- `tools/release.sh`: only after "push". Checks, pushes, waits for the build, prints the version.
+- Hook once: `cp tools/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+- Follow the `sol-feature` skill (`.claude/skills/sol-feature/SKILL.md`) for every change.
 
-## Before every commit
+## Project rules (tools/check_rules.py)
 
-Install the hook once so the rules run on every commit:
-`cp tools/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
-
-Run all of these from the repo root. All must pass.
-
-```
-python3 tools/check_rules.py
-cd game && $G --headless --path . -s res://tests/smoke_test.gd
-cd game && $G --headless --path . -s res://tests/stress_test.gd
-cd game && $G --headless --path . -s res://tests/casino_test.gd
-cd game && $G --headless --path . -s res://tests/forge_test.gd
-cd game && (printf '[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; for t in scroll_test tables_ui_test; do $G --headless --path . -s res://tests/$t.gd; done; rm override.cfg)
-cd game && (printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-slots-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; $G --headless --path . -s res://tests/slots_ui_test.gd; rm override.cfg)
-cd game && (printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-forge-test"\n\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n' > override.cfg; $G --headless --path . -s res://tests/forge_ui_test.gd; rm override.cfg)
-```
-
-`$G` is the Godot 4.4.1 editor binary. TESTING.md says where to get it.
-If you changed the economy, also run the pacing robot (BALANCE.md).
-If you changed a screen, take screenshots and look at them (TESTING.md).
-
-## Project rules (checked by tools/check_rules.py)
-
-| Rule | What it means | Why |
-|---|---|---|
-| R1 | Colours only from tokens in `ui.gd` | One palette, held with discipline |
-| R2 | Every `ScrollContainer` sets `scroll_deadzone` | On phones a wobbly tap otherwise counts as a scroll and the button does nothing |
-| R3 | Slide and scale tweens use `Motion.d()` (or the function returns early on `Motion.reduced()` and the line is marked `# reduced-checked`) | Reduce motion must really reduce motion |
-| R4 | No em dashes or hidden Unicode in player text or docs | House style |
-| R5 | Only the OFL Inter fonts may be in git | Font licences |
-| R6 | Package name never changes | Updates and saves |
-| R7 | Every saved field is loaded back, and `SAVE_VERSION` has a migrate step | Saves survive updates |
-| R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`, extra keys) | Clean repo |
-| R9 | No `print()` in game code; use `GameLog.info()` | Logs go in the problem report |
-| R10 | Pushed pages are marked `super(title, true)`; the back button sits in the bottom bar (`main.gd`) | Never trap the player |
-| R11 | Every test suite CI runs exists (smoke, stress, scroll, market, casino, forge, casino 1.2, fit, slots UI, tables UI, forge UI) | CI runs them |
+| Rule | What it means |
+|---|---|
+| R1 | Colours only from tokens in `ui.gd` |
+| R2 | Every `ScrollContainer` sets `scroll_deadzone` (wobbly taps on phones) |
+| R3 | Slide and scale tweens use `Motion.d()`, or return early on `Motion.reduced()` (`# reduced-checked`) |
+| R4 | No em dashes or hidden Unicode in player text or docs |
+| R5 | Only the OFL Inter fonts in git |
+| R6 | Package name never changes |
+| R7 | Every saved field is loaded back; `SAVE_VERSION` has a migrate step |
+| R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`) |
+| R9 | No `print()` in game code; use `GameLog.info()` |
+| R10 | Pushed pages use `super(title, true)`; the back button sits in the bottom bar |
+| R11 | Every suite CI runs exists |
 
 Add a rule when a bug class shows up twice. Keep each rule cheap and certain.
 
-## Things learnt the hard way
+## Lessons
 
-- Taps inside scroll lists failed on the real phone but passed on desktop. Always test touch with `emulate_touch_from_mouse` and a few pixels of wobble.
-- Agent or worktree copies start from `main`, not the working branch. Check out the branch first.
-- GitHub sometimes returns 502 when publishing. The workflow retries once. If it still fails, re-run the job later; the code is fine.
-- A pop-up that covers the screen during play annoys people. Celebrations never block taps; deals wait until the player is on a main tab and not tapping.
-- Agent play-testers found real exploits each time (market trading, backup re-rolls, boost double pay). Re-run the exploit persona after economy changes.
-- For big batches, split builder agents by file (no two agents touch the same script), have each commit in its own worktree on the branch commit, then cherry-pick. Keep `game_state.gd`, `data.gd`, `main.gd` and `ui_kit.gd` with one owner.
+- Taps in scroll lists can pass on desktop and fail on a phone. Test touch with `emulate_touch_from_mouse` and a few pixels of wobble.
+- Agent worktrees start from `main` and lack the Fontshare fonts. Check out the branch first; run fit and screenshot checks on the merged tree.
+- GitHub sometimes returns 502 when publishing. Re-run the job later.
+- Pop-ups never open by themselves during play. Celebrations never block taps.
+- Play-tester agents found real exploits every time. Re-run the exploit persona after economy changes.
+- Big batches: split agents by file, one owner each for `game_state.gd`, `data.gd`, `main.gd`, `ui_kit.gd`, `ui.gd`; cherry-pick their commits.
 
-## Keep the docs current (owner's rule)
+## Docs stay current
 
-With every change the player can see, in the same commit:
-- Add a line to `CHANGELOG.md` (top section).
-- Update the doc for that area (DESIGN, BALANCE, TESTING, ARCHITECTURE).
-- If a screen in the README changed, refresh its picture in `docs/screenshots/` from a fresh `tests/screenshot.gd` run (no toasts or pop-ups in shot). Keep the README short: 6 pictures, a few bullets.
+With every change a player can see, in the same commit:
+- A line in `CHANGELOG.md` (top section).
+- The doc for that area.
+- A fresh picture in `docs/screenshots/` if a README screen changed (no pop-ups in shot).
 
 ## Releasing
 
-1. All checks above pass.
-2. Commit with a short summary. Ask the owner, and push to the working branch only when they say yes.
-3. GitHub Actions runs the rules, the tests, builds `Sol.apk`, signs it and publishes release `v1.2.<run number>` (1.2 from the 1.2.0 release on; the updater compares only the last number).
-4. The owner taps Update in Profile.
-
-The signing key lives in `game/android/release.keystore` (owner's choice). A move to a private key in GitHub Secrets is planned; the new key is not active yet.
+1. All checks pass.
+2. Commit, then ask. Push to the working branch only on "push".
+3. GitHub Actions tests, builds and signs `Sol.apk`, and publishes `v1.2.<run number>`.
+4. The player taps Update in Profile.

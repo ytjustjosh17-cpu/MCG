@@ -5,7 +5,7 @@ description: The fast path from the owner asking for a Sol feature or fix to it 
 
 # Sol: request to release
 
-The owner is dyslexic: replies short, simple, British English, small chunks.
+Replies: short, simple, British English, small chunks.
 
 1. **Understand** (1 minute). Restate the ask in one line. Only ask a
    question if it truly blocks you; otherwise pick a sensible default and say so.

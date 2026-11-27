@@ -1,6 +1,6 @@
 # Sol: game plan
 
-A business tycoon clicker for my Samsung S23.
+A business tycoon clicker for my Android phone.
 Based on the "Business Empire" screen recording, with the dark red-sun look we designed.
 
 ---
@@ -229,9 +229,9 @@ You can't draw hundreds of photos, so everything is flat shapes:
 ## 4. How it will be built
 
 - **Engine:** Godot 4 (free).
-- **Screen:** portrait, 1080 × 2340 (S23).
+- **Screen:** portrait, 1080 × 2340.
 - **Save:** local file on the phone, with the time you left.
-- **Install:** GitHub builds the APK. I download it on my S23 and install it.
+- **Install:** GitHub builds the APK. I download it on my phone and install it.
 - **No account, no internet, no ads, no payments.**
 
 ---
