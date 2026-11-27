@@ -36,7 +36,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Companies | units × unit income × stage multiplier × merger × global bonus | `BUSINESSES`, `stage_mult` |
 | Expansions | real-time timers, doubling each stage, max 48 h | `expansion_minutes()` |
 | Property | 2.2% of price per hour, improvements add more | `RENT_PER_H`, `IMPROVEMENTS` |
-| Shares | dividends paid once an hour on the hour at a set rate per share (base price x yield x `STOCK_DIV_SCALE`, plus bonuses), not tied to the live price; time away pays missed hours up to the away cap; prices drift slowly back to a fair value; news moves them at once. Pace unchanged (90% day 38.3 vs 37.9) | `dividend_rate()`, `_pay_dividends()` |
+| Shares | dividends paid once an hour on the hour at a set rate per share (1% to 5% of the base price a day, by the company's yield; `Data.div_yield_day()`, plus bonuses), not tied to the live price; time away pays missed hours up to the away cap; prices drift slowly back to a fair value; news moves them at once. Robot with 1% to 5% a day: 90% day 37.8 and 36.3 (seeds 1234, 99), was 36.9 and 35.3 | `dividend_rate()`, `_pay_dividends()` |
 | Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
 | Converting coins | sell at the usual 0.5% spread, then buy the other coin; nothing gained, so no loop | `convert_coin()` |
 | Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), with no cap tied to income; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |

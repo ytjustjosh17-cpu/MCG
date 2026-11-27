@@ -1,6 +1,11 @@
 # Changelog
 
-## Dividend %, nothing cut off
+## Dividend %, bigger dividends, news filter, nothing cut off
+
+- Dividends now pay 1% to 5% a day by company (steady payers more, growth
+  companies less), still once an hour. Robot: 90% day 36 to 38, unchanged.
+- News has All, Shares and Crypto filters, and opens on the one for the
+  tab you came from.
 
 - A share's page now shows its dividend as a % a day (it moves with the
   price) next to the set amount it pays per share each hour.
