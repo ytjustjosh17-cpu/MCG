@@ -68,7 +68,7 @@ func refresh() -> void:
 	_sub.text = "Rebirths %d · %d of %d nodes" % [Game.rebirths(), owned, total]
 	# Waiting pays: show what ten times the net worth would give.
 	var nw := maxf(Game.net_worth(), Data.REBIRTH_MIN)
-	var later := int(floor(10.0 * pow(nw * 10.0 / Data.REBIRTH_MIN, 1.0 / 3.0) * (1.0 + minf(0.5, Game.rb("rbp")))))
+	var later := Game.rbp_for(nw * 10.0)
 	if pend > 0:
 		_sub.text += "\nNow +%s RBP · at %s: +%s" % [Game.group(pend), Game.money_short(nw * 10.0), Game.group(later)]
 	else:

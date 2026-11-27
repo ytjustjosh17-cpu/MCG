@@ -3242,7 +3242,11 @@ func rebirth_pending() -> int:
 	## RBP a rebirth would give now: 10 at £10B net worth, then the cube root
 	## (100 at £10T, 1,000 at £10Q). Past 1,000 it grows far more slowly, so
 	## waiting months can't buy the whole tree in one go (it costs ~19,000).
-	var nw := net_worth()
+	return rbp_for(net_worth())
+
+
+func rbp_for(nw: float) -> int:
+	## RBP a rebirth gives at this net worth (also used for the "later" preview).
 	if nw < Data.REBIRTH_MIN:
 		return 0
 	var x := nw / Data.REBIRTH_MIN

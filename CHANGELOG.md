@@ -12,9 +12,10 @@
 - Items say what they do: your bonus now, what each full set adds in £ an
   hour, what is left to pay, and that items sell back for 80%. Clearer
   drawings.
-- Expansions cost far less late on (prices grow x2.6 a stage, was x3.3), and
-  the card shows what you gain. Openings and units cost 45% more so the game
-  still takes weeks.
+- Expansions cost far less from stage 3 on (prices grow x2.6 a stage, was
+  x3.3; a stage 9 Shop expansion was 2,300 hours of its income, now 500), and
+  the card shows what you gain. Openings, units and the first expansion cost
+  45% more so the game still takes weeks.
 - Mining pays at most a quarter of what your companies earn.
 - A rebirth after months of waiting can no longer buy the whole tree at once.
 - Fixed: a home you buy shows under Yours straight away. Tree nodes that

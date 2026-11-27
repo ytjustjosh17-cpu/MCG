@@ -19,24 +19,25 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
-A change that moves any milestone outside its range needs a reason, written in the commit message. Earlier than the range is never fine (the game must not get easier); later is fine with a reason.
+A change that moves any milestone outside its range needs a reason, written in the commit message. Earlier than the range is not allowed (the game must never get easier); later is fine with a reason.
 
-Last measured: 1.2 balance pass (seeds 1234, 99, 7 and the rate, gamble and loan robot). 25% on seed 7 lands at day 10.5 and 75% at 27.8: half a day either side of the range, accepted because the 90% day held at 36 to 39.
+Last measured: 1.2 balance pass (seeds 1234, 99, 7, the greedy miner robot, and the rate, gamble and loan robot). 25% on seed 7 lands at day 10.5, half a day late: accepted, later is the safe side.
 
 ## Expansion prices (1.2)
 
-Before 1.2 an expansion's price grew ×3.3 a stage while the company's income grew far less, so late expansions cost 1,000 to 5,000 hours of that company's income. Now:
-- Expansion prices grow ×2.6 a stage (`exp_growth`), so a late expansion costs a few hundred hours, not thousands. The Shop's 4→5 expansion went from £287K to about £211K at the same income.
-- To keep the pace, company openings, unit prices and first expansions cost 45% more (`cost`, `unit_cost`, `exp_cost`).
+Before 1.2 an expansion's price grew ×3.3 a stage while the company's income grew far less. Measured in hours of that company's own income (full units, before bonuses):
+
+| | Stage 1 | Stage 4 | Stage 9 |
+|---|---|---|---|
+| Shop to IT, before | 33 to 57 | 97 to 167 | 2,300 to 4,000 |
+| Shop to IT, now | 45 to 80 | 66 to 116 | 470 to 830 |
+| Hotel to Space, before | 66 to 114 | 134 to 254 | 800 to 5,100 |
+| Hotel to Space, now | 81 to 160 | 117 to 231 | 800 to 1,650 |
+
+- Expansion prices grow ×2.6 a stage (Space ×2.5, as before). The Shop's 4→5 expansion went from about £287K to about £211K.
+- To keep the pace, company openings, unit prices and first expansions cost 45% more (Oil, Airline and Space expansions kept their old base). So stage 1 and 2 expansions cost a little more than before; every later one costs less.
 - The company page shows what an expansion is worth: "+£X /h now · +£Y /h when full".
-- Why not cheaper still: expansions are the game's main brake. Pricing every expansion at a flat 30 hours of the company's income put 90% at day 19 to 23, even with dearer units.
-
-Other players, measured by the agent play-testers:
-- Twice a day: about 1.4 × slower than the robot. Fine.
-- Once a day: about 3 × slower (90% around day 98), because time away pays at most 8 hours.
-- Heavy completionist (48 minutes a day): 100% around day 55. After that there is nothing new to do yet (see "Open questions").
-
-Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain, Hotel, TV station, Mining) and one sits above the Airline (Space launch). New companies earn a little less per pound than their neighbours, so the late game does not speed up.
+- Why not cheaper still: expansions are the game's main brake. A flat 30 hours of the company's income put 90% at day 19 to 23, even with dearer units.
 
 ## How money flows
 
@@ -102,6 +103,7 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 2. Make the change and run both again.
 3. One seed can be a day off by chance (markets are random). Two seeds moving the same way is real. The robot starts from a fresh market (`reset_game(true)`), so the same seed gives the same result every time.
 4. To isolate a feature, the robot takes a second argument: `nohome` (skip homes), `nodeals` (skip deals and managers) or `nomine` (no mining rigs). `news`, `dip` and `hold` run trading bots that try to profit from news.
+5. After any money change also run the greedy player, `SIM_GREEDY=1` (buys miners whenever it can and sells what they dig). Its 90% day must not be earlier than the normal robot's; in 1.2 it was 36.3 for both.
 
 ## Casino
 

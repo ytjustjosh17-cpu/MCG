@@ -60,13 +60,13 @@ const BUSINESSES := [
 		"unit_cost": 1.2e8, "unit_income": 1.7e6, "stage_mult": 1.45, "exp_cost": 1.2e9, "exp_growth": 2.6, "exp_min": 42.0,
 		"names": ["Greyvein Mining", "Cinder Hill Ores", "Deepcut Minerals"]},
 	{"id": "oil", "name": "Oil and gas", "kind": "rig", "cost": 2.2e9, "unit": "rig", "units": "rigs",
-		"unit_cost": 7.2e8, "unit_income": 1.4e7, "stage_mult": 1.45, "exp_cost": 7.2e9, "exp_growth": 2.6, "exp_min": 50.0,
+		"unit_cost": 7.2e8, "unit_income": 1.4e7, "stage_mult": 1.45, "exp_cost": 5.0e9, "exp_growth": 2.6, "exp_min": 50.0,
 		"names": ["Norvale Energy", "Deepwell Petroleum", "Black Tern Oil"]},
 	{"id": "airline", "name": "Airline", "kind": "plane", "cost": 1.9e10, "unit": "plane", "units": "planes",
-		"unit_cost": 6.5e9, "unit_income": 1.1e8, "stage_mult": 1.45, "exp_cost": 6.5e10, "exp_growth": 2.6, "exp_min": 70.0,
+		"unit_cost": 6.5e9, "unit_income": 1.1e8, "stage_mult": 1.45, "exp_cost": 4.5e10, "exp_growth": 2.6, "exp_min": 70.0,
 		"names": ["Red Sun Air", "Kestrel Airways", "Highline Air"]},
 	{"id": "space", "name": "Space launch", "kind": "rocket", "cost": 1.7e11, "unit": "rocket", "units": "rockets",
-		"unit_cost": 5.8e10, "unit_income": 8.5e8, "stage_mult": 1.45, "exp_cost": 5.8e11, "exp_growth": 2.6, "exp_min": 90.0,
+		"unit_cost": 5.8e10, "unit_income": 8.5e8, "stage_mult": 1.45, "exp_cost": 4.0e11, "exp_growth": 2.5, "exp_min": 90.0,
 		"names": ["Red Sun Orbital", "Farline Launch", "Kestrel Space"]},
 ]
 

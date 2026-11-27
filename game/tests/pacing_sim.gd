@@ -155,6 +155,12 @@ func _session(active_s: float) -> void:
 
 
 func _spend() -> void:
+	# SIM_GREEDY=1: a payback-hungry player who buys miners whenever it can and
+	# sells what they mine (keeping £60M for a merger). Finds mining runaways.
+	if OS.get_environment("SIM_GREEDY") == "1" and g.mine_target != "":
+		var _v: float = g.holding(g.coins, g.mine_target) * g.price(g.mine_target)
+		if _v > 6.0e7:
+			g.sell_asset("coin", g.mine_target, (_v - 6.0e7) / _v)
 	var guard := 0
 	var bought := true
 	while bought and guard < 4000:
@@ -179,7 +185,7 @@ func _spend() -> void:
 				g.set_mine_target(best_c)
 		var rsym := ""
 		var rbest := 0.0
-		if g.rigs_total() < Data.RIG_MAX and g.rig_price() < g.cash * 0.1:
+		if g.rigs_total() < Data.RIG_MAX and g.rig_price() < g.cash * (1.0 if OS.get_environment("SIM_GREEDY") == "1" else 0.1):
 			for rc in Data.COINS:
 				var rgain: float = g.rig_gain(rc[0])
 				if rgain > rbest:

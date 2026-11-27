@@ -673,10 +673,13 @@ func _refresh_mining() -> void:
 		var back_h := Game.rig_price() / maxf(gain, 0.001)
 		_rig_btn.text = "Buy miner · " + Game.money_short(Game.rig_price())
 		Page.set_enabled(_rig_btn, Game.cash >= Game.rig_price())
-		notes.append("Earns it back in ~%s." % Game.clock(back_h * 3600.0))
+		if gain < 0.01 or back_h > 24.0 * 365.0:
+			notes.append("Mining is at its cap: a new miner adds nothing until your companies earn more.")
+		else:
+			notes.append("Earns it back in ~%s." % Game.clock(back_h * 3600.0))
 	notes.append("Mines while you're away (%d h max)." % int(Game.offline_cap_h()))
 	if Game.mining_capped():
-		notes.append("Capped at %d%% of your company income." % int(round(Game.mine_cap() * 100.0)))
+		notes.append("Mining pays at most %d%% of your company income." % int(round(Game.mine_cap() * 100.0)))
 	_mine_note.text = "\n".join(notes)   # one fact a line
 
 
