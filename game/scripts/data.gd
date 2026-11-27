@@ -410,9 +410,9 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.2"
 const WHATS_NEW := [
-	"Bank: save for interest, borrow and repay.",
-	"Casino: poker, crash, plinko, races, daily wheel.",
-	"Day and night, rain and fog on your city.",
-	"Your companies in the skyline; look inside home.",
-	"Stats charts, and a short guide for new games.",
+	"Records: your all-time bests, in Profile.",
+	"30 rivals with real-looking fortunes.",
+	"A bigger rebirth tree with a clearer map.",
+	"Items show what they give you in £ an hour.",
+	"Cheaper late expansions; fairer prices.",
 ]

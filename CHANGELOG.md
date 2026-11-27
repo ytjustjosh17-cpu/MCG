@@ -1,5 +1,25 @@
 # Changelog
 
+## Records, 30 rivals, a bigger tree, clearer items, fairer prices
+
+- Records (Profile): richest you've been, best income, best day, best
+  company, biggest tap, casino win and trade, longest streak.
+- Rivals: 30 tycoons with real-looking fortunes shown to the pound
+  (£131,177,482), up from 13 round ones. Your place carries over.
+- Rebirth tree: 229 nodes (was 157), a deep path and a new keystone on every
+  branch, a clearer map with a legend. +, - and home never open the node
+  behind them any more.
+- Items say what they do: your bonus now, what each full set adds in £ an
+  hour, what is left to pay, and that items sell back for 80%. Clearer
+  drawings.
+- Expansions cost far less late on (prices grow x2.6 a stage, was x3.3), and
+  the card shows what you gain. Openings and units cost 45% more so the game
+  still takes weeks.
+- Mining pays at most a quarter of what your companies earn.
+- A rebirth after months of waiting can no longer buy the whole tree at once.
+- Fixed: a home you buy shows under Yours straight away. Tree nodes that
+  make deals come sooner now work.
+
 ## Design and speed pass
 
 - One look everywhere: one main button per screen, at most one red accent

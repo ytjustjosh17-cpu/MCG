@@ -12,14 +12,24 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 7 to 10 | 8.5 to 8.9 |
-| 50% complete | 15 to 21 | 17.3 to 18.5 |
-| 75% complete | 28 to 38 | 28.8 to 29.8 |
-| 90% complete | 33 to 46 | 35.3 to 36.9 |
+| 25% complete | 7 to 10 | 8.8 to 10.5 |
+| 50% complete | 15 to 21 | 17.3 to 17.9 |
+| 75% complete | 28 to 38 | 27.8 to 28.9 |
+| 90% complete | 33 to 46 | 36.3 to 38.9 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
-A change that moves any milestone outside its range needs a reason, written in the commit message.
+A change that moves any milestone outside its range needs a reason, written in the commit message. Earlier than the range is never fine (the game must not get easier); later is fine with a reason.
+
+Last measured: 1.2 balance pass (seeds 1234, 99, 7 and the rate, gamble and loan robot). 25% on seed 7 lands at day 10.5 and 75% at 27.8: half a day either side of the range, accepted because the 90% day held at 36 to 39.
+
+## Expansion prices (1.2)
+
+Before 1.2 an expansion's price grew ×3.3 a stage while the company's income grew far less, so late expansions cost 1,000 to 5,000 hours of that company's income. Now:
+- Expansion prices grow ×2.6 a stage (`exp_growth`), so a late expansion costs a few hundred hours, not thousands. The Shop's 4→5 expansion went from £287K to about £211K at the same income.
+- To keep the pace, company openings, unit prices and first expansions cost 45% more (`cost`, `unit_cost`, `exp_cost`).
+- The company page shows what an expansion is worth: "+£X /h now · +£Y /h when full".
+- Why not cheaper still: expansions are the game's main brake. Pricing every expansion at a flat 30 hours of the company's income put 90% at day 19 to 23, even with dearer units.
 
 Other players, measured by the agent play-testers:
 - Twice a day: about 1.4 × slower than the robot. Fine.
@@ -39,7 +49,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 | Shares | dividends paid once an hour on the hour at a set rate per share (1% to 5% of the base price a day, by the company's yield; `Data.div_yield_day()`, plus bonuses), not tied to the live price; time away pays missed hours up to the away cap; prices drift slowly back to a fair value; news moves them at once. Robot with 1% to 5% a day: 90% day 37.8 and 36.3 (seeds 1234, 99), was 36.9 and 35.3 | `dividend_rate()`, `_pay_dividends()` |
 | Crypto | random walk with boom and bust phases (no pull home), staking (24 h lock, capped) | `COINS`, `STAKE_CAP` |
 | Converting coins | sell at the usual 0.5% spread, then buy the other coin; nothing gained, so no loop | `convert_coin()` |
-| Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), with no cap tied to income; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
+| Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), capped at a quarter of company income (never under £2K/h, 1.2) because a buy-by-payback player let mining outrun companies; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
 | Head office | ten one-off upgrades: taps ×1.5, deals 25% sooner, away cap 10 h then 12 h, expansions 15% quicker (twice), +1 golden sun a day, locked coins +25%, miners +25%, managers take 6% | `UPGRADES` |
 | Auto clicker | 5 levels (£25K, £400K, £8M, £250M, £10B): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
 | Selling a company | half its value (value = 60% of what was spent), so always a loss; not while expanding | `sell_business()` |
@@ -71,7 +81,7 @@ Companies: 17, sorted by price. New ones fill price gaps (Food trucks, Gym chain
 10. Taps: at most 7 paid a second, and tap heat (+1 per paid tap, cools 2 a second) above 1,200 makes taps pay a quarter, so a tapping app can't farm for hours (about 4 minutes non-stop at 7 a second to reach it; the robot's 3 a second never does). Invest goals need a real amount (10 minutes of income or $100).
 11. The clock going backwards never re-rolls goals or the streak. Restoring a backup keeps the live market and deal.
 12. Golden suns: at most 4 a day, only while playing, worth 10 to 60 minutes of income or a short buff. Buffs end when the app closes and never pay while away.
-13. Mining has no income cap; its limit is price (×1.7 per miner, 40 max). It, counts at most 8 hours while away, and a restore mines nothing.
+13. Mining pays at most 25% of company income (floor £2K/h); its other limit is price (×1.7 per miner, 40 max). It, counts at most 8 hours while away, and a restore mines nothing.
 14. A reset keeps the live market, so reset then restore can't re-roll prices.
 15. Setting the clock back pulls short buffs (Frenzy, Rush, x3 tap boost) back with it.
 6. Goals only ask for things that are still possible (no "buy units" when every company is full).
@@ -106,9 +116,9 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 
 ## Rebirth and the RBP tree
 
-- Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000.
+- Rebirth from £10B net worth. RBP = 10 × cube root of (net worth ÷ £10B), +RBP nodes up to +50%. So £10B gives 10, £10T 100, £10Qa 1,000. Past 1,000 RBP it grows with the 9th root instead (`RBP_SOFT_CAP`, 1.2): a player who waited months used to get 87,000 RBP, the whole tree at once; now about 4,400.
 - Rebirth clears money and assets (`REBIRTH_RESET`), including rewards not yet claimed, the waiting deal and the daily gift, so nothing is carried into a new run. It keeps the market, achievements, stats, settings, goal and streak timers and the tree (`REBIRTH_KEEP`).
-- The tree: 157 nodes plus Sol (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones, 5 unlocks), 7,509 RBP in all.
+- The tree: 229 nodes since 1.2 (a 9-node deep path on every branch, ~19,000 RBP in all); before that 157 nodes plus Sol (8 branches, a ring of gates, 8 bridges, 24 notables, 16 keystones, 5 unlocks), 7,509 RBP in all.
 - Unlock nodes (gold stars, 3 slots still free for future unlocks): Sol Casino 6, High tables 20, Island estates 45 (3 properties £50B to £160B), Relic hunters 50 (a 7th collection, £2B to £2T, +8% when complete), Frontier 60 (Fusion plant £1.5T and Orbital yards £20T, about 2% of price an hour per unit like Space launch). Their content is never counted in completion % or achievements (`businesses()`, `property_count()`, `collections()` are the lists in play; completion uses the base lists). Cost = 3 × 1.32^(depth - 1), notables ×2, keystones ×4. Effects of one stat add up (never multiply each other). The tree is not part of completion %, so the pace targets above are for the first run.
 - Guard rails it moves: away cap up to +7.25 h, one more golden sun a day (so 6 at most with Head office), big taps ×10 with Thunder taps, managers' cut 0 with Loyal staff.
 - Robot (`SIM_REBIRTH=never|asap|patient|rate`, 240 days, seed 1234):
