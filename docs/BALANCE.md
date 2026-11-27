@@ -12,14 +12,20 @@ Measured with the pacing robot (`game/tests/pacing_sim.gd`): 4 short sessions a 
 | Milestone | Target day | Last measured |
 |---|---|---|
 | First company | under 0.5 | 0.3 |
-| 25% complete | 6 to 10 | 7.5 to 8.3 |
-| 50% complete | 12 to 18 | 13.3 to 14.5 |
-| 75% complete | 21 to 30 | 23.5 to 25.8 |
-| 90% complete | 27 to 38 | 29.3 to 31.3 |
+| 25% complete | 6 to 10 | 6.8 to 8.9 |
+| 50% complete | 12 to 18 | 13.8 to 14.8 |
+| 75% complete | 21 to 30 | 21.9 to 23.5 |
+| 90% complete | 27 to 38 | 27.3 to 28.3 |
 | All 6 mergers | 35 to 50 | 40.3 |
 | All 17 companies | 35 to 45 | 36.3 to 36.8 |
 
 A change that moves any milestone outside its range needs a reason, written in the commit message. Earlier than the range is not allowed (the game must never get easier); later is fine with a reason.
+
+1.2 batch 3 (season, upgrade paths, fixed terms, days played), measured on seeds 1234, 99, 7 and the greedy robot: 90% day 28.3, 27.3, 27.8, greedy 28.3, rate+gamble+loan 27.3 (before: 29.3, 29.3). Each feature was tuned down until no seed landed before day 27:
+- Weekly season bar: daily goal +10 points, weekly +25, golden sun +2, the day's first tap +5. Milestones 30 (1 h of income), 70 (Rush), 120 (2 h), 180 (Frenzy), 250 (4 h). Cash is fixed when reached and waits in the claim list. At 2/4/8 h it cost about half a day.
+- Company upgrade paths: five named steps per company, +6% of its income each, opening at stages 2/4/6/8/10. Price = the extra income x the slower of 90 h and 1.5 x a unit's payback at that stage, so a step never beats a unit. At +25% / 30 h the robot finished at day 24.3; at +10% / 60 h, 26.3 to 27.8 with the rest. The spend counts in `invested` (net worth and the sell price), like units.
+- Fixed terms: 1 / 3 / 7 days at 2.5% / 8% / 20%, below the 25% loan fee, so borrowing to lock never pays. At most a day of base income locked. Terms run on the wall clock (a forward-set clock can win only a few hours of income); a clock set back never pays early. Breaking early returns 95%, no interest. The robot locks 7 days when cash is four times the room left.
+- Days played: milestones at 7/14/30/60/100/200 days pay about an hour of income (a streak gift's size). Never resets.
 
 1.2 earnings boost (owner: "it seems slow to make money"): companies earn 6% more (`INCOME_SCALE` 0.85), and taps in a row pay up to x2 (`combo_mult`: from a 10 combo to x2 at 100, then flat; real taps only, never the auto clicker). The targets moved about a fifth earlier on purpose: 90% at about a month instead of five weeks. A flat x2.5 combo with a bigger tap share put 90% at day 19, far too quick.
 

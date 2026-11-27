@@ -293,7 +293,7 @@ const FRENZY_S := 20.0
 # Weekly season bar (1.2): points per thing done, and the milestones.
 # cash = hours of income fixed when reached; rush / frenzy start when claimed.
 const SEASON_PTS := {"daily": 10.0, "weekly": 25.0, "sun": 2.0, "first_tap": 5.0}
-const SEASON := [[30, "cash", 1.5], [70, "rush"], [120, "cash", 3.0], [180, "frenzy"], [250, "cash", 6.0]]
+const SEASON := [[30, "cash", 1.0], [70, "rush"], [120, "cash", 2.0], [180, "frenzy"], [250, "cash", 4.0]]
 const SEASON_MIN_CASH := 2000.0
 # Days played (1.2): a count of days you opened the game that never resets.
 const DAYS_MILESTONES := [7, 14, 30, 60, 100, 200]
@@ -434,9 +434,9 @@ static func coin(sym: String) -> Array:
 
 
 # Company upgrade paths (1.2): five named steps per company, each +25% to
-# that company's income (+10% each, 1.2 robot-tuned). Step k (0-based) opens at stage 2k + 2. Made-up names.
-const BIZ_UP_STEP := 0.10
-const BIZ_UP_MIN_H := 60.0   # a step never pays back faster than this many hours...
+# that company's income (+6% each, 1.2 robot-tuned). Step k (0-based) opens at stage 2k + 2. Made-up names.
+const BIZ_UP_STEP := 0.06
+const BIZ_UP_MIN_H := 90.0   # a step never pays back faster than this many hours...
 const BIZ_UP_X := 1.5        # ...nor faster than a unit at the company's stage (x this)
 const BIZ_UPS := {
 	"shop": [["Late opening", "Open till ten."], ["Loyalty cards", "Regulars come back."], ["Self checkout", "Shorter queues."], ["Own-label range", "Better margins."], ["Flagship store", "The one on the high street."]],

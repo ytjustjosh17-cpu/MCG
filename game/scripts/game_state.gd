@@ -843,9 +843,9 @@ func _finish_expansions() -> void:
 
 
 # ---- company upgrade paths (1.2) ------------------------------------------
-# Five named steps per company (Data.BIZ_UPS), +10% of its income each. Step
+# Five named steps per company (Data.BIZ_UPS), +6% of its income each. Step
 # k opens at stage 2k + 2. Price: the extra income times the slower of a unit's
-# payback at this stage (x1.5) and 60 h, so a step never beats buying units. The
+# payback at this stage (x1.5) and 90 h, so a step never beats buying units. The
 # spend counts in `invested` like units do: net worth doesn't dip when you
 # buy one, and selling the company returns half of it.
 
