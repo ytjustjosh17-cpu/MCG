@@ -192,6 +192,11 @@ class CasinoArt extends Control:
 
 	func _draw() -> void:
 		var s := size
+		if kind != "sign":
+			# Every game thumbnail sits on a small bevelled tile.
+			var tr := Rect2(Vector2.ZERO, s)
+			draw_colored_polygon(UI.rounded_rect_poly(tr, 10.0), UI.SIDE)
+			draw_polyline(CasinoGame._top_edge(tr.grow(-1.0), 9.0), Color(UI.TEXT, 0.12), 1.0, true)
 		match kind:
 			"sign":
 				# Night sky in soft bands, the red sun glowing behind the casino.
@@ -263,19 +268,28 @@ class CasinoArt extends Control:
 			"classic", "neon", "vault":
 				# Tonal cabinets (red is for the one thing to tap); the classic keeps a small sun.
 				var body: Color = {"classic": UI.TRACK, "neon": UI.FELT_LINE, "vault": UI.DIM}[kind]
-				var r := Rect2(Vector2(s.x * 0.16, s.y * 0.08), Vector2(s.x * 0.62, s.y * 0.86))
-				draw_rect(r, body)
-				draw_rect(Rect2(r.position + Vector2(4, s.y * 0.2), Vector2(r.size.x - 8, s.y * 0.32)), UI.INK)
+				var r := Rect2(Vector2(s.x * 0.16, s.y * 0.1), Vector2(s.x * 0.62, s.y * 0.82))
+				draw_colored_polygon(UI.rounded_rect_poly(Rect2(r.position + Vector2(1.5, 2), r.size), 5.0), Color(UI.INK, 0.5))
+				draw_colored_polygon(UI.rounded_rect_poly(r, 5.0), body)
+				draw_line(r.position + Vector2(3, 1.5), Vector2(r.end.x - 3, r.position.y + 1.5), Color(UI.TEXT, 0.35), 1.0, true)
+				# Lamp on top.
+				draw_circle(Vector2(r.get_center().x, r.position.y + s.y * 0.07), s.x * 0.05, Color(UI.GOLD, 0.8) if kind != "classic" else Color(UI.RED, 0.7))
+				# The screen: three reel windows behind glass with a glare.
+				var scr := Rect2(r.position + Vector2(4, s.y * 0.2), Vector2(r.size.x - 8, s.y * 0.3))
+				draw_rect(scr, UI.INK)
 				var syms: Array = {"classic": ["seven", "sun", "seven"], "neon": ["wild", "bell", "wild"], "vault": ["crown", "bar", "crown"]}[kind]
 				for i in 3:
-					draw_circle(r.position + Vector2(8 + (r.size.x - 16) * (0.17 + 0.33 * i), s.y * 0.36), s.x * 0.06, UI.SLOT_COL[syms[i]])
-				draw_rect(Rect2(r.position + Vector2(6, s.y * 0.62), Vector2(r.size.x - 12, 4)), UI.INK)
-				# Lever.
+					var cx := scr.position.x + scr.size.x * (0.17 + 0.33 * float(i))
+					if i > 0:
+						draw_line(Vector2(scr.position.x + scr.size.x * 0.333 * float(i), scr.position.y + 2), Vector2(scr.position.x + scr.size.x * 0.333 * float(i), scr.end.y - 2), Color(UI.TEXT, 0.1), 1.0)
+					draw_circle(Vector2(cx, scr.get_center().y), s.x * 0.06, UI.SLOT_COL[syms[i]])
+				draw_line(scr.position + Vector2(2, scr.size.y * 0.25), scr.position + Vector2(scr.size.x * 0.4, 2), Color(UI.TEXT, 0.16), 2.0, true)
+				# Coin tray.
+				draw_rect(Rect2(r.position + Vector2(6, s.y * 0.66), Vector2(r.size.x - 12, 4)), UI.INK)
+				# Lever with a ball (not red: red dots mean "claim").
 				draw_line(Vector2(r.end.x, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.5), UI.SUB, 2.0)
-				draw_line(Vector2(s.x * 0.9, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.18), UI.SUB, 2.0)
-				draw_circle(Vector2(s.x * 0.9, s.y * 0.16), 4.0, UI.SUB)   # not red: red dots mean "claim"
-				if kind == "classic":
-					draw_circle(Vector2(r.position.x + r.size.x * 0.5, r.position.y + s.y * 0.1), s.x * 0.06, Color(UI.RED, 0.7))
+				draw_line(Vector2(s.x * 0.9, s.y * 0.5), Vector2(s.x * 0.9, s.y * 0.2), UI.SUB, 2.0)
+				CasinoGame.draw_ball(self, Vector2(s.x * 0.9, s.y * 0.17), 3.5, UI.SUB)
 			"roulette":
 				var c := s * 0.5
 				var rad := minf(s.x, s.y) * 0.46
@@ -284,9 +298,11 @@ class CasinoArt extends Control:
 					var a1 := TAU * float(i + 1) / 37.0
 					var col: Color = UI.ROUL_GREEN if i == 0 else (UI.ROUL_RED if i % 2 == 1 else UI.ROUL_BLACK)
 					draw_colored_polygon(PackedVector2Array([c, c + Vector2(cos(a0), sin(a0)) * rad, c + Vector2(cos(a1), sin(a1)) * rad]), col)
+				draw_arc(c, rad, 0.0, TAU, 37, UI.GOLD.lerp(UI.SIDE, 0.4), 2.0, true)
 				draw_circle(c, rad * 0.55, UI.FELT)
-				draw_circle(c, rad * 0.2, UI.GOLD)
-				draw_circle(c + Vector2(rad * 0.75, -rad * 0.3), 3.0, UI.TEXT)
+				draw_arc(c, rad * 0.55, 0.0, TAU, 24, UI.GOLD.lerp(UI.SIDE, 0.4), 1.0, true)
+				CasinoGame.draw_ball(self, c, rad * 0.18, UI.GOLD)
+				CasinoGame.draw_ball(self, c + Vector2(rad * 0.75, -rad * 0.3), 2.6)
 			"wheel":
 				var c := s * 0.5
 				var rad := minf(s.x, s.y) * 0.44
@@ -302,11 +318,16 @@ class CasinoArt extends Control:
 				draw_colored_polygon(PackedVector2Array([c + Vector2(-4, -rad - 3), c + Vector2(4, -rad - 3), c + Vector2(0, -rad + 6)]), UI.RED)
 			"crash":
 				draw_rect(Rect2(Vector2(s.x * 0.08, s.y * 0.1), Vector2(s.x * 0.84, s.y * 0.8)), UI.INK)
+				for gk in 3:
+					var gy := s.y * (0.3 + 0.2 * float(gk))
+					draw_line(Vector2(s.x * 0.1, gy), Vector2(s.x * 0.9, gy), Color(UI.TEXT, 0.07), 1.0)
 				var pts2 := PackedVector2Array()
 				for k in 12:
 					var x := float(k) / 11.0
 					pts2.append(Vector2(s.x * (0.14 + 0.72 * x), s.y * (0.82 - 0.62 * x * x)))
+				draw_polyline(pts2, Color(UI.GOLD, 0.25), 6.0, true)
 				draw_polyline(pts2, UI.GOLD, 2.5, true)
+				draw_circle(pts2[pts2.size() - 1], 6.0, Color(UI.RED, 0.25))
 				draw_circle(pts2[pts2.size() - 1], 3.5, UI.RED)
 			"plinko":
 				for row in 4:
@@ -314,7 +335,7 @@ class CasinoArt extends Control:
 						draw_circle(Vector2(s.x * 0.5 + (float(k) - float(row) * 0.5) * s.x * 0.18, s.y * (0.18 + 0.16 * float(row))), 2.5, UI.SUB)
 				for k in 5:
 					draw_rect(Rect2(Vector2(s.x * (0.1 + 0.165 * float(k)), s.y * 0.82), Vector2(s.x * 0.14, s.y * 0.1)), UI.GOLD if k == 0 or k == 4 else UI.RAISED)
-				draw_circle(Vector2(s.x * 0.56, s.y * 0.42), 4.0, UI.RED)
+				CasinoGame.draw_ball(self, Vector2(s.x * 0.56, s.y * 0.42), 3.5)
 			"poker":
 				var cards := ["cardSpadesA.png", "cardSpadesK.png", "cardSpadesQ.png"]
 				var h2 := s.y * 0.78

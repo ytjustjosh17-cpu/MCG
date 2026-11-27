@@ -488,10 +488,13 @@ class TableView extends Control:
 		# The printed layout: two arcs of gold and cream lettering, like real felt.
 		var arc_r := size.x * 0.62
 		var arc_c := Vector2(size.x * 0.5, mid - 40.0 - arc_r)   # lowest letters sit well above the bet circle
-		draw_arc(arc_c, arc_r - 14.0, PI * 0.5 - 0.62, PI * 0.5 + 0.62, 64, Color(UI.GOLD, 0.35), 1.2, true)
-		CasinoGame.draw_arc_text(self, arc_c, arc_r, PI * 0.5, "BLACKJACK PAYS 3 TO 2", 13, UI.GOLD)
-		CasinoGame.draw_arc_text(self, arc_c, arc_r + 18.0, PI * 0.5, "DEALER STANDS ON ALL 17s", 13, Color(UI.TEXT, 0.55))
-		draw_arc(arc_c, arc_r + 30.0, PI * 0.5 - 0.5, PI * 0.5 + 0.5, 64, Color(UI.GOLD, 0.2), 1.0, true)
+		# Only on a tall table: a short (landscape) one has no room between the
+		# dealer's cards and the bet circle; the rules are in the i sheet anyway.
+		if mid - 40.0 - 30.0 > 34.0 + BlackjackPage.CARD.y + 30.0:
+			draw_arc(arc_c, arc_r - 14.0, PI * 0.5 - 0.62, PI * 0.5 + 0.62, 64, Color(UI.GOLD, 0.35), 1.2, true)
+			CasinoGame.draw_arc_text(self, arc_c, arc_r, PI * 0.5, "BLACKJACK PAYS 3 TO 2", 13, UI.GOLD)
+			CasinoGame.draw_arc_text(self, arc_c, arc_r + 18.0, PI * 0.5, "DEALER STANDS ON ALL 17s", 13, Color(UI.TEXT, 0.55))
+			draw_arc(arc_c, arc_r + 30.0, PI * 0.5 - 0.5, PI * 0.5 + 0.5, 64, Color(UI.GOLD, 0.2), 1.0, true)
 		# Dealer plaque, top left.
 		var pl := Rect2(Vector2(felt.position.x + 8.0, felt.position.y + 8.0), Vector2(72, 22))
 		draw_colored_polygon(UI.rounded_rect_poly(pl, 11.0), Color(UI.INK, 0.35))

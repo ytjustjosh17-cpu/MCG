@@ -260,7 +260,12 @@ class Board extends Control:
 			draw_colored_polygon(UI.rounded_rect_poly(br, 6.0), col.lerp(UI.TEXT, pulse * 0.45))
 			draw_line(br.position + Vector2(4, 1.5), Vector2(br.end.x - 4, br.position.y + 1.5), Color(UI.TEXT, 0.35 if m >= 2.0 else 0.15), 1.0, true)   # lit top lip
 			var t := PlinkoPage._num(m)
-			draw_string(f, Vector2(br.position.x - 6.0, br.position.y + 20), t, HORIZONTAL_ALIGNMENT_CENTER, br.size.x + 12.0, 13, fg)   # a little wider than the box so 1.4 isn't cut to "1."
+			# The label keeps to its own slot; on a narrow board (landscape) it
+			# steps down a size or two instead of being cut to "1.".
+			var lfs := 13
+			while lfs > 10 and f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, lfs).x > gap - 1.0:
+				lfs -= 1
+			draw_string(f, Vector2(br.position.x - 1.0, br.position.y + 15.0 + lfs * 0.38), t, HORIZONTAL_ALIGNMENT_CENTER, gap, lfs, fg)
 			if fl > 0.0:
 				# A ring of light rising out of the bucket that was hit; wider for a big one.
 				var life := 1.0 - fl / (0.9 if _big.has(k) else 0.6)
