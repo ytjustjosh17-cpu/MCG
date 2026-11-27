@@ -31,8 +31,9 @@ jobs:
           echo "Keeping: $K10 $K11 $LATEST"
           while read -r t; do
             if [ "$t" != "$LATEST" ] && [ "$t" != "$K10" ] && [ "$t" != "$K11" ]; then
-              # Some very old releases have no tag left; delete those without it.
-              gh release delete "$t" --cleanup-tag --yes || gh release delete "$t" --yes
+              # Some very old releases have no tag left, so a failed tag delete is fine.
+              gh release delete "$t" --cleanup-tag --yes || true
+              gh release view "$t" >/dev/null 2>&1 && gh release delete "$t" --yes || true
             fi
           done < tags.txt
           # History was rewritten once (personal details removed). Point each kept
