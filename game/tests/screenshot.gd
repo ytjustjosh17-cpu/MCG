@@ -202,6 +202,10 @@ func _run() -> void:
 		card._do_tap(card.size * 0.5)
 		await create_timer(0.02).timeout
 	await _shot("22_combo")
+	# Page shots must show the page, not a left-over pop-up on top of it.
+	g.streak_unseen = []
+	while root.get_node("Kit").close_top():
+		await create_timer(0.3).timeout
 	main.show_page(4)
 	await create_timer(0.6).timeout
 	main.push(SettingsPage.new())
