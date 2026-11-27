@@ -80,6 +80,7 @@ func build() -> void:
 
 
 var _margin: MarginContainer
+var wide := false   # landscape: use the full width instead of the 600 px column (e.g. the rebirth tree)
 
 
 func _fit_column() -> void:
@@ -89,7 +90,7 @@ func _fit_column() -> void:
 	if _margin == null:
 		return
 	var side := 16.0
-	if Kit.landscape and scroll != null:
+	if Kit.landscape and scroll != null and not wide:
 		side = maxf(16.0, (scroll.size.x - Kit.COLUMN_MAX) * 0.5)
 	_margin.add_theme_constant_override("margin_left", int(side))
 	_margin.add_theme_constant_override("margin_right", int(side))

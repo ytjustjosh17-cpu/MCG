@@ -16,6 +16,7 @@ var _left: VBoxContainer
 
 func _init() -> void:
 	super("Rebirth", true)
+	wide = true   # landscape: the tree gets all the width beside its card
 
 
 func build() -> void:
