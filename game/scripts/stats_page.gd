@@ -15,6 +15,7 @@ var _income_box: Control
 var _mix: IncomeMix
 var _grid: GridContainer
 var _cells := {}
+var _starts: Array = []   # the "start" label under each chart
 
 const STATS := [
 	["taps", "Taps"],
@@ -61,6 +62,7 @@ func build() -> void:
 	_worth_chart = HistoryChart.new(1)
 	_worth_chart.custom_minimum_size = Vector2(0, 120)
 	wp.add_child(_worth_chart)
+	_axis(wp)
 	# Income over time (needs the income saved with each history point).
 	var ic := card()
 	_income_box = ic.get_parent()
@@ -75,6 +77,7 @@ func build() -> void:
 	_income_chart = HistoryChart.new(2)
 	_income_chart.custom_minimum_size = Vector2(0, 100)
 	ip.add_child(_income_chart)
+	_axis(ip)
 	# Where income comes from.
 	var mc := card()
 	var mp := padded(mc, 16, 8)
@@ -103,9 +106,23 @@ func build() -> void:
 		_cells[s[0]] = val_l
 
 
+func _axis(parent: Control) -> void:
+	## Where the line starts and ends, in plain words, under a chart.
+	var h := HBoxContainer.new()
+	parent.add_child(h)
+	var a := UI.label("", 13, UI.SUB)
+	a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(a)
+	h.add_child(UI.label("Now", 13, UI.SUB))
+	_starts.append(a)
+
+
 func refresh() -> void:
 	if _grid == null:
 		return
+	var start: String = ["24 hours ago", "7 days ago", "Start"][_seg.index]
+	for a in _starts:
+		(a as Label).text = start
 	var span: float = RANGES[_seg.index]
 	_worth_chart.span = span
 	_income_chart.span = span

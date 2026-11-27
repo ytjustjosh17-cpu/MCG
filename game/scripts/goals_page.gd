@@ -8,6 +8,10 @@ var _week_title: Label
 var _week_note: Label
 var _day_box: VBoxContainer
 var _week_box: VBoxContainer
+var _day_chip: PanelContainer
+var _day_chip_l: Label
+var _day_done: Label
+var _week_done: Label
 var _sig := ""
 
 
@@ -21,6 +25,8 @@ func build() -> void:
 	var d := _header()
 	_day_title = d[0]
 	_day_note = d[1]
+	_day_chip = d[2]
+	_day_chip_l = d[3]
 	_day_box = card()
 	var w := _header()
 	_week_title = w[0]
@@ -33,20 +39,37 @@ func _header() -> Array:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
 	body.add_child(v)
+	var top := HBoxContainer.new()
+	v.add_child(top)
 	var t := UI.label("", 17, UI.TEXT, true)
-	v.add_child(t)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(t)
+	# Small right-aligned chip (used for the streak); hidden until it has text.
+	var chip := PanelContainer.new()
+	chip.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 12))
+	chip.visible = false
+	var cm := MarginContainer.new()
+	cm.add_theme_constant_override("margin_left", 10)
+	cm.add_theme_constant_override("margin_right", 10)
+	chip.add_child(cm)
+	var cl := UI.label("", 13, UI.TEXT)
+	cm.add_child(cl)
+	top.add_child(chip)
 	var n := UI.label("", 13, UI.SUB)
 	v.add_child(n)
-	return [t, n]
+	return [t, n, chip, cl]
 
 
 func refresh() -> void:
 	if _day_box == null:
 		return
 	var left := 86400.0 - fmod(Game.now(), 86400.0)
-	_day_note.text = ("Day %d streak · " % Game.streak if Game.streak > 1 else "") + "Resets " + Game.clock(left)
+	_day_note.text = "Resets " + Game.clock(left)
+	_day_chip.visible = Game.streak > 1
+	_day_chip_l.text = "Day %d streak" % Game.streak
 	_week_note.text = "Resets " + Game.clock(Game.week_left())
 	_day_title.text = "Today · +%s each" % Game.money_short(Game.daily_reward())
+	refresh_done_text()
 	_week_title.text = "This week · +%s each" % Game.money_short(Game.weekly_reward())
 	# Rebuild rows only when something changed, so the page doesn't flicker.
 	var sig := str(Game.daily_tasks()) + str(Game.weekly_tasks())
@@ -55,6 +78,13 @@ func refresh() -> void:
 	_sig = sig
 	_fill(_day_box, Game.daily_tasks())
 	_fill(_week_box, Game.weekly_tasks())
+
+
+func refresh_done_text() -> void:
+	if is_instance_valid(_day_done):
+		_day_done.text = "All done. New goals in %s." % Game.clock(86400.0 - fmod(Game.now(), 86400.0))
+	if is_instance_valid(_week_done):
+		_week_done.text = "All done. New goals in %s." % Game.clock(Game.week_left())
 
 
 func _fill(box: VBoxContainer, tasks: Array) -> void:
@@ -67,7 +97,8 @@ func _fill(box: VBoxContainer, tasks: Array) -> void:
 	if all_done and not tasks.is_empty():
 		var m := MarginContainer.new()
 		m.add_theme_constant_override("margin_left", 16)
-		m.custom_minimum_size = Vector2(0, 56)
+		m.add_theme_constant_override("margin_right", 16)
+		m.custom_minimum_size = Vector2(0, UI.ROW_H)
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 12)
 		m.add_child(h)
@@ -75,10 +106,17 @@ func _fill(box: VBoxContainer, tasks: Array) -> void:
 		ic.set_style(UI.TEXT, true)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(ic)
-		var l := UI.label("All done", 17, UI.TEXT, true)
+		var l := UI.label("", 15, UI.TEXT)
 		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		h.add_child(l)
+		if box == _day_box:
+			_day_done = l
+		else:
+			_week_done = l
 		box.add_child(m)
+		refresh_done_text()
 		return
 	for i in range(tasks.size()):
 		if i > 0:
@@ -93,7 +131,7 @@ class GoalRow extends Button:
 
 	func _init(task: Dictionary) -> void:
 		t = task
-		custom_minimum_size = Vector2(0, 64)
+		custom_minimum_size = Vector2(0, 56 if t["done"] else 64)
 		focus_mode = Control.FOCUS_NONE
 		flat = true
 		for st in ["normal", "hover", "focus", "disabled"]:
@@ -109,12 +147,12 @@ class GoalRow extends Button:
 		var done: bool = t["done"]
 		var ic := Icon.new("check" if done else "goal", UI.TEXT if done else UI.SUB, 22.0)
 		ic.set_style(UI.TEXT if done else UI.SUB, done)
-		ic.position = Vector2(16, 14)
+		ic.position = Vector2(16, 17 if done else 14)
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(ic)
 		var l := UI.label(String(t["text"]), 15, UI.TEXT if not done else UI.SUB)
 		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		l.position = Vector2(52, 12)
+		l.position = Vector2(52, 17 if done else 12)
 		add_child(l)
 		var g := float(t["goal"])
 		var p := minf(float(t["progress"]), g)
@@ -131,7 +169,7 @@ class GoalRow extends Button:
 			var right := size.x - (38.0 if chev else 16.0)
 			var cw := cnt.get_minimum_size().x + 2.0
 			cnt.size = Vector2(cw, 20)
-			cnt.position = Vector2(right - cw, 14)
+			cnt.position = Vector2(right - cw, 17 if done else 14)
 			l.size = Vector2(maxf(0.0, right - cw - 12 - 52), 22)
 			if chev:
 				chev.position = Vector2(size.x - 14 - 16, (size.y - 16.0) * 0.5)
@@ -144,8 +182,10 @@ class GoalRow extends Button:
 		var g := float(t["goal"])
 		var p := clampf(float(t["progress"]) / g, 0.0, 1.0) if g > 0.0 else 1.0
 		var x0 := 52.0
-		var x1 := size.x - (38.0 if not t["done"] else 16.0)
+		var x1 := size.x - 16.0   # one right edge on every row
 		var y := size.y - 16.0
+		if t["done"]:
+			return   # a finished goal has no bar
 		draw_line(Vector2(x0, y), Vector2(x1, y), UI.TRACK, 4.0, true)
 		if p > 0.0:
 			draw_line(Vector2(x0, y), Vector2(x0 + (x1 - x0) * p, y), UI.TEXT, 4.0, true)
