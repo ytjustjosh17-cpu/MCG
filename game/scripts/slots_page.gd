@@ -510,6 +510,7 @@ class SlotMachine extends Control:
 		_reels.draw.connect(_draw_reels)
 		_over = Control.new()
 		_over.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_over.clip_contents = true   # banner rays stay inside the cabinet
 		add_child(_over)
 		_over.draw.connect(_draw_over)
 		resized.connect(func():
@@ -677,38 +678,102 @@ class SlotMachine extends Control:
 			_acc = 0.0
 			queue_redraw()
 
-	# ---- drawing
+	# ---- drawing (1.2 craft pass: lit cabinet, drum-shaded reels, detailed symbols)
+	func _theme_cols() -> Dictionary:
+		## The cabinet's palette per theme, all from UI tokens.
+		match theme_id:
+			"neon":
+				return {"top": UI.SKY.lerp(UI.HAZE, 0.55), "bot": UI.INK, "trim": UI.SLOT_COL["wild"], "trim2": UI.SLOT_COL["seven"], "plate": UI.INK}
+			"vault":
+				return {"top": UI.RAISED.lerp(UI.TRACK, 0.3), "bot": UI.SIDE, "trim": UI.SUB, "trim2": UI.GOLD, "plate": UI.SIDE}
+		return {"top": UI.SIDE.lerp(UI.RAISED, 0.55), "bot": UI.INK, "trim": UI.GOLD, "trim2": UI.GOLD, "plate": UI.INK}
+
+	static func vgrad(ci: CanvasItem, r: Rect2, top: Color, bot: Color) -> void:
+		ci.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([top, top, bot, bot]))
+
+	static func hgrad(ci: CanvasItem, r: Rect2, left: Color, right: Color) -> void:
+		ci.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([left, right, right, left]))
+
+	static func rgrad(ci: CanvasItem, poly: PackedVector2Array, top_y: float, bot_y: float, top: Color, bot: Color) -> void:
+		## A polygon shaded top to bottom (cabinet bodies, plates).
+		var cols := PackedColorArray()
+		for p in poly:
+			cols.append(top.lerp(bot, clampf((p.y - top_y) / maxf(1.0, bot_y - top_y), 0.0, 1.0)))
+		ci.draw_polygon(poly, cols)
+
+	static func closed(poly: PackedVector2Array) -> PackedVector2Array:
+		var o := poly.duplicate()
+		o.append(poly[0])
+		return o
+
 	func _draw() -> void:
 		var s := size
-		var frame: Color = {"neon": UI.SKY, "vault": UI.SIDE}.get(theme_id, UI.SIDE)
-		# Cabinet with a hairline gold trim (red is kept for the one thing to tap).
-		draw_colored_polygon(UI.rounded_rect_poly(Rect2(Vector2.ZERO, s), 22.0), frame)
-		var outline := UI.rounded_rect_poly(Rect2(Vector2(1, 1), s - Vector2(2, 2)), 21.0)
-		outline.append(outline[0])
-		var glow := 0.3 + 0.15 * sin(_t * 2.0) if theme_id == "neon" and not Game.reduce_motion else 0.4
-		draw_polyline(outline, Color(UI.GOLD, glow), 1.5, true)
+		var tc := _theme_cols()
+		var body := Rect2(Vector2.ZERO, s)
+		var neon_k := 0.75 + 0.25 * sin(_t * 2.0) if theme_id == "neon" and not Game.reduce_motion else 0.85
+		# Drop shadow, then the cabinet body lit from above.
+		draw_colored_polygon(UI.rounded_rect_poly(body.grow(-1.0).grow_side(SIDE_BOTTOM, 3.0), 22.0), Color(UI.INK, 0.6))
+		var bp := UI.rounded_rect_poly(body, 22.0)
+		rgrad(self, bp, 0.0, s.y, tc["top"], tc["bot"])
+		# Bevel: a lit top edge and a dark lower edge, then the trim.
+		var inner := UI.rounded_rect_poly(body.grow(-5.0), 18.0)
+		draw_polyline(closed(inner), Color(UI.INK, 0.55), 2.0, true)
+		draw_polyline(closed(UI.rounded_rect_poly(body.grow(-1.0), 21.0)), Color(tc["trim"], 0.55 * neon_k), 1.5, true)
+		draw_line(Vector2(24, 2.5), Vector2(s.x - 24, 2.5), Color(UI.TEXT, 0.16), 1.0, true)
+		if theme_id == "neon":
+			# A soft tube glow just inside the trim.
+			draw_polyline(closed(UI.rounded_rect_poly(body.grow(-3.0), 20.0)), Color(tc["trim"], 0.14 * neon_k), 4.0, true)
 		if theme_id == "vault":
-			# Rivets round the edge.
+			# Bolts round the edge, each with a lit side.
 			for i in 12:
-				var x := 18.0 + (s.x - 36.0) * float(i) / 11.0
-				draw_circle(Vector2(x, 10), 2.5, UI.SUB)
-				draw_circle(Vector2(x, s.y - 10), 2.5, UI.SUB)
-		# Marquee: lights chasing, the machine's name, free spins counter.
-		var lights := 15
+				var x := 20.0 + (s.x - 40.0) * float(i) / 11.0
+				for y in [11.0, s.y - 11.0]:
+					draw_circle(Vector2(x, y), 3.2, UI.INK)
+					draw_circle(Vector2(x, y), 2.6, UI.DIM)
+					draw_circle(Vector2(x - 0.8, y - 0.8), 1.0, Color(UI.TEXT, 0.5))
+		# Marquee: a dark sign plate with bulbs that chase, then the machine's name.
+		var plate := Rect2(Vector2(12, 7), Vector2(s.x - 24, 40))
+		draw_colored_polygon(UI.rounded_rect_poly(plate, 12.0), Color(tc["plate"], 0.75))
+		draw_polyline(closed(UI.rounded_rect_poly(plate, 12.0)), Color(tc["trim2"], 0.35), 1.0, true)
+		var lights := 17
 		for i in lights:
 			var lit := fmod(_t * 6.0 - float(i), float(lights)) < 3.0 if not Game.reduce_motion else i % 3 == 0
-			draw_circle(Vector2(26.0 + (s.x - 52.0) * float(i) / float(lights - 1), 14.0), 2.6, UI.GOLD if lit else UI.TRACK)
+			var bc := Vector2(26.0 + (s.x - 52.0) * float(i) / float(lights - 1), 13.5)
+			var bulb: Color = tc["trim2"] if theme_id == "neon" and i % 2 == 1 else UI.GOLD
+			if lit:
+				draw_circle(bc, 6.0, Color(bulb, 0.16))
+				draw_circle(bc, 3.0, bulb)
+				draw_circle(bc + Vector2(-0.9, -0.9), 1.0, Color(UI.FLASH, 0.9))
+			else:
+				draw_circle(bc, 2.8, Color(UI.INK, 0.8))
+				draw_circle(bc, 2.2, UI.TRACK)
 		var title := "%s SWINGS · 20 LINES" % String(SlotMath.THEMES[theme_id]["volatility"]).to_upper()
 		if _free_left > 0:
 			title = "FREE SPINS · %d LEFT · ×2" % _free_left
-		draw_string(UI.DISPLAY, Vector2(0, 42), title, HORIZONTAL_ALIGNMENT_CENTER, s.x, 20, UI.GOLD if _free_left > 0 else UI.TEXT)
-		# Reel window frame (the reels draw in their own clipped layer).
+		var tcol: Color = UI.GOLD if _free_left > 0 else UI.TEXT
+		draw_string(UI.DISPLAY, Vector2(1, 43), title, HORIZONTAL_ALIGNMENT_CENTER, s.x, 20, Color(UI.INK, 0.9))
+		draw_string(UI.DISPLAY, Vector2(0, 42), title, HORIZONTAL_ALIGNMENT_CENTER, s.x, 20, tcol)
+		# Reel window: a recessed bezel with a gold lip and four studs.
 		var w := _window()
-		draw_rect(w.grow(4.0), UI.RAISED)
-		draw_rect(w, UI.INK)
-		# Info strip under the reels.
+		draw_colored_polygon(UI.rounded_rect_poly(w.grow(9.0), 10.0), Color(UI.INK, 0.65))
+		draw_colored_polygon(UI.rounded_rect_poly(w.grow(7.0), 9.0), tc["bot"].lerp(UI.RAISED, 0.35))
+		draw_polyline(closed(UI.rounded_rect_poly(w.grow(7.0), 9.0)), Color(tc["trim"], 0.45 * neon_k), 1.2, true)
+		draw_line(Vector2(w.position.x - 5, w.position.y - 6.5), Vector2(w.end.x + 5, w.position.y - 6.5), Color(UI.TEXT, 0.12), 1.0)
+		draw_rect(w.grow(3.0), UI.INK)
+		for cx in [w.position.x - 4.0, w.end.x + 4.0]:
+			for cy in [w.position.y - 4.0, w.end.y + 4.0]:
+				draw_circle(Vector2(cx, cy), 2.6, Color(tc["trim"], 0.9))
+				draw_circle(Vector2(cx - 0.7, cy - 0.7), 0.9, Color(UI.FLASH, 0.8))
+		# Info strip under the reels, on its own little plate.
 		var info := _info_text()
-		draw_string(UI.SEMI, Vector2(0, s.y - 18), info, HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, UI.GOLD if info.begins_with("Line") or info.begins_with("Scatter") else UI.SUB)
+		var hot := info.begins_with("Line") or info.begins_with("Scatter")
+		var ir := Rect2(Vector2(s.x * 0.18, s.y - 36.0), Vector2(s.x * 0.64, 26.0))
+		draw_colored_polygon(UI.rounded_rect_poly(ir, 13.0), Color(UI.INK, 0.55))
+		if hot:
+			draw_polyline(closed(UI.rounded_rect_poly(ir, 13.0)), Color(UI.GOLD, 0.5), 1.0, true)
+		draw_string(UI.SEMI, Vector2(0, s.y - 18), info, HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, UI.GOLD if hot else UI.SUB)
 
 	func _draw_reels() -> void:
 		## Drawn in _reels, which clips: spinning symbols never spill out.
@@ -717,34 +782,62 @@ class SlotMachine extends Control:
 		ci.draw_set_transform(-w.position)
 		var cw := w.size.x / REELS
 		var ch := w.size.y / ROWS
+		# Each machine's drums catch a little of its own colour.
+		var tint: Color = {"neon": UI.SLOT_COL["wild"], "vault": UI.SUB}.get(theme_id, UI.GOLD)
+		var lit := UI.WINDOW.lerp(UI.TEXT, 0.06).lerp(tint, 0.07)
 		for r in REELS:
-			var col_r := Rect2(w.position + Vector2(r * cw + 2, 0), Vector2(cw - 4, w.size.y))
-			ci.draw_rect(col_r, UI.WINDOW)
+			var col_r := Rect2(w.position + Vector2(r * cw + 1.5, 0), Vector2(cw - 3.0, w.size.y))
+			# A curved drum: dark at the top and bottom, lit across the middle, dark at the sides.
+			var mid := col_r.position.y + col_r.size.y * 0.42
+			vgrad(ci, Rect2(col_r.position, Vector2(col_r.size.x, mid - col_r.position.y)), UI.INK.lerp(UI.WINDOW, 0.3), lit)
+			vgrad(ci, Rect2(Vector2(col_r.position.x, mid), Vector2(col_r.size.x, col_r.end.y - mid)), lit, UI.INK.lerp(UI.WINDOW, 0.25))
+			hgrad(ci, Rect2(col_r.position, Vector2(col_r.size.x * 0.18, col_r.size.y)), Color(UI.INK, 0.45), Color(UI.INK, 0.0))
+			hgrad(ci, Rect2(Vector2(col_r.end.x - col_r.size.x * 0.18, col_r.position.y), Vector2(col_r.size.x * 0.18, col_r.size.y)), Color(UI.INK, 0.0), Color(UI.INK, 0.45))
 			if _hot[r] and _spinning[r]:
 				var a := 0.35 + 0.25 * sin(_t * 12.0)
-				ci.draw_rect(col_r, Color(UI.GOLD, a), false, 3.0)
+				ci.draw_rect(col_r.grow(-1.0), Color(UI.GOLD, a * 0.25))
+				ci.draw_rect(col_r.grow(-1.0), Color(UI.GOLD, a), false, 3.0)
 			if _spinning[r]:
 				_draw_tape(ci, r, col_r, ch)
 			else:
 				for row in ROWS:
-					var cr := _cell(r, row).grow(-6.0)
+					var cell := _cell(r, row)
+					var cr := cell.grow(-5.0)
 					var sym := String(cells[r][row])
 					var hl := _is_hl(r, row)
 					if hl:
 						var p := 0.5 + 0.5 * sin(_pulse * 8.0) if not Game.reduce_motion else 1.0
-						ci.draw_rect(_cell(r, row).grow(-3.0), Color(UI.GOLD, 0.18 + 0.22 * p))
-						ci.draw_rect(_cell(r, row).grow(-3.0), UI.GOLD, false, 2.0)
+						var hr := cell.grow(-3.0)
+						for g in 3:
+							ci.draw_rect(hr.grow(-float(g) * 3.0), Color(UI.GOLD, (0.10 + 0.08 * p) * (1.0 - float(g) * 0.3)))
+						ci.draw_rect(hr, Color(UI.GOLD, 0.85 + 0.15 * p), false, 2.0)
+						var L := minf(10.0, hr.size.x * 0.2)
+						for cx in [hr.position.x, hr.end.x]:
+							for cy in [hr.position.y, hr.end.y]:
+								var dx := L if cx == hr.position.x else -L
+								var dy := L if cy == hr.position.y else -L
+								ci.draw_line(Vector2(cx, cy), Vector2(cx + dx, cy), UI.TEXT, 2.0)
+								ci.draw_line(Vector2(cx, cy), Vector2(cx, cy + dy), UI.TEXT, 2.0)
 					var dim := 1.0
 					if _show_line != -1 and not hl:
-						dim = 0.45
+						dim = 0.4
 					var grow := 1.0
 					if hl and not Game.reduce_motion:
 						grow = 1.0 + 0.06 * (0.5 + 0.5 * sin(_pulse * 8.0))
 					var sr := Rect2(cr.get_center() - cr.size * 0.5 * grow, cr.size * grow)
 					SlotMachine.draw_symbol(ci, sym, sr, dim)
-		# Shade top and bottom of the window like a curved drum.
-		ci.draw_rect(Rect2(w.position, Vector2(w.size.x, 12)), Color(UI.INK, 0.55))
-		ci.draw_rect(Rect2(w.position + Vector2(0, w.size.y - 12), Vector2(w.size.x, 12)), Color(UI.INK, 0.55))
+			# The seam between drums: a dark groove with a lit edge.
+			if r > 0:
+				var x := w.position.x + r * cw
+				ci.draw_line(Vector2(x, w.position.y), Vector2(x, w.end.y), UI.INK, 3.0)
+				ci.draw_line(Vector2(x + 1.5, w.position.y), Vector2(x + 1.5, w.end.y), Color(UI.TEXT, 0.06), 1.0)
+		# The drum curving away at the top and bottom, then a faint glass glare.
+		var fade := minf(26.0, w.size.y * 0.12)
+		vgrad(ci, Rect2(w.position, Vector2(w.size.x, fade)), Color(UI.INK, 0.85), Color(UI.INK, 0.0))
+		vgrad(ci, Rect2(Vector2(w.position.x, w.end.y - fade), Vector2(w.size.x, fade)), Color(UI.INK, 0.0), Color(UI.INK, 0.85))
+		var gl := PackedVector2Array([w.position + Vector2(w.size.x * 0.08, 0), w.position + Vector2(w.size.x * 0.30, 0),
+			w.position + Vector2(w.size.x * 0.12, w.size.y), w.position + Vector2(-w.size.x * 0.10, w.size.y)])
+		ci.draw_colored_polygon(gl, Color(UI.TEXT, 0.025))
 
 	func _draw_over() -> void:
 		## Win lines and banners, above the reels. Never takes a tap.
@@ -754,11 +847,22 @@ class SlotMachine extends Control:
 		_draw_lines(ci, w)
 		if _banner_t > 0.0:
 			var a := clampf(_banner_t * 3.0, 0.0, 1.0)
-			var br := Rect2(Vector2(PAD - 2.0, w.get_center().y - 46.0), Vector2(s.x - PAD * 2.0 + 4.0, 92.0))
-			ci.draw_rect(br, Color(UI.INK, 0.88 * a))
-			ci.draw_rect(br, Color(UI.GOLD, a), false, 2.0)
-			ci.draw_string(UI.DISPLAY, Vector2(0, br.position.y + 46.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, s.x, 34, Color(UI.GOLD, a))
-			ci.draw_string(UI.SEMI, Vector2(0, br.position.y + 74.0), _banner_sub, HORIZONTAL_ALIGNMENT_CENTER, s.x, 17, Color(UI.TEXT, a))
+			var br := Rect2(Vector2(PAD - 2.0, w.get_center().y - 50.0), Vector2(s.x - PAD * 2.0 + 4.0, 100.0))
+			var c := br.get_center()
+			# Slow rays behind the plate, then the plate with a double gold rule.
+			if not Game.reduce_motion:
+				for i in 12:
+					var ang := _t * 0.6 + TAU * float(i) / 12.0
+					var d1 := Vector2(cos(ang), sin(ang))
+					var d2 := Vector2(cos(ang + 0.12), sin(ang + 0.12))
+					ci.draw_colored_polygon(PackedVector2Array([c, c + d1 * s.x * 0.7, c + d2 * s.x * 0.7]), Color(UI.GOLD, 0.06 * a))
+			ci.draw_colored_polygon(UI.rounded_rect_poly(br, 14.0), Color(UI.INK, 0.9 * a))
+			vgrad(ci, Rect2(br.position + Vector2(0, 4), Vector2(br.size.x, br.size.y * 0.45)), Color(UI.GOLD, 0.10 * a), Color(UI.GOLD, 0.0))
+			ci.draw_polyline(closed(UI.rounded_rect_poly(br, 14.0)), Color(UI.GOLD, a), 2.0, true)
+			ci.draw_polyline(closed(UI.rounded_rect_poly(br.grow(-5.0), 10.0)), Color(UI.GOLD, 0.35 * a), 1.0, true)
+			ci.draw_string(UI.DISPLAY, Vector2(2, br.position.y + 52.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, s.x, 36, Color(UI.INK, a))
+			ci.draw_string(UI.DISPLAY, Vector2(0, br.position.y + 50.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, s.x, 36, Color(UI.GOLD, a))
+			ci.draw_string(UI.SEMI, Vector2(0, br.position.y + 80.0), _banner_sub, HORIZONTAL_ALIGNMENT_CENTER, s.x, 17, Color(UI.TEXT, a))
 
 	func _info_text() -> String:
 		if _spinning.has(true):
@@ -807,11 +911,17 @@ class SlotMachine extends Control:
 			for r in REELS:
 				pts.append(_cell(r, int(rows[r])).get_center())
 			pts.append(Vector2(w.end.x + 4.0, _cell(4, int(rows[4])).get_center().y))
-			ci.draw_polyline(pts, Color(UI.INK, 0.7), 6.0, true)
-			ci.draw_polyline(pts, UI.GOLD, 3.0, true)
+			# A glowing line: a soft halo, a gold band, a bright core.
+			ci.draw_polyline(pts, Color(UI.INK, 0.6), 9.0, true)
+			ci.draw_polyline(pts, Color(UI.GOLD, 0.16), 14.0, true)
+			ci.draw_polyline(pts, Color(UI.GOLD, 0.35), 7.0, true)
+			ci.draw_polyline(pts, UI.GOLD, 3.5, true)
+			ci.draw_polyline(pts, Color(UI.FLASH, 0.75), 1.2, true)
 			# The line number on the left edge, like a real machine.
 			var lp := pts[0]
-			ci.draw_circle(lp, 11.0, UI.GOLD)
+			ci.draw_circle(lp, 13.0, Color(UI.INK, 0.8))
+			ci.draw_circle(lp, 11.5, UI.GOLD)
+			ci.draw_arc(lp, 9.5, PI * 1.1, PI * 1.9, 10, Color(UI.FLASH, 0.7), 1.2, true)
 			ci.draw_string(UI.SEMI, lp + Vector2(-11, 5), str(int(wn["line"]) + 1), HORIZONTAL_ALIGNMENT_CENTER, 22, 13, UI.INK)
 
 	func _draw_tape(ci: CanvasItem, r: int, col_r: Rect2, ch: float) -> void:
@@ -841,71 +951,173 @@ class SlotMachine extends Control:
 				ci.draw_line(Vector2(x, col_r.position.y), Vector2(x, col_r.end.y), Color(UI.TEXT, 0.04 * fast), 2.0)
 
 	static func draw_symbol(ci: CanvasItem, sym: String, r: Rect2, alpha: float) -> void:
-		## Every symbol, drawn to fit r (any size). alpha fades it.
+		## Every symbol, drawn to fit r (any size). alpha fades it. Light comes
+		## from the top left: a soft shadow down-right, highlights up-left.
 		var c := r.get_center()
 		var u := minf(r.size.x, r.size.y)
 		var col: Color = UI.SLOT_COL.get(sym, UI.TEXT)
 		col.a *= alpha
 		var ink := Color(UI.INK, alpha)
+		var shade := Color(col.darkened(0.28), alpha)
+		var light := Color(col.lightened(0.35), alpha)
+		if sym == "lemon":
+			shade = Color(col.darkened(0.1), alpha)   # yellow goes muddy if shaded hard
+			light = Color(col.lightened(0.22), alpha)
+		var shadow := Color(UI.INK, 0.45 * alpha)
+		var hi := Color(UI.FLASH, 0.7 * alpha)
+		var sh := Vector2(u * 0.035, u * 0.05)   # shadow offset
+		var lw := maxf(1.0, u * 0.025)          # outline width
 		match sym:
 			"sun":
-				for i in 12:
-					var a := TAU * float(i) / 12.0
-					ci.draw_line(c + Vector2(cos(a), sin(a)) * u * 0.3, c + Vector2(cos(a), sin(a)) * u * 0.46, col, maxf(1.5, u * 0.05), true)
-				ci.draw_circle(c, u * 0.27, col)
-				ci.draw_circle(c + Vector2(-u * 0.08, -u * 0.08), u * 0.08, Color(UI.FLASH, 0.5 * alpha))
+				ci.draw_circle(c, u * 0.47, Color(col, 0.12 * alpha))
+				for i in 16:
+					var a := TAU * float(i) / 16.0
+					var long := i % 2 == 0
+					var r1 := u * 0.3
+					var r2 := u * (0.47 if long else 0.39)
+					var wd := 0.09 if long else 0.07
+					var tip := c + Vector2(cos(a), sin(a)) * r2
+					var b1 := c + Vector2(cos(a - wd), sin(a - wd)) * r1
+					var b2 := c + Vector2(cos(a + wd), sin(a + wd)) * r1
+					ci.draw_colored_polygon(PackedVector2Array([b1 + sh, tip + sh, b2 + sh]), shadow)
+					ci.draw_colored_polygon(PackedVector2Array([b1, tip, b2]), col if long else shade)
+				ci.draw_circle(c + sh, u * 0.29, shadow)
+				ci.draw_circle(c, u * 0.29, shade)
+				ci.draw_circle(c + Vector2(-u * 0.02, -u * 0.02), u * 0.26, col)
+				ci.draw_circle(c + Vector2(-u * 0.06, -u * 0.06), u * 0.17, Color(light, 0.55 * alpha))
+				ci.draw_arc(c, u * 0.29, 0.0, TAU, 32, Color(UI.GOLD, 0.8 * alpha), lw, true)
+				ci.draw_circle(c + Vector2(-u * 0.1, -u * 0.1), u * 0.06, hi)
 			"crown":
 				var b := u * 0.42
 				var pts := PackedVector2Array([
 					c + Vector2(-b, b * 0.55), c + Vector2(-b, -b * 0.35), c + Vector2(-b * 0.5, b * 0.05),
 					c + Vector2(0, -b * 0.6), c + Vector2(b * 0.5, b * 0.05), c + Vector2(b, -b * 0.35), c + Vector2(b, b * 0.55)])
-				ci.draw_colored_polygon(pts, col)
+				var shp := PackedVector2Array()
+				for p in pts:
+					shp.append(p + sh)
+				ci.draw_colored_polygon(shp, shadow)
+				rgrad(ci, pts, c.y - b * 0.6, c.y + b * 0.55, light, shade)
+				ci.draw_polyline(closed(pts), Color(UI.INK, 0.55 * alpha), lw, true)
+				# The band with set stones.
+				var band := Rect2(c + Vector2(-b, b * 0.28), Vector2(b * 2.0, b * 0.27))
+				ci.draw_rect(band, shade)
+				ci.draw_line(band.position, Vector2(band.end.x, band.position.y), Color(light, 0.8 * alpha), lw)
+				for k in [-0.55, 0.0, 0.55]:
+					var gc := c + Vector2(b * k, b * 0.415)
+					var gcol: Color = UI.RED if k == 0.0 else UI.SLOT_COL["wild"]
+					ci.draw_circle(gc, u * 0.045, Color(gcol, alpha))
+					ci.draw_circle(gc + Vector2(-u * 0.012, -u * 0.012), u * 0.015, hi)
 				for p in [Vector2(-b, -b * 0.35), Vector2(0, -b * 0.6), Vector2(b, -b * 0.35)]:
-					ci.draw_circle(c + p, u * 0.06, col)
-				ci.draw_rect(Rect2(c + Vector2(-b, b * 0.32), Vector2(b * 2.0, b * 0.12)), ink)
+					ci.draw_circle(c + p, u * 0.065, col)
+					ci.draw_circle(c + p + Vector2(-u * 0.018, -u * 0.018), u * 0.022, hi)
 			"bar":
-				var br := Rect2(c - Vector2(u * 0.44, u * 0.2), Vector2(u * 0.88, u * 0.4))
-				ci.draw_colored_polygon(UI.rounded_rect_poly(br, u * 0.07), col)
-				ci.draw_string(UI.DISPLAY, Vector2(br.position.x, c.y + u * 0.12), "BAR", HORIZONTAL_ALIGNMENT_CENTER, br.size.x, int(u * 0.34), ink)
+				var br := Rect2(c - Vector2(u * 0.44, u * 0.21), Vector2(u * 0.88, u * 0.42))
+				ci.draw_colored_polygon(UI.rounded_rect_poly(Rect2(br.position + sh, br.size), u * 0.08), shadow)
+				ci.draw_colored_polygon(UI.rounded_rect_poly(br, u * 0.08), Color(UI.INK, 0.9 * alpha))
+				var face := br.grow(-u * 0.035)
+				var fp := UI.rounded_rect_poly(face, u * 0.06)
+				rgrad(ci, fp, face.position.y, face.end.y, light, shade)
+				ci.draw_rect(Rect2(face.position + Vector2(u * 0.03, u * 0.02), Vector2(face.size.x - u * 0.06, face.size.y * 0.16)), Color(UI.FLASH, 0.35 * alpha))
+				var fs := int(u * 0.3)
+				ci.draw_string(UI.DISPLAY, Vector2(br.position.x + 1.0, c.y + u * 0.11 + 1.0), "BAR", HORIZONTAL_ALIGNMENT_CENTER, br.size.x, fs, Color(UI.TEXT, 0.35 * alpha))
+				ci.draw_string(UI.DISPLAY, Vector2(br.position.x, c.y + u * 0.11), "BAR", HORIZONTAL_ALIGNMENT_CENTER, br.size.x, fs, ink)
 			"seven":
 				var fs := int(u * 0.86)
-				ci.draw_string(UI.DISPLAY, Vector2(r.position.x + 2.0, c.y + u * 0.32 + 2.0), "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, ink)
-				ci.draw_string(UI.DISPLAY, Vector2(r.position.x, c.y + u * 0.32), "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, col)
+				var base := Vector2(r.position.x, c.y + u * 0.32)
+				var o := maxf(1.5, u * 0.035)
+				ci.draw_string(UI.DISPLAY, base + sh * 1.6, "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, shadow)
+				# A dark outline all round, a deep bevel below, the face, a lit edge above.
+				for d in [Vector2(-o, 0), Vector2(o, 0), Vector2(0, -o), Vector2(0, o), Vector2(-o, -o), Vector2(o, o), Vector2(-o, o), Vector2(o, -o)]:
+					ci.draw_string(UI.DISPLAY, base + d, "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, ink)
+				ci.draw_string(UI.DISPLAY, base + Vector2(0, o * 0.8), "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, shade)
+				ci.draw_string(UI.DISPLAY, base + Vector2(-o * 0.5, -o * 0.5), "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, light)
+				ci.draw_string(UI.DISPLAY, base, "7", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, fs, col)
 			"bell":
 				var b := u * 0.36
 				var pts := PackedVector2Array()
-				for i in 13:
-					var a := PI + PI * float(i) / 12.0
+				for i in 15:
+					var a := PI + PI * float(i) / 14.0
 					pts.append(c + Vector2(cos(a) * b * 0.75, sin(a) * b * 0.9 - b * 0.05))
-				pts.append(c + Vector2(b, b * 0.55))
-				pts.append(c + Vector2(-b, b * 0.55))
-				ci.draw_colored_polygon(pts, col)
-				ci.draw_circle(c + Vector2(0, b * 0.72), u * 0.08, col)
-				ci.draw_circle(c + Vector2(0, -b * 0.98), u * 0.05, col)
+				pts.append(c + Vector2(b * 0.85, b * 0.4))
+				pts.append(c + Vector2(b, b * 0.58))
+				pts.append(c + Vector2(-b, b * 0.58))
+				pts.append(c + Vector2(-b * 0.85, b * 0.4))
+				var shp := PackedVector2Array()
+				for p in pts:
+					shp.append(p + sh)
+				ci.draw_colored_polygon(shp, shadow)
+				ci.draw_circle(c + Vector2(0, b * 0.74) + sh, u * 0.085, shadow)
+				ci.draw_circle(c + Vector2(0, b * 0.74), u * 0.085, shade)
+				rgrad(ci, pts, c.y - b, c.y + b * 0.6, light, shade)
+				# A shine down the left side and the rolled lip.
+				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-b * 0.45, -b * 0.6), c + Vector2(-b * 0.25, -b * 0.75), c + Vector2(-b * 0.45, b * 0.3), c + Vector2(-b * 0.65, b * 0.3)]), Color(UI.FLASH, 0.35 * alpha))
+				ci.draw_rect(Rect2(c + Vector2(-b, b * 0.46), Vector2(b * 2.0, b * 0.12)), Color(col.darkened(0.15), alpha))
+				ci.draw_line(c + Vector2(-b, b * 0.46), c + Vector2(b, b * 0.46), Color(light, 0.9 * alpha), lw)
+				ci.draw_polyline(closed(pts), Color(UI.INK, 0.5 * alpha), lw, true)
+				ci.draw_circle(c + Vector2(0, -b * 0.98), u * 0.055, col)
+				ci.draw_circle(c + Vector2(-u * 0.015, -b * 1.0), u * 0.02, hi)
 			"cherry":
 				var b := u * 0.18
-				ci.draw_line(c + Vector2(-b, b * 0.6), c + Vector2(b * 0.4, -b * 2.0), Color(UI.UP, alpha), maxf(1.5, u * 0.04), true)
-				ci.draw_line(c + Vector2(b * 1.2, b * 0.9), c + Vector2(b * 0.4, -b * 2.0), Color(UI.UP, alpha), maxf(1.5, u * 0.04), true)
-				ci.draw_circle(c + Vector2(-b, b * 0.9), b * 1.05, col)
-				ci.draw_circle(c + Vector2(b * 1.2, b * 1.2), b * 1.05, col)
-				ci.draw_circle(c + Vector2(-b * 1.3, b * 0.6), b * 0.25, Color(UI.FLASH, 0.6 * alpha))
+				var stem := Color(UI.UP.darkened(0.25), alpha)
+				var top := c + Vector2(b * 0.4, -b * 2.0)
+				ci.draw_line(c + Vector2(-b, b * 0.5), top, stem, maxf(1.5, u * 0.045), true)
+				ci.draw_line(c + Vector2(b * 1.2, b * 0.8), top, stem, maxf(1.5, u * 0.045), true)
+				# A leaf off the top of the stems.
+				var leaf := PackedVector2Array([top, top + Vector2(b * 0.7, -b * 0.55), top + Vector2(b * 1.5, -b * 0.35), top + Vector2(b * 0.8, b * 0.05)])
+				ci.draw_colored_polygon(leaf, Color(UI.UP, alpha))
+				ci.draw_line(top, top + Vector2(b * 1.3, -b * 0.3), Color(UI.UP.darkened(0.3), alpha), maxf(1.0, u * 0.015), true)
+				for cc in [c + Vector2(-b, b * 0.95), c + Vector2(b * 1.2, b * 1.25)]:
+					ci.draw_circle(cc + sh, b * 1.08, shadow)
+					ci.draw_circle(cc, b * 1.08, shade)
+					ci.draw_circle(cc + Vector2(-b * 0.1, -b * 0.12), b * 0.92, col)
+					ci.draw_circle(cc + Vector2(-b * 0.38, -b * 0.4), b * 0.26, hi)
 			"lemon":
-				var pts := PackedVector2Array()
-				for i in 24:
-					var a := TAU * float(i) / 24.0
-					var k := 1.0 + 0.18 * absf(cos(a)) * absf(cos(a)) * absf(cos(a))
-					pts.append(c + Vector2(cos(a) * u * 0.38 * k, sin(a) * u * 0.27))
-				ci.draw_colored_polygon(pts, col)
-				ci.draw_line(c + Vector2(-u * 0.15, -u * 0.08), c + Vector2(u * 0.1, -u * 0.12), Color(UI.FLASH, 0.6 * alpha), maxf(1.0, u * 0.03), true)
+				var outer := PackedVector2Array()
+				for i in 28:
+					var a := TAU * float(i) / 28.0
+					var k := 1.0 + 0.2 * absf(cos(a)) * absf(cos(a)) * absf(cos(a))
+					outer.append(c + Vector2(cos(a) * u * 0.38 * k, sin(a) * u * 0.27))
+				var shp := PackedVector2Array()
+				for p in outer:
+					shp.append(p + sh)
+				ci.draw_colored_polygon(shp, shadow)
+				rgrad(ci, outer, c.y - u * 0.27, c.y + u * 0.27, light, shade)
+				# Pitted skin, a lit stripe, and the two nubs.
+				for d in [Vector2(-0.18, -0.05), Vector2(0.05, 0.08), Vector2(0.2, -0.06), Vector2(-0.05, 0.14), Vector2(0.12, 0.16)]:
+					ci.draw_circle(c + d * u, maxf(0.8, u * 0.012), Color(UI.INK, 0.18 * alpha))
+				ci.draw_line(c + Vector2(-u * 0.17, -u * 0.12), c + Vector2(u * 0.12, -u * 0.16), Color(UI.FLASH, 0.6 * alpha), maxf(1.0, u * 0.035), true)
+				ci.draw_circle(c + Vector2(u * 0.46, 0), u * 0.035, shade)
+				ci.draw_circle(c + Vector2(-u * 0.46, 0), u * 0.03, shade)
+				ci.draw_polyline(closed(outer), Color(UI.INK, 0.35 * alpha), lw, true)
 			"wild":
 				var wr := Rect2(c - Vector2(u * 0.46, u * 0.3), Vector2(u * 0.92, u * 0.6))
-				ci.draw_colored_polygon(UI.rounded_rect_poly(wr, u * 0.1), col)
-				ci.draw_string(UI.DISPLAY, Vector2(wr.position.x, c.y + u * 0.12), "WILD", HORIZONTAL_ALIGNMENT_CENTER, wr.size.x, int(u * 0.3), ink)
+				ci.draw_colored_polygon(UI.rounded_rect_poly(Rect2(wr.position + sh, wr.size), u * 0.1), shadow)
+				var wp := UI.rounded_rect_poly(wr, u * 0.1)
+				rgrad(ci, wp, wr.position.y, wr.end.y, light, shade)
+				ci.draw_polyline(closed(wp), Color(UI.GOLD, alpha), maxf(1.5, u * 0.035), true)
+				ci.draw_polyline(closed(UI.rounded_rect_poly(wr.grow(-u * 0.05), u * 0.07)), Color(UI.FLASH, 0.4 * alpha), lw, true)
+				ci.draw_string(UI.DISPLAY, Vector2(wr.position.x + 1.0, c.y + u * 0.11 + 1.0), "WILD", HORIZONTAL_ALIGNMENT_CENTER, wr.size.x, int(u * 0.29), Color(UI.TEXT, 0.4 * alpha))
+				ci.draw_string(UI.DISPLAY, Vector2(wr.position.x, c.y + u * 0.11), "WILD", HORIZONTAL_ALIGNMENT_CENTER, wr.size.x, int(u * 0.29), ink)
+				# Two small sparkles on the corners.
+				for sp in [wr.position + Vector2(u * 0.08, u * 0.02), wr.end - Vector2(u * 0.08, u * 0.02)]:
+					var sz := u * 0.06
+					ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(0, -sz), sp + Vector2(sz * 0.3, 0), sp + Vector2(0, sz), sp + Vector2(-sz * 0.3, 0)]), hi)
+					ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(-sz, 0), sp + Vector2(0, -sz * 0.3), sp + Vector2(sz, 0), sp + Vector2(0, sz * 0.3)]), hi)
 			"scatter":
-				var pts := PackedVector2Array()
+				ci.draw_circle(c, u * 0.48, Color(col, 0.14 * alpha))
+				var outer := PackedVector2Array()
+				var inner := PackedVector2Array()
 				for i in 16:
 					var a := -PI / 2.0 + TAU * float(i) / 16.0
-					var rr := u * (0.46 if i % 2 == 0 else 0.22)
-					pts.append(c + Vector2(cos(a), sin(a)) * rr)
-				ci.draw_colored_polygon(pts, col)
-				ci.draw_string(UI.SEMI, Vector2(r.position.x, c.y + u * 0.06), "FREE", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, int(maxf(8.0, u * 0.16)), ink)
+					outer.append(c + Vector2(cos(a), sin(a)) * u * (0.46 if i % 2 == 0 else 0.23))
+					inner.append(c + Vector2(cos(a), sin(a)) * u * (0.33 if i % 2 == 0 else 0.17))
+				var shp := PackedVector2Array()
+				for p in outer:
+					shp.append(p + sh)
+				ci.draw_colored_polygon(shp, shadow)
+				ci.draw_colored_polygon(outer, shade)
+				rgrad(ci, inner, c.y - u * 0.33, c.y + u * 0.33, light, col)
+				ci.draw_polyline(closed(outer), Color(UI.GOLD, 0.8 * alpha), lw, true)
+				var pill := Rect2(c - Vector2(u * 0.2, u * 0.085), Vector2(u * 0.4, u * 0.17))
+				ci.draw_colored_polygon(UI.rounded_rect_poly(pill, u * 0.08), Color(UI.INK, 0.85 * alpha))
+				ci.draw_string(UI.SEMI, Vector2(pill.position.x, pill.position.y + pill.size.y * 0.8), "FREE", HORIZONTAL_ALIGNMENT_CENTER, pill.size.x, int(maxf(8.0, u * 0.13)), Color(UI.GOLD, alpha))

@@ -742,96 +742,143 @@ class ForgeGrid extends Control:
 		_big_shown = amount if (fast or Motion.reduced()) else 0.0
 		_big_life = 2.6
 
+	static func _vg(ci: CanvasItem, r: Rect2, top: Color, bot: Color) -> void:
+		ci.draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
+			PackedColorArray([top, top, bot, bot]))
+
+	func _bolt(p: Vector2) -> void:
+		draw_circle(p, 3.0, UI.INK)
+		draw_circle(p, 2.3, UI.DIM)
+		draw_circle(p + Vector2(-0.7, -0.7), 0.9, Color(UI.TEXT, 0.55))
+
+	func _bracket(cx: float, cy: float, dx: float, dy: float) -> void:
+		## A cast gold corner: a dark keyline under a lit edge.
+		draw_line(Vector2(cx, cy), Vector2(cx + dx, cy), UI.INK, 5.0)
+		draw_line(Vector2(cx, cy), Vector2(cx, cy + dy), UI.INK, 5.0)
+		draw_line(Vector2(cx, cy), Vector2(cx + dx, cy), UI.GOLD, 3.0)
+		draw_line(Vector2(cx, cy), Vector2(cx, cy + dy), UI.GOLD, 3.0)
+		draw_line(Vector2(cx, cy - 1.0), Vector2(cx + dx * 0.7, cy - 1.0), Color(UI.FLASH, 0.6), 1.0)
+
+	func _frame_top(frame: Rect2, seam: Color) -> void:
+		## The top rail, drawn again over symbols still dropping in.
+		_vg(self, Rect2(frame.position, Vector2(frame.size.x, PAD)), UI.RAISED.lerp(UI.SIDE, 0.35), UI.SIDE)
+		# The molten seam glows in layers.
+		draw_rect(Rect2(frame.position + Vector2(0, -4), Vector2(frame.size.x, 8)), Color(seam, seam.a * 0.25))
+		draw_rect(Rect2(frame.position + Vector2(0, -2), Vector2(frame.size.x, 4)), seam)
+		draw_rect(Rect2(frame.position + Vector2(0, -0.5), Vector2(frame.size.x, 1)), Color(UI.FLASH, seam.a * 0.8))
+		for k in 8:
+			_bolt(Vector2(frame.position.x + 8.0 + (frame.size.x - 16.0) * float(k) / 7.0, frame.position.y + 6.0))
+		var L := 20.0
+		_bracket(frame.position.x, frame.position.y, L, L)
+		_bracket(frame.end.x, frame.position.y, -L, L)
+
 	func _draw() -> void:
 		var o := _origin()
 		var win := Rect2(o, Vector2(cell * 6.0, cell * 5.0))
-		# Frame: dark iron with rivets, a molten seam along the top.
 		var frame := win.grow(PAD)
-		draw_rect(frame, UI.SIDE)
-		draw_rect(frame, UI.TRACK, false, 2.0)
-		var seam := Color(UI.RED, 0.55 + 0.35 * _glow) if _feature else Color(UI.GOLD, 0.5)   # molten red only in the feature
-		draw_rect(Rect2(frame.position + Vector2(0, -2), Vector2(frame.size.x, 4)), seam)
-		draw_rect(Rect2(Vector2(frame.position.x, frame.end.y - 2), Vector2(frame.size.x, 2)), Color(UI.GOLD, 0.5))
+		var seam := Color(UI.RED, 0.55 + 0.35 * _glow) if _feature else Color(UI.GOLD, 0.55)   # molten red only in the feature
+		# Shadow, then dark forged iron lit from above, with a bevel.
+		draw_rect(frame.grow(2.0).grow_side(SIDE_BOTTOM, 3.0), Color(UI.INK, 0.6))
+		_vg(self, frame, UI.RAISED.lerp(UI.SIDE, 0.35), UI.SIDE.lerp(UI.INK, 0.4))
+		draw_rect(frame, Color(UI.INK, 0.7), false, 2.0)
+		draw_line(frame.position + Vector2(2, 2), Vector2(frame.end.x - 2, frame.position.y + 2), Color(UI.TEXT, 0.12), 1.0)
+		draw_rect(Rect2(Vector2(frame.position.x, frame.end.y - 3), Vector2(frame.size.x, 3)), Color(UI.GOLD, 0.45))
 		for k in 8:
-			var x := frame.position.x + 6.0 + (frame.size.x - 12.0) * float(k) / 7.0
-			draw_circle(Vector2(x, frame.position.y + 5.0), 1.8, UI.DIM)
-			draw_circle(Vector2(x, frame.end.y - 5.0), 1.8, UI.DIM)
-		draw_rect(win, UI.INK)
-		# Gold corner brackets, like a cast frame.
-		var L := 18.0
-		for cx in [frame.position.x, frame.end.x]:
-			for cy in [frame.position.y, frame.end.y]:
-				var dx := L if cx == frame.position.x else -L
-				var dy := L if cy == frame.position.y else -L
-				draw_line(Vector2(cx, cy), Vector2(cx + dx, cy), UI.GOLD, 3.0)
-				draw_line(Vector2(cx, cy), Vector2(cx, cy + dy), UI.GOLD, 3.0)
-		# A faint plate in every cell.
+			_bolt(Vector2(frame.position.x + 8.0 + (frame.size.x - 16.0) * float(k) / 7.0, frame.end.y - 6.0))
+		# The window: a deep recess with an inner shadow along the top.
+		draw_rect(win.grow(2.0), UI.INK)
+		_vg(self, win, UI.INK, UI.INK.lerp(UI.WINDOW, 0.6))
+		# Every cell is a recessed plate: dark top edge, lit lower lip, a faint checker.
 		for i in 30:
-			var pr := Rect2(cell_center(i) - Vector2(cell, cell) * 0.5, Vector2(cell, cell)).grow(-3.0)
-			draw_rect(pr, Color(UI.TEXT, 0.025))
-		# Column lines and a faint heat haze from below.
-		for c in range(1, 6):
-			draw_line(o + Vector2(c * cell, 0), o + Vector2(c * cell, cell * 5.0), Color(UI.TEXT, 0.05), 1.0)
-		for hz in 8:
-			var hy := float(hz) * 6.0
-			draw_rect(Rect2(Vector2(win.position.x, win.end.y - hy - 6.0), Vector2(win.size.x, 6.0)), Color(UI.RED, (0.05 if not _feature else 0.09) * (1.0 - float(hz) / 8.0)))
-		# Symbols (clipped to the window).
+			var pr := Rect2(cell_center(i) - Vector2(cell, cell) * 0.5, Vector2(cell, cell)).grow(-2.5)
+			var even := ((i / 5) + (i % 5)) % 2 == 0
+			draw_rect(pr, Color(UI.WINDOW, 0.9 if even else 0.7))
+			draw_line(pr.position, Vector2(pr.end.x, pr.position.y), Color(UI.INK, 0.8), 1.5)
+			draw_line(Vector2(pr.position.x, pr.end.y), pr.end, Color(UI.TEXT, 0.05), 1.0)
+		# Heat from the furnace below, stronger in the feature.
+		var heat := 0.10 if not _feature else 0.18
+		_vg(self, Rect2(Vector2(win.position.x, win.end.y - cell * 1.4), Vector2(win.size.x, cell * 1.4)), Color(UI.RED, 0.0), Color(UI.RED, heat))
+		# Symbols (clipped to the window by the top rail drawn again below).
 		for i in 30:
 			var p := cell_center(i) + Vector2(0, off[i])
-			if p.y < o.y - cell * 0.5:
+			# Falling symbols appear from under the top rail, never above the frame.
+			if p.y - cell * 0.4 < frame.position.y:
 				continue
 			var a := clampf((p.y - (o.y - cell * 0.5)) / (cell * 0.5), 0.0, 1.0)
 			if scl[i] <= 0.01:
 				continue
 			if hl[i] == 1:
 				var r := Rect2(cell_center(i) - Vector2(cell, cell) * 0.5, Vector2(cell, cell)).grow(-2.0)
-				draw_rect(r, Color(UI.GOLD, 0.14 + 0.12 * _glow))
-				draw_rect(r, Color(UI.GOLD, 0.7 + 0.3 * _glow), false, 2.0)
+				for g in 3:
+					draw_rect(r.grow(-float(g) * 3.0), Color(UI.GOLD, (0.10 + 0.08 * _glow) * (1.0 - float(g) * 0.3)))
+				draw_rect(r, Color(UI.GOLD, 0.75 + 0.25 * _glow), false, 2.0)
 			draw_symbol(self, syms[i], vals[i], p, cell, a, scl[i])
-		# The top of the frame again, over symbols still dropping in.
-		draw_rect(Rect2(frame.position, Vector2(frame.size.x, PAD)), UI.SIDE)
-		draw_rect(Rect2(frame.position + Vector2(0, -2), Vector2(frame.size.x, 4)), seam)
-		for k in 8:
-			var rx := frame.position.x + 6.0 + (frame.size.x - 12.0) * float(k) / 7.0
-			draw_circle(Vector2(rx, frame.position.y + 5.0), 1.8, UI.DIM)
-		draw_line(frame.position, frame.position + Vector2(L, 0), UI.GOLD, 3.0)
-		draw_line(frame.position, frame.position + Vector2(0, L), UI.GOLD, 3.0)
-		draw_line(Vector2(frame.end.x, frame.position.y), Vector2(frame.end.x - L, frame.position.y), UI.GOLD, 3.0)
-		draw_line(Vector2(frame.end.x, frame.position.y), Vector2(frame.end.x, frame.position.y + L), UI.GOLD, 3.0)
-		# Win amounts over their clusters.
+		# Bursting clusters throw sparks and shards outwards.
+		if _phase == "burst" and not Motion.reduced():
+			var k := clampf(_phase_t / maxf(_dur, 0.001), 0.0, 1.0)
+			for i in 30:
+				if hl[i] != 1:
+					continue
+				var cc := cell_center(i)
+				for sp in 8:
+					var ang := TAU * (float(sp) + float(i % 3) * 0.33) / 8.0
+					var d := Vector2(cos(ang), sin(ang))
+					var p0 := cc + d * cell * (0.15 + 0.55 * k)
+					var p1 := cc + d * cell * (0.28 + 0.75 * k)
+					draw_line(p0, p1, Color(UI.GOLD if sp % 2 == 0 else UI.FLASH, 1.0 - k), 2.0, true)
+				draw_circle(cc, cell * 0.45 * k, Color(UI.FLASH, 0.35 * (1.0 - k)))
+		_frame_top(frame, seam)
+		_bracket(frame.position.x, frame.end.y, 20.0, -20.0)
+		_bracket(frame.end.x, frame.end.y, -20.0, -20.0)
+		# Win amounts over their clusters, on small gold-ruled pills.
 		var f: Font = UI.DISPLAY
 		for lb in _labels:
 			var pos: Vector2 = lb[0]
 			var t: String = lb[1]
 			var al := clampf(float(lb[2]) / 0.4, 0.0, 1.0)
 			var w := f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-			draw_rect(Rect2(pos - Vector2(w * 0.5 + 8.0, 16.0), Vector2(w + 16.0, 30.0)), Color(UI.INK, 0.8 * al))
+			var pr2 := Rect2(pos - Vector2(w * 0.5 + 10.0, 17.0), Vector2(w + 20.0, 32.0))
+			draw_colored_polygon(UI.rounded_rect_poly(pr2, 14.0), Color(UI.INK, 0.85 * al))
+			draw_polyline(SlotsPage.SlotMachine.closed(UI.rounded_rect_poly(pr2, 14.0)), Color(UI.GOLD, 0.8 * al), 1.5, true)
+			draw_string(f, pos + Vector2(-w * 0.5 + 1.0, 9.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UI.INK, al))
 			draw_string(f, pos + Vector2(-w * 0.5, 8.0), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(UI.GOLD, al))
-		# Orbs flying up to the multiplier.
+		# Orbs flying up to the multiplier, with a short trail.
 		for of in _orb_fly:
 			var from: Vector2 = of[0]
 			var to := Vector2(size.x * 0.5, -26.0)
 			var k := _orb_k
+			for tr in 3:
+				var kk := maxf(0.0, k - 0.06 * float(tr + 1))
+				var tp := from.lerp(to, kk * kk) + Vector2(0, -sin(kk * PI) * 30.0)
+				draw_circle(tp, cell * 0.2 * (1.0 - 0.4 * kk) * (1.0 - 0.25 * tr), Color(UI.RED, 0.25 - 0.07 * tr))
 			var pp := from.lerp(to, k * k) + Vector2(0, -sin(k * PI) * 30.0)
 			draw_symbol(self, ForgeMath.ORB, int(of[1]), pp, cell * (1.0 - 0.4 * k), 1.0, 1.0)
 		# Banners (never block taps: drawn, not a control).
 		if _banner_life > 0.0:
 			var ba := clampf(_banner_life / 0.3, 0.0, 1.0)
-			var br := Rect2(Vector2(win.position.x + 8.0, win.get_center().y - 44.0), Vector2(win.size.x - 16.0, 88.0))
-			draw_rect(br, Color(UI.INK, 0.88 * ba))
-			draw_rect(br, Color(UI.GOLD, ba), false, 2.0)
-			draw_string(f, Vector2(br.position.x, br.position.y + 44.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, br.size.x, 30, Color(UI.GOLD, ba))
+			var br := Rect2(Vector2(win.position.x + 8.0, win.get_center().y - 46.0), Vector2(win.size.x - 16.0, 92.0))
+			draw_colored_polygon(UI.rounded_rect_poly(br, 14.0), Color(UI.INK, 0.9 * ba))
+			_vg(self, Rect2(br.position + Vector2(0, 4), Vector2(br.size.x, br.size.y * 0.45)), Color(UI.GOLD, 0.1 * ba), Color(UI.GOLD, 0.0))
+			draw_polyline(SlotsPage.SlotMachine.closed(UI.rounded_rect_poly(br, 14.0)), Color(UI.GOLD, ba), 2.0, true)
+			draw_string(f, Vector2(br.position.x + 2.0, br.position.y + 48.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, br.size.x, 30, Color(UI.INK, ba))
+			draw_string(f, Vector2(br.position.x, br.position.y + 46.0), _banner, HORIZONTAL_ALIGNMENT_CENTER, br.size.x, 30, Color(UI.GOLD, ba))
 			if _banner_sub != "":
-				draw_string(UI.SEMI, Vector2(br.position.x, br.position.y + 72.0), _banner_sub, HORIZONTAL_ALIGNMENT_CENTER, br.size.x, 15, Color(UI.TEXT, ba))
+				draw_string(UI.SEMI, Vector2(br.position.x, br.position.y + 74.0), _banner_sub, HORIZONTAL_ALIGNMENT_CENTER, br.size.x, 15, Color(UI.TEXT, ba))
 		if _big_life > 0.0:
 			var ga := clampf(_big_life / 0.4, 0.0, 1.0)
-			var gr2 := Rect2(Vector2(win.position.x - 4.0, win.get_center().y - 70.0), Vector2(win.size.x + 8.0, 140.0))
-			draw_rect(gr2, Color(UI.INK, 0.92 * ga))
-			draw_rect(Rect2(gr2.position, Vector2(gr2.size.x, 6.0)), Color(UI.GOLD, ga))
-			draw_rect(Rect2(Vector2(gr2.position.x, gr2.end.y - 6.0), Vector2(gr2.size.x, 6.0)), Color(UI.GOLD, ga))
-			draw_rect(gr2.grow(-10.0), Color(UI.GOLD, 0.6 * ga), false, 1.5)
-			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 56.0), _big, HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 40, Color(UI.GOLD, ga))
-			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 108.0), Game.money_short(_big_shown), HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 38, Color(UI.TEXT, ga))
+			var gr2 := Rect2(Vector2(win.position.x - 4.0, win.get_center().y - 72.0), Vector2(win.size.x + 8.0, 144.0))
+			var gc := gr2.get_center()
+			if not Motion.reduced():
+				for i in 14:
+					var ang := _t * 0.7 + TAU * float(i) / 14.0
+					draw_colored_polygon(PackedVector2Array([gc, gc + Vector2(cos(ang), sin(ang)) * size.x * 0.75, gc + Vector2(cos(ang + 0.11), sin(ang + 0.11)) * size.x * 0.75]), Color(UI.GOLD, 0.07 * ga))
+			draw_colored_polygon(UI.rounded_rect_poly(gr2, 16.0), Color(UI.INK, 0.93 * ga))
+			_vg(self, Rect2(gr2.position + Vector2(0, 6), Vector2(gr2.size.x, gr2.size.y * 0.4)), Color(UI.GOLD, 0.12 * ga), Color(UI.GOLD, 0.0))
+			draw_polyline(SlotsPage.SlotMachine.closed(UI.rounded_rect_poly(gr2, 16.0)), Color(UI.GOLD, ga), 3.0, true)
+			draw_polyline(SlotsPage.SlotMachine.closed(UI.rounded_rect_poly(gr2.grow(-8.0), 11.0)), Color(UI.GOLD, 0.45 * ga), 1.2, true)
+			draw_string(f, Vector2(gr2.position.x + 2.0, gr2.position.y + 60.0), _big, HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 40, Color(UI.INK, ga))
+			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 58.0), _big, HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 40, Color(UI.GOLD, ga))
+			draw_string(f, Vector2(gr2.position.x, gr2.position.y + 110.0), Game.money_short(_big_shown), HORIZONTAL_ALIGNMENT_CENTER, gr2.size.x, 38, Color(UI.TEXT, ga))
 
 	static func draw_symbol(ci: CanvasItem, sym: int, val: int, c: Vector2, s: float, alpha: float, k: float) -> void:
 		## Every symbol drawn in code, centred on c, in a box of side s.
@@ -853,19 +900,37 @@ class ForgeGrid extends Control:
 				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 0.45), c + Vector2(r * 0.34, 0), c + Vector2(0, r * 0.45), c + Vector2(-r * 0.34, 0)]), A.call(Color(UI.FLASH, 0.35)))
 				ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), A.call(Color(UI.INK, 0.6)), 1.5, true)
 			4:   # molten ingot: a glowing trapezoid bar
-				ci.draw_circle(c, r * 0.95, A.call(Color(UI.RED, 0.08)))
+				ci.draw_circle(c, r * 1.0, A.call(Color(UI.RED, 0.10)))
 				var top := PackedVector2Array([c + Vector2(-r * 0.7, -r * 0.35), c + Vector2(r * 0.7, -r * 0.35), c + Vector2(r * 0.95, r * 0.05), c + Vector2(-r * 0.95, r * 0.05)])
 				var front := PackedVector2Array([c + Vector2(-r * 0.95, r * 0.05), c + Vector2(r * 0.95, r * 0.05), c + Vector2(r * 0.95, r * 0.55), c + Vector2(-r * 0.95, r * 0.55)])
-				ci.draw_colored_polygon(front, A.call(UI.RED))
-				ci.draw_colored_polygon(top, A.call(UI.FLASH))
+				var shf := PackedVector2Array()
+				for p in front:
+					shf.append(p + Vector2(r * 0.08, r * 0.12))
+				ci.draw_colored_polygon(shf, A.call(Color(UI.INK, 0.5)))
+				# Hot metal: bright on top, glowing red front darkening downward.
+				ci.draw_polygon(front, PackedColorArray([A.call(UI.RED.lightened(0.1)), A.call(UI.RED.lightened(0.1)), A.call(UI.RED.darkened(0.35)), A.call(UI.RED.darkened(0.35))]))
+				ci.draw_polygon(top, PackedColorArray([A.call(UI.FLASH), A.call(UI.FLASH), A.call(UI.FLASH.lerp(UI.RED, 0.35)), A.call(UI.FLASH.lerp(UI.RED, 0.35))]))
+				ci.draw_line(c + Vector2(-r * 0.95, r * 0.05), c + Vector2(r * 0.95, r * 0.05), A.call(Color(UI.GOLD, 0.9)), 1.5)
 				ci.draw_line(c + Vector2(-r * 0.6, r * 0.3), c + Vector2(r * 0.5, r * 0.3), A.call(Color(UI.GOLD, 0.8)), 2.0)
+				ci.draw_line(c + Vector2(-r * 0.5, -r * 0.22), c + Vector2(r * 0.2, -r * 0.22), A.call(Color(UI.TEXT, 0.7)), 1.5)
 			5:   # anvil
 				var col: Color = A.call(UI.SUB)
-				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 1.0, -r * 0.45), c + Vector2(r * 0.75, -r * 0.45), c + Vector2(r * 1.05, -r * 0.6), c + Vector2(r * 0.9, -r * 0.2), c + Vector2(r * 0.35, -r * 0.05), c + Vector2(-r * 0.55, -r * 0.05)]), col)
+				var head := PackedVector2Array([c + Vector2(-r * 1.0, -r * 0.45), c + Vector2(r * 0.75, -r * 0.45), c + Vector2(r * 1.05, -r * 0.6), c + Vector2(r * 0.9, -r * 0.2), c + Vector2(r * 0.35, -r * 0.05), c + Vector2(-r * 0.55, -r * 0.05)])
+				var shh := PackedVector2Array()
+				for p in head:
+					shh.append(p + Vector2(r * 0.08, r * 0.12))
+				ci.draw_colored_polygon(shh, A.call(Color(UI.INK, 0.5)))
+				var hc := PackedColorArray()
+				for p in head:
+					hc.append(A.call(UI.SUB.lightened(0.25).lerp(UI.DIM, clampf((p.y - (c.y - r * 0.6)) / (r * 0.6), 0.0, 1.0))))
+				ci.draw_polygon(head, hc)
 				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.3, -r * 0.05), c + Vector2(r * 0.3, -r * 0.05), c + Vector2(r * 0.22, r * 0.45), c + Vector2(-r * 0.22, r * 0.45)]), A.call(UI.DIM))
-				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.7, r * 0.45), c + Vector2(r * 0.7, r * 0.45), c + Vector2(r * 0.8, r * 0.75), c + Vector2(-r * 0.8, r * 0.75)]), col)
+				var foot := PackedVector2Array([c + Vector2(-r * 0.7, r * 0.45), c + Vector2(r * 0.7, r * 0.45), c + Vector2(r * 0.8, r * 0.75), c + Vector2(-r * 0.8, r * 0.75)])
+				ci.draw_polygon(foot, PackedColorArray([col, col, A.call(UI.DIM), A.call(UI.DIM)]))
 				ci.draw_line(c + Vector2(-r * 0.95, -r * 0.45), c + Vector2(r * 0.7, -r * 0.45), A.call(UI.TEXT), 2.0)
-				ci.draw_circle(c + Vector2(r * 0.15, -r * 0.75), r * 0.1, A.call(UI.RED))   # a spark
+				ci.draw_line(c + Vector2(-r * 0.55, r * 0.45), c + Vector2(r * 0.55, r * 0.45), A.call(Color(UI.TEXT, 0.5)), 1.0)
+				ci.draw_circle(c + Vector2(r * 0.15, -r * 0.78), r * 0.16, A.call(Color(UI.RED, 0.3)))
+				ci.draw_circle(c + Vector2(r * 0.15, -r * 0.78), r * 0.09, A.call(UI.FLASH))   # a spark
 			6:   # sun key
 				var g: Color = A.call(UI.GOLD)
 				ci.draw_arc(c + Vector2(-r * 0.45, 0), r * 0.42, 0.0, TAU, 28, g, r * 0.2, true)
@@ -874,9 +939,19 @@ class ForgeGrid extends Control:
 				ci.draw_rect(Rect2(c + Vector2(r * 0.6, r * 0.08), Vector2(r * 0.14, r * 0.32)), g)
 				ci.draw_rect(Rect2(c + Vector2(r * 0.85, r * 0.08), Vector2(r * 0.14, r * 0.22)), g)
 			7:   # iron crown
-				var base_c: Color = A.call(UI.SUB)
-				ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-r, r * 0.5), c + Vector2(-r, -r * 0.35), c + Vector2(-r * 0.5, r * 0.05), c + Vector2(0, -r * 0.7), c + Vector2(r * 0.5, r * 0.05), c + Vector2(r, -r * 0.35), c + Vector2(r, r * 0.5)]), base_c)
+				var cp := PackedVector2Array([c + Vector2(-r, r * 0.5), c + Vector2(-r, -r * 0.35), c + Vector2(-r * 0.5, r * 0.05), c + Vector2(0, -r * 0.7), c + Vector2(r * 0.5, r * 0.05), c + Vector2(r, -r * 0.35), c + Vector2(r, r * 0.5)])
+				var shc := PackedVector2Array()
+				var ccol := PackedColorArray()
+				for p in cp:
+					shc.append(p + Vector2(r * 0.08, r * 0.12))
+					ccol.append(A.call(UI.SUB.lightened(0.3).lerp(UI.DIM, clampf((p.y - (c.y - r * 0.7)) / (r * 1.2), 0.0, 1.0))))
+				ci.draw_colored_polygon(shc, A.call(Color(UI.INK, 0.5)))
+				ci.draw_polygon(cp, ccol)
+				var cl := cp.duplicate()
+				cl.append(cp[0])
+				ci.draw_polyline(cl, A.call(Color(UI.INK, 0.55)), 1.5, true)
 				ci.draw_rect(Rect2(c + Vector2(-r, r * 0.35), Vector2(r * 2.0, r * 0.25)), A.call(UI.DIM))
+				ci.draw_line(c + Vector2(-r, r * 0.35), c + Vector2(r, r * 0.35), A.call(Color(UI.TEXT, 0.45)), 1.0)
 				for gx in [-0.5, 0.0, 0.5]:
 					ci.draw_circle(c + Vector2(r * gx, r * 0.47), r * 0.09, A.call(UI.GOLD))
 				ci.draw_circle(c + Vector2(0, -r * 0.7), r * 0.13, A.call(UI.RED))
@@ -884,9 +959,12 @@ class ForgeGrid extends Control:
 				for k2 in 12:
 					var a := TAU * float(k2) / 12.0
 					ci.draw_line(c + Vector2(cos(a), sin(a)) * r * 0.82, c + Vector2(cos(a), sin(a)) * r * 1.08, A.call(UI.GOLD), 2.0, true)
-				ci.draw_circle(c, r * 0.78, A.call(UI.RED))
+				ci.draw_circle(c + Vector2(r * 0.06, r * 0.1), r * 0.8, A.call(Color(UI.INK, 0.5)))
+				ci.draw_circle(c, r * 0.78, A.call(UI.RED.darkened(0.3)))
+				ci.draw_circle(c + Vector2(-r * 0.05, -r * 0.05), r * 0.68, A.call(UI.RED))
+				ci.draw_circle(c + Vector2(-r * 0.12, -r * 0.12), r * 0.42, A.call(UI.RED.lightened(0.18)))
 				ci.draw_arc(c, r * 0.78, 0.0, TAU, 36, A.call(UI.GOLD), 2.0, true)
-				ci.draw_circle(c + Vector2(-r * 0.22, -r * 0.22), r * 0.2, A.call(Color(UI.FLASH, 0.45)))
+				ci.draw_circle(c + Vector2(-r * 0.28, -r * 0.28), r * 0.12, A.call(Color(UI.FLASH, 0.8)))
 			9:   # forge sigil (scatter): an eight point star in a ring
 				ci.draw_circle(c, r * 1.02, A.call(UI.HAZE))
 				ci.draw_arc(c, r * 1.0, 0.0, TAU, 40, A.call(UI.GOLD), 2.5, true)
@@ -896,15 +974,23 @@ class ForgeGrid extends Control:
 					star.append(c + Vector2(cos(a2), sin(a2)) * r * (0.82 if k3 % 2 == 0 else 0.36))
 				ci.draw_colored_polygon(star, A.call(UI.GOLD))
 				ci.draw_circle(c, r * 0.24, A.call(UI.RED))
-			10:  # sun orb with its multiplier
-				ci.draw_circle(c, r * 1.05, A.call(Color(UI.RED, 0.25)))
-				ci.draw_circle(c, r * 0.86, A.call(UI.RED))
-				ci.draw_circle(c + Vector2(-r * 0.2, -r * 0.25), r * 0.4, A.call(Color(UI.FLASH, 0.45)))
-				ci.draw_arc(c, r * 0.86, 0.0, TAU, 32, A.call(UI.GOLD), 2.0, true)
+			10:  # sun orb with its multiplier: a glowing glass ball in a gold ring
+				ci.draw_circle(c, r * 1.12, A.call(Color(UI.RED, 0.14)))
+				ci.draw_circle(c, r * 1.0, A.call(Color(UI.RED, 0.22)))
+				ci.draw_circle(c + Vector2(r * 0.06, r * 0.1), r * 0.88, A.call(Color(UI.INK, 0.5)))
+				ci.draw_circle(c, r * 0.86, A.call(UI.RED.darkened(0.3)))
+				ci.draw_circle(c + Vector2(-r * 0.05, -r * 0.06), r * 0.74, A.call(UI.RED))
+				ci.draw_circle(c + Vector2(-r * 0.12, -r * 0.14), r * 0.5, A.call(UI.RED.lightened(0.2)))
+				ci.draw_arc(c, r * 0.86, 0.0, TAU, 32, A.call(UI.GOLD), maxf(2.0, r * 0.08), true)
+				ci.draw_arc(c, r * 0.78, PI * 1.05, PI * 1.6, 12, A.call(Color(UI.FLASH, 0.8)), maxf(1.5, r * 0.06), true)
+				ci.draw_circle(c + Vector2(-r * 0.36, -r * 0.4), r * 0.1, A.call(Color(UI.FLASH, 0.9)))
 				var f: Font = UI.DISPLAY
 				var fs := int(maxf(10.0, r * (0.8 if val < 100 else 0.62)))
 				var t := "×%d" % val
-				ci.draw_string(f, c + Vector2(-r * 1.2, fs * 0.36), t, HORIZONTAL_ALIGNMENT_CENTER, r * 2.4, fs, A.call(UI.TEXT))
+				var tp := c + Vector2(-r * 1.2, fs * 0.36)
+				for d in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1.5)]:
+					ci.draw_string(f, tp + d * maxf(1.0, r * 0.04), t, HORIZONTAL_ALIGNMENT_CENTER, r * 2.4, fs, A.call(Color(UI.INK, 0.85)))
+				ci.draw_string(f, tp, t, HORIZONTAL_ALIGNMENT_CENTER, r * 2.4, fs, A.call(UI.TEXT))
 
 	static func _gem(ci: CanvasItem, c: Vector2, r: float, n: int, rot: float, col: Color, alpha: float) -> void:
 		## A faceted gem: the shape, a lit upper half, an inner table, an edge.
@@ -914,6 +1000,10 @@ class ForgeGrid extends Control:
 			var a := rot + TAU * float(i) / float(n)
 			outer.append(c + Vector2(cos(a), sin(a)) * r)
 			inner.append(c + Vector2(cos(a), sin(a)) * r * 0.5)
+		var shp := PackedVector2Array()
+		for p in outer:
+			shp.append(p + Vector2(r * 0.07, r * 0.11))
+		ci.draw_colored_polygon(shp, Color(UI.INK, 0.45 * alpha))
 		ci.draw_colored_polygon(outer, col)
 		for i in n:
 			var j := (i + 1) % n
@@ -924,3 +1014,8 @@ class ForgeGrid extends Control:
 		var edge := outer.duplicate()
 		edge.append(outer[0])
 		ci.draw_polyline(edge, Color(UI.INK, 0.55 * alpha), 1.5, true)
+		# A star of light on the top facet.
+		var sp := c + Vector2(-r * 0.28, -r * 0.32)
+		var sz := r * 0.22
+		ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(0, -sz), sp + Vector2(sz * 0.25, 0), sp + Vector2(0, sz), sp + Vector2(-sz * 0.25, 0)]), Color(UI.FLASH, 0.75 * alpha))
+		ci.draw_colored_polygon(PackedVector2Array([sp + Vector2(-sz, 0), sp + Vector2(0, -sz * 0.25), sp + Vector2(sz, 0), sp + Vector2(0, sz * 0.25)]), Color(UI.FLASH, 0.75 * alpha))
