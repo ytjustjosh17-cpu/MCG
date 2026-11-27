@@ -354,10 +354,11 @@ func tap(combo_bonus := 1.0) -> float:
 		_heat_ms = t
 		if _tap_heat > Data.TAP_HEAT_MAX:
 			mult *= Data.TAP_TIRED_MULT
+	var tired := mult   # x1, or the tired x0.1
 	if boost_active():
-		mult = BOOST_MULT
+		mult = BOOST_MULT * tired
 	if frenzy_active():
-		mult = maxf(mult, Data.FRENZY_MULT)   # the bigger one wins; they don't stack
+		mult = maxf(mult, Data.FRENZY_MULT * tired)   # the bigger one wins; they don't stack; tired stays tired
 	last_tap_crit = _tap_rng.randf() < crit_chance()
 	if last_tap_crit:
 		mult *= crit_mult()
@@ -854,11 +855,14 @@ func biz_up_level(id: String) -> int:
 
 
 func _unit_payback_h(id: String) -> float:
+	## Payback of the last unit slot at this stage (not the next cheap one), so
+	## the price doesn't depend on how many units you hold right now.
 	var u := int(biz[id]["units"])
 	var per_unit := biz_income(id) / float(maxi(u, 1))
 	if per_unit <= 0.0:
 		return Data.BIZ_UP_MIN_H
-	return unit_price(id) / per_unit
+	var cap := maxi(capacity(id), 1)
+	return Data.unit_price(Data.business(id), cap - 1) / per_unit
 
 
 func biz_up_next(id: String) -> Dictionary:
@@ -871,10 +875,14 @@ func biz_up_next(id: String) -> Dictionary:
 	if k >= steps.size():
 		return {}
 	var gain := biz_up_gain(id)
+	# Priced from what the company makes with every unit slot filled, so buying
+	# steps with one unit and filling up later isn't a cheap trick.
+	var u := maxi(int(biz[id]["units"]), 1)
+	var full_gain := gain / float(u) * float(maxi(capacity(id), u))
 	var hours := maxf(Data.BIZ_UP_MIN_H, _unit_payback_h(id) * Data.BIZ_UP_X)
 	var need := 2 * k + 2
 	return {"index": k, "name": String(steps[k][0]), "line": String(steps[k][1]),
-		"cost": maxf(float(Data.business(id)["cost"]), gain * hours), "gain_now": gain,
+		"cost": maxf(float(Data.business(id)["cost"]), full_gain * hours), "gain_now": gain,
 		"need_stage": need, "ready": int(biz[id]["stage"]) >= need}
 
 
@@ -1104,8 +1112,16 @@ func miner_up_cost(kind: String) -> float:
 	return maxf(float(u["min"]), base * float(u["hours"])) * pow(float(u["growth"]), k)
 
 
+func miner_up_need(kind: String) -> int:
+	## Miners needed before the next level opens (cooling: 10, 20, 30), so it
+	## can't be bought cheaply with one miner and kept all run.
+	if kind == "cool":
+		return 10 * (miner_up_level(kind) + 1)
+	return 1
+
+
 func buy_miner_up(kind: String) -> bool:
-	if not Data.MINER_UPS.has(kind) or rigs_total() <= 0:
+	if not Data.MINER_UPS.has(kind) or rigs_total() < miner_up_need(kind):
 		return false
 	var c := miner_up_cost(kind)
 	if c <= 0.0 or cash < c:
@@ -2069,7 +2085,7 @@ func _check_achievements() -> void:
 			achieved[a["id"]] = true
 			got = true
 			GameLog.info("game", "Achievement: %s" % a["title"])
-			var reward := maxf(500.0, income_per_hour * 1.0)
+			var reward := maxf(500.0, base_income() * 1.0)
 			add_reward("ach:" + String(a["id"]), "ach", String(a["title"]), reward)   # waits for a tap
 	_nw_check = -1.0
 	if got:
@@ -2101,7 +2117,7 @@ func _check_streak() -> void:
 	streak_day = today
 	_record("best_streak", float(streak))
 	_count_day()
-	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
+	var gift := maxf(250.0, base_income() * 0.15 * float(mini(streak, 7)))
 	add_reward("streak:%d" % today, "streak", "Day %d in a row" % streak, gift)   # waits for a tap
 	streak_unseen = [streak, gift]
 
@@ -2115,7 +2131,7 @@ func _count_day() -> void:
 	counters["days_played"] = float(counters.get("days_played", 0.0)) + 1.0
 	var n := int(counters["days_played"])
 	if n in Data.DAYS_MILESTONES:
-		add_reward("days:%d" % n, "days", "%d days played" % n, maxf(Data.DAYS_REWARD_MIN, income_per_hour * Data.DAYS_REWARD_H))
+		add_reward("days:%d" % n, "days", "%d days played" % n, maxf(Data.DAYS_REWARD_MIN, base_income() * Data.DAYS_REWARD_H))
 
 
 func days_played() -> int:
@@ -2234,7 +2250,7 @@ func daily_tasks() -> Array:
 
 
 func daily_reward() -> float:
-	return maxf(1000.0, income_per_hour * 1.5)
+	return maxf(1000.0, base_income() * 1.5)
 
 
 func _task_progress(id: String, n: float) -> void:
@@ -2306,7 +2322,7 @@ func weekly_tasks() -> Array:
 
 
 func weekly_reward() -> float:
-	return maxf(5000.0, income_per_hour * 3.0)
+	return maxf(5000.0, base_income() * 3.0)
 
 
 func week_left() -> float:
@@ -2325,19 +2341,27 @@ func _ensure_season() -> void:
 		season = {"week": w, "pts": 0.0, "got": []}
 
 
+static func _has_int(arr: Array, v: int) -> bool:
+	## Saves load numbers back as floats ([1.0].has(1) is false): compare as ints.
+	for x in arr:
+		if int(x) == v:
+			return true
+	return false
+
+
 func season_add(pts: float) -> void:
 	_ensure_season()
 	season["pts"] = float(season["pts"]) + pts
 	var got: Array = season["got"]
 	for i in range(Data.SEASON.size()):
 		var m: Array = Data.SEASON[i]
-		if i in got or float(season["pts"]) < float(m[0]):
+		if _has_int(got, i) or float(season["pts"]) < float(m[0]):
 			continue
 		got.append(i)
 		var key := "season:%d:%d" % [int(season["week"]), i]
 		var kind := String(m[1])
 		if kind == "cash":
-			var amt := maxf(Data.SEASON_MIN_CASH, income_per_hour * float(m[2]))
+			var amt := maxf(Data.SEASON_MIN_CASH, base_income() * float(m[2]))
 			add_reward(key, "season", "Season · %d pts" % int(m[0]), amt)
 		else:
 			add_reward(key, "season", "Season · %s" % ("Rush" if kind == "rush" else "Frenzy"), 0.0)
@@ -2365,11 +2389,11 @@ func season_milestones() -> Array:
 	for i in range(Data.SEASON.size()):
 		var m: Array = Data.SEASON[i]
 		var key := "season:%d:%d" % [int(season["week"]), i]
-		var reached: bool = i in got
+		var reached: bool = _has_int(got, i)
 		var waiting := reward_for(key)
 		var amt := 0.0
 		if String(m[1]) == "cash":
-			amt = float(waiting.get("amount", 0.0)) if not waiting.is_empty() else maxf(Data.SEASON_MIN_CASH, income_per_hour * float(m[2]))
+			amt = float(waiting.get("amount", 0.0)) if not waiting.is_empty() else maxf(Data.SEASON_MIN_CASH, base_income() * float(m[2]))
 		out.append({"pts": float(m[0]), "kind": String(m[1]), "amount": amt, "reached": reached,
 			"claimed": reached and waiting.is_empty(), "key": key})
 	return out
@@ -2844,8 +2868,12 @@ func open_term(days: int, amount: float) -> bool:
 	cash -= amount
 	if not bank.has("terms"):
 		bank["terms"] = []
-	var t := now()
-	bank["terms"].append({"amount": amount, "days": days, "rate": rate, "start": t, "ends": t + float(days) * 86400.0})
+	# Start from the latest time the game has seen, so setting the clock back,
+	# opening a term and putting it forward again can't skip the wait.
+	var t := maxf(now(), float(counters.get("clock_seen", 0.0)))
+	var tid := int(counters.get("term_ids", 0)) + 1
+	counters["term_ids"] = float(tid)
+	bank["terms"].append({"amount": amount, "days": days, "rate": rate, "start": t, "ends": t + float(days) * 86400.0, "id": tid})
 	_bump("terms_opened")
 	GameLog.info("bank", "Fixed term %s for %d days at %.1f%%" % [money(amount), days, rate * 100.0])
 	recalc()
@@ -2870,6 +2898,7 @@ func break_term(i: int) -> float:
 func _tick_terms() -> void:
 	var list: Array = bank.get("terms", [])
 	var t := now()
+	counters["clock_seen"] = maxf(float(counters.get("clock_seen", 0.0)), t)
 	for i in range(list.size() - 1, -1, -1):
 		var d: Dictionary = list[i]
 		if t >= float(d["ends"]):
@@ -2877,7 +2906,7 @@ func _tick_terms() -> void:
 			var pay := float(d["amount"]) * (1.0 + float(d["rate"]))
 			var gain := pay - float(d["amount"])
 			counters["interest_earned"] = float(counters.get("interest_earned", 0.0)) + gain
-			add_reward("term:%d:%d" % [int(d["start"]), i], "term", "%d-day term" % int(d["days"]), pay)
+			add_reward("term:%d:%d" % [int(d["start"]), int(d.get("id", i))], "term", "%d-day term" % int(d["days"]), pay)
 
 
 func in_minus() -> bool:
@@ -3063,6 +3092,15 @@ func restore_code(text: String) -> bool:
 	var live := to_dict()
 	for k in ["prices", "price_hist", "hist_q", "hist_h", "moods", "coin_shift", "trends", "fair_log", "news", "deal", "deal_wait", "mine_eff"]:
 		d[k] = live[k]
+	# Casino rounds in play stay as they are now: a backup made mid-round can't
+	# bring back a round whose outcome is already known.
+	var dui: Dictionary = d.get("ui", {})
+	for rk in ["tower_round", "crash_round"]:
+		if live["ui"].has(rk):
+			dui[rk] = live["ui"][rk]
+		else:
+			dui.erase(rk)
+	d["ui"] = dui
 	f.store_string(JSON.stringify(d))
 	f.close()
 	if FileAccess.file_exists(SAVE_PATH):
@@ -3665,6 +3703,9 @@ func do_rebirth() -> int:
 	for k in REBIRTH_KEEP:
 		keep[k] = d[k]
 	var keep_sci := sci
+	# A climb or crash round can't carry into a new run.
+	for rk in ["tower_round", "crash_round"]:
+		(keep["ui"] as Dictionary).erase(rk)
 	_reset_state()
 	total_earned = float(keep["total_earned"])
 	taps = int(keep["taps"])

@@ -736,8 +736,8 @@ func _mining_section() -> Control:
 func _on_miner_up(kind: String) -> void:
 	Kit.tick()
 	var r: Row = _mup_rows[kind]
-	if Game.rigs_total() <= 0:
-		Kit.toast("Buy a miner first")
+	if Game.rigs_total() < Game.miner_up_need(kind):
+		Kit.toast("Buy a miner first" if Game.rigs_total() == 0 else "Opens at %d miners" % Game.miner_up_need(kind))
 		return
 	if Game.miner_up_level(kind) >= Game.miner_up_max(kind):
 		return
@@ -791,7 +791,10 @@ func _refresh_miner_ups() -> void:
 				elif kind == "speed" and Game.mining_capped():
 					sub = "At the cap: cooling first · level %d of %d" % [lvl, mx]
 			r.set_texts(String(u["name"]), sub)
-			BusinessPage.price_pill(r, Game.money_short(c), Game.cash >= c and Game.rigs_total() > 0)
+			if Game.rigs_total() < Game.miner_up_need(kind):
+				BusinessPage.plain_value(r, "%d miners" % Game.miner_up_need(kind), UI.SUB)
+			else:
+				BusinessPage.price_pill(r, Game.money_short(c), Game.cash >= c)
 
 
 func _refresh_mining() -> void:

@@ -614,6 +614,7 @@ func _run() -> void:
 		game.tap()
 	var crits: int = int(game.counters.get("crits", 0)) - cr0
 	_check(crits > 100 and crits < 260, "about 4%% of taps are critical (%d of 4000)" % crits)
+	game._tap_heat = 0.0   # rested hands (4000 taps just now)
 	game.frenzy_until = game.now() + 20.0
 	game.boost_until = game.now() + 60.0
 	var tv: float = game.tap_value()
@@ -1130,6 +1131,37 @@ func _run() -> void:
 	game.tap()
 	_check(float(game.counters.get("best_tap", 0.0)) > 0.0 and float(game.counters.get("best_tap_at", 0.0)) > 0.0, "biggest tap is kept with its time")
 	_check(RecordsPage.value_text(3.0, "days") == "3 days" and RivalsPage.worth_text(1353325.0) == "£1,353,325", "records and rivals text")
+	game.sim_time = -1.0
+	game.reset_game(true)
+	# Exploit regressions (1.2 play-test).
+	_check(not TowerMath.is_safe([[1.0, 2.0]], 0, 1) and TowerMath.is_safe([[1.0, 2.0]], 0, 0), "tower: a saved (float) layout still knows its bad boxes")
+	game.reset_game(true)
+	game.season = {"week": game._week(), "pts": 500.0, "got": [0.0, 1.0, 2.0, 3.0, 4.0]}   # as loaded from a save
+	var rw_before: int = game.rewards.size()
+	game.season_add(5.0)
+	_check(game.rewards.size() == rw_before, "season: milestones already got don't pay again after a reload")
+	game.cash = 1.0e12
+	game.open_business("hotel", "Test Hotel")
+	game.biz["hotel"]["stage"] = 10
+	var one_unit_cost: float = float(game.biz_up_next("hotel").get("cost", 0.0))
+	game.biz["hotel"]["units"] = game.capacity("hotel")
+	game.recalc()
+	var full_cost: float = float(game.biz_up_next("hotel").get("cost", 0.0))
+	_check(one_unit_cost >= full_cost * 0.9, "upgrade steps cost the same with one unit as with every slot filled")
+	game.reset_game(true)
+	game.cash = 1.0e9
+	game.recalc()
+	var t0: float = game.now()
+	game.sim_time = t0
+	game.open_term(1, 1000.0)
+	game.open_term(3, 1000.0)
+	game.sim_time = t0 + 4.0 * 86400.0
+	game._tick_terms()
+	var term_keys := 0
+	for r in game.rewards:
+		if String(r["key"]).begins_with("term:"):
+			term_keys += 1
+	_check(term_keys == 2, "two terms opened in the same second both pay")
 	game.sim_time = -1.0
 	game.reset_game(true)
 	# Toasts queue: a second message never cuts the first one short.

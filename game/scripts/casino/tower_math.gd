@@ -59,4 +59,9 @@ func roll_layout(m: String) -> Array:
 static func is_safe(layout: Array, row: int, pick: int) -> bool:
 	if row < 0 or row >= layout.size():
 		return false
-	return not (layout[row] as Array).has(pick)
+	# A save loads numbers back as floats, and [1.0].has(1) is false in Godot:
+	# compare as ints, or every box would look safe after a restart.
+	for bad in (layout[row] as Array):
+		if int(bad) == pick:
+			return false
+	return true

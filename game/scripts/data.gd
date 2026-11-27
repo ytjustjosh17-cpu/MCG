@@ -255,8 +255,8 @@ const COMBO_START := 10           # taps in a row before the combo pays
 const COMBO_FULL := 100           # combo where the bonus tops out...
 const COMBO_MAX_MULT := 2.0       # ...at x2 a tap
 const TAP_HEAT_MAX := 1200.0     # tap "heat" before taps tire (about 4 min at 7 a second)
-const TAP_HEAT_COOL := 2.0       # heat lost per second
-const TAP_TIRED_MULT := 0.25     # tired taps pay a quarter
+const TAP_HEAT_COOL := 1.0       # heat lost per second (1.2: was 2; a bot at 2 taps a second never tired)
+const TAP_TIRED_MULT := 0.1      # tired taps pay a tenth (1.2: was a quarter)
 const AUTO_IDLE_S := 120.0
 # Free daily wheel in the casino: [kind, minutes of income, weight].
 # Average about 20 minutes of income a day, so it's a treat, not a shortcut.
