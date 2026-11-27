@@ -171,6 +171,23 @@ jobs:
           path: game/build/Sol.apk
           if-no-files-found: error
 
+      - name: Release notes (every version, grouped)
+        working-directory: game
+        shell: bash
+        run: |
+          cat ../.github/release-notes/1.2.md ../.github/release-notes/1.1.md ../.github/release-notes/1.0.md > build/notes.md
+          {
+            echo "---"
+            echo
+            echo "Build ${{ github.run_number }}. Install: open this on your phone and tap Sol.apk."
+            echo
+            echo "**Check this file is genuine**"
+            echo "- Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."
+            echo '- SHA-256: `${{ steps.sum.outputs.sha256 }}`'
+            echo '- Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`'
+            echo "- Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says \"not found\", upload the file there to scan it)."
+          } >> build/notes.md
+
       - name: Publish release
         id: publish
         continue-on-error: true  # GitHub sometimes errors here; the next step retries
@@ -183,15 +200,7 @@ jobs:
             game/build/Sol.apk
             game/build/Sol.apk.sha256
           make_latest: "true"
-          body: |
-            Build ${{ github.run_number }}.
-            Install: open this on your phone and tap Sol.apk.
-
-            **Check this file is genuine**
-            - Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
-            - SHA-256: `${{ steps.sum.outputs.sha256 }}`
-            - Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`
-            - Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says "not found", upload the file there to scan it).
+          body_path: game/build/notes.md
 
       - name: Wait before retrying
         if: steps.publish.outcome == 'failure'
@@ -208,12 +217,4 @@ jobs:
             game/build/Sol.apk
             game/build/Sol.apk.sha256
           make_latest: "true"
-          body: |
-            Build ${{ github.run_number }}.
-            Install: open this on your phone and tap Sol.apk.
-
-            **Check this file is genuine**
-            - Built by GitHub Actions from commit ${{ github.sha }} ([build log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
-            - SHA-256: `${{ steps.sum.outputs.sha256 }}`
-            - Proof it came from this repo: `gh attestation verify Sol.apk -R ${{ github.repository }}`
-            - Virus scan: [VirusTotal](https://www.virustotal.com/gui/file/${{ steps.sum.outputs.sha256 }}) (if it says "not found", upload the file there to scan it).
+          body_path: game/build/notes.md

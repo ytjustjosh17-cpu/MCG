@@ -1,9 +1,10 @@
 name: Tidy releases
 
 # Run by hand only (Actions > Tidy releases > Run workflow).
-# Keeps the newest release of 1.0, of 1.1 and the newest release overall,
-# deletes every other release and its tag, and gives the kept ones grouped
-# notes from .github/release-notes/.
+# Keeps only the newest release (the one the in-game Update button installs)
+# and deletes every older release and its tag. The newest release carries
+# notes for every version, grouped as 1.2, 1.1 and 1.0
+# (.github/release-notes/), so nothing is lost from the page.
 on:
   workflow_dispatch:
 
@@ -18,37 +19,27 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Fold old releases into one per version
+      - name: Keep only the newest release
         shell: bash
         run: |
-          set -euo pipefail
-          gh release list --limit 500 --json tagName --jq '.[].tagName' | sort -V > tags.txt
+          set -uo pipefail
           LATEST=$(gh release view --json tagName --jq .tagName)
-          K10=$(grep '^v1\.0\.' tags.txt | tail -1 || true)
-          K11=$(grep '^v1\.1\.' tags.txt | tail -1 || true)
-          echo "Keeping: $K10 $K11 $LATEST"
-          while read -r t; do
-            if [ "$t" != "$LATEST" ] && [ "$t" != "$K10" ] && [ "$t" != "$K11" ]; then
-              # Some very old releases have no tag left, so a failed tag delete is fine.
-              gh release delete "$t" --cleanup-tag --yes || true
-              gh release view "$t" >/dev/null 2>&1 && gh release delete "$t" --yes || true
-            fi
-          done < tags.txt
-          # History was rewritten once (personal details removed). Point each kept
-          # tag at the matching new commit (same date and subject), if it moved.
-          git fetch -q --tags --force origin
-          for t in $K10 $K11; do
-            old=$(git log -1 --format='%at %s' "$t")
-            new=$(git log --format='%H %at %s' HEAD | grep -F " $old" | head -1 | cut -d' ' -f1)
-            if [ -n "$new" ] && [ "$new" != "$(git rev-list -n1 "$t")" ]; then
-              git tag -f "$t" "$new" && git push -f origin "refs/tags/$t"
-            fi
+          echo "Keeping: $LATEST"
+          for t in $(gh release list --limit 500 --json tagName --jq '.[].tagName'); do
+            [ "$t" = "$LATEST" ] && continue
+            # Some very old releases have no tag left, so a failed tag delete is fine.
+            gh release delete "$t" --cleanup-tag --yes || true
+            gh release view "$t" >/dev/null 2>&1 && gh release delete "$t" --yes || true
           done
-          [ -n "$K10" ] && gh release edit "$K10" --title "Sol 1.0" --notes-file .github/release-notes/1.0.md
-          [ -n "$K11" ] && gh release edit "$K11" --title "Sol 1.1" --notes-file .github/release-notes/1.1.md
+          # Older tags with no release at all.
+          for t in $(git ls-remote --tags origin | sed 's|.*refs/tags/||; s|\^{}||' | sort -u); do
+            [ "$t" = "$LATEST" ] || git push -q origin --delete "refs/tags/$t" || true
+          done
           gh release view "$LATEST" --json body --jq .body > body.md
-          cat .github/release-notes/1.2.md body.md > latest.md
-          gh release edit "$LATEST" --notes-file latest.md
+          if ! grep -q "^## Sol 1.0" body.md; then
+            cat .github/release-notes/1.2.md .github/release-notes/1.1.md .github/release-notes/1.0.md > notes.md
+            printf '\n---\n\n' >> notes.md
+            cat body.md >> notes.md
+            gh release edit "$LATEST" --notes-file notes.md
+          fi
           gh release list --limit 20
