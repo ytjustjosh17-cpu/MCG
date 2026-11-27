@@ -100,6 +100,7 @@ func _ready() -> void:
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	fade.offset_top = -120
+	fade.name = "BottomFade"
 	add_child(fade)
 	# And a short one at the top, so scrolled content slips away under the
 	# status bar and the cash pill instead of running into them.
@@ -160,6 +161,7 @@ func _ready() -> void:
 	Game.changed.connect(_update_cash)
 
 	get_viewport().size_changed.connect(_apply_safe_area)
+	Kit.layout_changed.connect(func(_l: bool): _apply_safe_area())
 	_apply_safe_area()
 	_pages[0].visible = true
 	_nav.set_active(0)
@@ -376,27 +378,79 @@ func _on_update(version: String) -> void:
 
 
 func _apply_safe_area() -> void:
+	## Lays the frame out for how the phone is held. Portrait: tab bar along the
+	## bottom, back on its right. Landscape: a rail down the left with back
+	## under it, and the pages to its right. Nothing is rebuilt, so open pages,
+	## pop-ups and scroll positions survive a turn of the phone.
 	var top := 0.0
 	var bottom := 0.0
+	var left := 0.0
+	var right := 0.0
 	if OS.has_feature("mobile"):
 		var win := DisplayServer.window_get_size()
 		var safe := DisplayServer.get_display_safe_area()
-		if win.y > 0:
-			var k := get_viewport_rect().size.y / float(win.y)
-			top = clampf(safe.position.y * k, 0.0, 80.0)
-			bottom = clampf((win.y - safe.end.y) * k, 0.0, 60.0)
+		if win.y > 0 and win.x > 0:
+			var vp := get_viewport_rect().size
+			var ky := vp.y / float(win.y)
+			var kx := vp.x / float(win.x)
+			top = clampf(safe.position.y * ky, 0.0, 80.0)
+			bottom = clampf((win.y - safe.end.y) * ky, 0.0, 60.0)
+			left = clampf(safe.position.x * kx, 0.0, 80.0)
+			right = clampf((win.x - safe.end.x) * kx, 0.0, 80.0)
 	Kit.top_inset = top
 	Kit.bottom_inset = bottom
-	_content.offset_top = top
-	_content.offset_bottom = -bottom
-	_nav.offset_left = 16
-	_nav.offset_bottom = -(12 + bottom)
-	_nav.offset_top = _nav.offset_bottom - 64
-	back_btn.offset_right = -16
-	back_btn.offset_left = -16 - 64
-	back_btn.offset_bottom = _nav.offset_bottom
-	back_btn.offset_top = _nav.offset_top
+	Kit.left_inset = left
+	Kit.right_inset = right
+	var land := Kit.landscape
+	_nav.set_vertical(land)
+	var fade := get_node_or_null("BottomFade")
+	if fade != null:
+		fade.visible = not land
+	if land:
+		_content.offset_left = left + 12.0 + Kit.RAIL_W
+		_content.offset_right = -right
+		_content.offset_top = top
+		_content.offset_bottom = -bottom
+		_nav.anchor_left = 0.0
+		_nav.anchor_right = 0.0
+		_nav.anchor_top = 0.0
+		_nav.anchor_bottom = 1.0
+		_nav.offset_left = left + 12.0
+		_nav.offset_right = left + 12.0 + 64.0
+		_nav.offset_top = top + 12.0
+		back_btn.anchor_left = 0.0
+		back_btn.anchor_right = 0.0
+		back_btn.anchor_top = 1.0
+		back_btn.anchor_bottom = 1.0
+		back_btn.offset_left = _nav.offset_left
+		back_btn.offset_right = _nav.offset_right
+		back_btn.offset_bottom = -(12.0 + bottom)
+		back_btn.offset_top = back_btn.offset_bottom - 64.0
+	else:
+		_content.offset_left = 0.0
+		_content.offset_right = 0.0
+		_content.offset_top = top
+		_content.offset_bottom = -bottom
+		_nav.anchor_left = 0.0
+		_nav.anchor_right = 1.0
+		_nav.anchor_top = 1.0
+		_nav.anchor_bottom = 1.0
+		_nav.offset_left = 16
+		_nav.offset_bottom = -(12 + bottom)
+		_nav.offset_top = _nav.offset_bottom - 64
+		back_btn.anchor_left = 1.0
+		back_btn.anchor_right = 1.0
+		back_btn.anchor_top = 1.0
+		back_btn.anchor_bottom = 1.0
+		back_btn.offset_right = -16
+		back_btn.offset_left = -16 - 64
+		back_btn.offset_bottom = _nav.offset_bottom
+		back_btn.offset_top = _nav.offset_top
+	var tf := get_node_or_null("TopFade")
+	if tf != null:
+		tf.offset_bottom = top + 56.0
 	_sync_back()
+	_cash_len = -1
 	_update_cash()
 
 
@@ -418,8 +472,8 @@ func _update_cash() -> void:
 		return   # same width class: no need to measure the text again
 	_cash_len = t.length()
 	var w := maxf(96.0, _cash_l.get_theme_font("font").get_string_size(_cash_l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 32.0)
-	cash_pill.offset_right = -16.0
-	cash_pill.offset_left = -16.0 - w
+	cash_pill.offset_right = -16.0 - Kit.right_inset
+	cash_pill.offset_left = -16.0 - Kit.right_inset - w
 	cash_pill.offset_top = Kit.top_inset + 8.0
 	cash_pill.offset_bottom = Kit.top_inset + 8.0 + 36.0
 
@@ -431,7 +485,11 @@ func _sync_back() -> void:
 		return
 	back_btn.visible = open
 	_update_cash()
-	_nav.offset_right = -(16 + 64 + 8) if open else -16
+	if Kit.landscape:
+		# The rail stops above the back button.
+		_nav.offset_bottom = -(12.0 + Kit.bottom_inset + (64.0 + 8.0 if open else 0.0))
+	else:
+		_nav.offset_right = -(16 + 64 + 8) if open else -16
 
 
 var _deal_open := false

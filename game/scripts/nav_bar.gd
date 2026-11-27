@@ -12,13 +12,16 @@ var _labels: Array = []
 var _active := 0
 var _badges: Array = []
 var _want: Array = []  # badge wanted per tab; never shown on the active tab
+var _row: BoxContainer
+var vertical := false   # landscape: a rail down the left side, icons only
 
 
 func _ready() -> void:
 	var glass := GlassPanel.new(32.0, Color(0.035, 0.133, 0.145, 0.7), 12.0)
 	glass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(glass)
-	var row := HBoxContainer.new()
+	var row := BoxContainer.new()
+	_row = row
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 6
 	row.offset_right = -6
@@ -29,6 +32,7 @@ func _ready() -> void:
 	for i in range(TABS.size()):
 		var b := UI.flat_button()
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		b.custom_minimum_size = Vector2(0, 52)
 		b.pressed.connect(func(): tab_selected.emit(i))
 		Kit.press_fx(b)
@@ -62,6 +66,14 @@ func _ready() -> void:
 	set_active(0)
 
 
+func set_vertical(v: bool) -> void:
+	## Landscape turns the bar into a rail; labels hide so each tab is an icon.
+	vertical = v
+	if _row != null:
+		_row.vertical = v
+	set_active(_active)
+
+
 func set_badge(i: int, on: bool) -> void:
 	if i < _badges.size():
 		_want[i] = on
@@ -73,7 +85,7 @@ func set_active(i: int) -> void:
 	for k in range(_buttons.size()):
 		var on := k == i
 		_badges[k].visible = _want[k] and not on
-		(_labels[k] as Label).visible = on
+		(_labels[k] as Label).visible = on and not vertical
 		var b: Button = _buttons[k]
 		var bg: StyleBox = UI.box(Color(UI.TEXT, 0.1), 26) if on else StyleBoxEmpty.new()
 		b.add_theme_stylebox_override("normal", bg)

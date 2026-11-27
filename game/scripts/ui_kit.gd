@@ -8,6 +8,20 @@ const ALERT_TINT := Color(0.035, 0.133, 0.145, 0.94)
 
 var top_inset := 0.0
 var bottom_inset := 0.0
+var left_inset := 0.0
+var right_inset := 0.0
+
+# ---- orientation (1.2) -----------------------------------------------------
+# Portrait is designed at 390 x 844 game units, landscape at 844 x 390, so text
+# keeps the same size on the phone either way. A square window counts as
+# portrait. main.gd lays the frame out again on `layout_changed`.
+signal layout_changed(landscape: bool)
+const PORTRAIT_SIZE := Vector2i(390, 844)
+const LANDSCAPE_SIZE := Vector2i(844, 390)
+const RAIL_W := 72.0         # the tab rail on the left in landscape
+const COLUMN_MAX := 600.0    # page content never gets wider than this
+var landscape := false
+var _orient_busy := false
 var _stack: Array = []  # [{"root": Control, "close": Callable}]
 var _toast: Control
 var _toast_q: Array = []     # waiting toasts: each gets its full time on screen
@@ -29,6 +43,49 @@ func _ready() -> void:
 	sfx = Sfx.new()
 	add_child(sfx)
 	get_tree().node_added.connect(_on_node_added)
+	get_tree().root.size_changed.connect(_sync_orientation)
+	_sync_orientation()
+	apply_rotation_setting()
+
+
+func _sync_orientation() -> void:
+	## Pick the design size that matches how the phone is held. The root's
+	## content scale then keeps one game unit the same size on screen.
+	if _orient_busy:
+		return
+	var root := get_tree().root
+	var win := Vector2(root.size)
+	var land := win.x > win.y * 1.05
+	var want := LANDSCAPE_SIZE if land else PORTRAIT_SIZE
+	_orient_busy = true
+	if root.content_scale_size != want:
+		root.content_scale_size = want
+	_orient_busy = false
+	if land != landscape:
+		landscape = land
+		layout_changed.emit(landscape)
+
+
+func apply_rotation_setting() -> void:
+	## Settings > Auto-rotate (on by default). Off keeps the game in portrait.
+	if not OS.has_feature("mobile"):
+		return
+	var on := true
+	if has_node("/root/Game"):
+		on = bool(get_node("/root/Game").ui.get("rotate", true))
+	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR if on else DisplayServer.SCREEN_PORTRAIT)
+
+
+func column_width() -> float:
+	## Width of the page column: the full screen in portrait, capped in landscape.
+	var w := screen().x
+	if landscape:
+		w = minf(COLUMN_MAX, w - RAIL_W - 32.0 - left_inset - right_inset)
+	return w
+
+
+func sheet_width() -> float:
+	return minf(screen().x - SHEET_MARGIN * 2.0, 420.0) if landscape else screen().x - SHEET_MARGIN * 2.0
 
 
 func _on_node_added(n: Node) -> void:
@@ -186,7 +243,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 
 	# A card that floats in the middle of the screen (owner's choice).
 	var pad := 20.0
-	var w := scr.x - SHEET_MARGIN * 2.0
+	var w := sheet_width()
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	col.position = Vector2(pad, 22)
@@ -241,7 +298,7 @@ func sheet(title: String, body: String, actions: Array, dismissable := true, ext
 					cb.call())
 		col.add_child(b)
 	panel.size = Vector2(w, 10)
-	panel.position = Vector2(SHEET_MARGIN, scr.y * 0.4)
+	panel.position = Vector2((scr.x - w) * 0.5, scr.y * 0.4)
 	panel.modulate.a = 0.0
 	root.add_child(panel)
 	panel.add_child(col)
@@ -294,7 +351,24 @@ func _present_sheet(root: Control, panel: Control, col: Control, dim: ColorRect,
 	var inner := col.get_combined_minimum_size().y
 	col.size = Vector2(col.size.x, inner)
 	var h := inner + 22.0 + 20.0
-	panel.size = Vector2(scr.x - SHEET_MARGIN * 2.0, h)
+	# Taller than the screen (landscape is only 390 high): the card's content
+	# scrolls inside it instead of running off the bottom.
+	var avail := scr.y - top_inset - bottom_inset - 24.0
+	if h > avail and col.get_parent() == panel:
+		var sc := ScrollContainer.new()
+		sc.scroll_deadzone = 10
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		sc.position = col.position
+		sc.size = Vector2(col.size.x, avail - 42.0)
+		panel.remove_child(col)
+		col.position = Vector2.ZERO
+		sc.add_child(col)
+		panel.add_child(sc)
+		h = avail
+	var sw := sheet_width()
+	panel.size = Vector2(sw, h)
+	panel.position.x = (scr.x - sw) * 0.5
 	# Centred; a tall card starts under the status bar and stays on screen.
 	geo["rest"] = maxf(top_inset + 12.0, (scr.y - h) * 0.5)
 	panel.position.y = float(geo["rest"]) + 24.0

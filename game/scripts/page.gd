@@ -27,11 +27,12 @@ func _ready() -> void:
 	add_child(scroll)
 	var margin := MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_right", 16)
 	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 104)
 	scroll.add_child(margin)
+	_margin = margin
+	_fit_column()
+	scroll.resized.connect(_fit_column)
+	Kit.layout_changed.connect(func(_l: bool): _fit_column())
 	body = VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 12)
@@ -76,6 +77,23 @@ func _on_changed() -> void:
 
 func build() -> void:
 	pass
+
+
+var _margin: MarginContainer
+
+
+func _fit_column() -> void:
+	## Portrait: 16 px gutters and room for the tab bar at the bottom.
+	## Landscape: the column is centred and at most Kit.COLUMN_MAX wide, and
+	## the tab bar is a rail on the left, so the bottom needs little room.
+	if _margin == null:
+		return
+	var side := 16.0
+	if Kit.landscape and scroll != null:
+		side = maxf(16.0, (scroll.size.x - Kit.COLUMN_MAX) * 0.5)
+	_margin.add_theme_constant_override("margin_left", int(side))
+	_margin.add_theme_constant_override("margin_right", int(side))
+	_margin.add_theme_constant_override("margin_bottom", 24 if Kit.landscape else 104)
 
 
 func refresh() -> void:

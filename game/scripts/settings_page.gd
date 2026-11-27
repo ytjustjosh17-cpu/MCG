@@ -9,6 +9,7 @@ var _vib: Switch
 var _motion: Switch
 var _news: Switch
 var _awake: Switch
+var _rotate: Switch
 var _sound_row: Row
 var _num_row: Row
 var _upd_row: Row
@@ -43,6 +44,10 @@ func build() -> void:
 	_awake = _switch_row(st, "clock", "Keep screen on", bool(Game.ui.get("keep_awake", false)), func(on: bool):
 		Game.ui["keep_awake"] = on
 		DisplayServer.screen_set_keep_on(on))
+	separator(st, 50)
+	_rotate = _switch_row(st, "update", "Auto-rotate", bool(Game.ui.get("rotate", true)), func(on: bool):
+		Game.ui["rotate"] = on
+		Kit.apply_rotation_setting())
 
 	var hc := card()
 	_upd_row = _row(hc, "update", false)
@@ -114,6 +119,7 @@ func refresh() -> void:
 	_sync(_motion, Game.reduce_motion)
 	_sync(_news, not bool(Game.ui.get("news_quiet", false)))
 	_sync(_awake, bool(Game.ui.get("keep_awake", false)))
+	_sync(_rotate, bool(Game.ui.get("rotate", true)))
 	_upd_row.set_texts("Updates", "", "Update ready" if Updater.has_update() else "Up to date")
 	_report_row.set_texts("Report a problem", "", _storage)
 
