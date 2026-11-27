@@ -28,11 +28,11 @@ func build() -> void:
 	_income_row.add_theme_constant_override("separation", 6)
 	body.add_child(_income_row)
 	_income = CountLabel.new(Game.money_short)
-	_income.add_theme_font_size_override("font_size", 40)
+	_income.add_theme_font_size_override("font_size", 28)   # 28, so it doesn't fight the cash pill
 	_income.add_theme_font_override("font", UI.DISPLAY)
 	_income.add_theme_color_override("font_color", UI.TEXT)
 	_income_row.add_child(_income)
-	var ph := UI.label("/h", 17, UI.SUB)
+	var ph := UI.label("/h", 15, UI.SUB)
 	ph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_income_row.add_child(ph)
 	var c := card()
@@ -209,16 +209,47 @@ func _on_boost() -> void:
 		Kit.toast("Ready in " + Game.clock(Game.ibost_cooldown_left()))
 
 
+# ---- price pills (shared by the Business and Items pages) ------------------
+
+static func price_pill(r: Row, text: String, can: bool) -> void:
+	## A row's price drawn as a pill: TEXT fill when you can pay, RAISED when
+	## not. The pill is only a picture; the whole row stays the one tap target.
+	var l := r.value_l
+	l.text = text
+	var key := "pill|%s" % can
+	if l.get_meta("look", "") != key:
+		l.set_meta("look", key)
+		l.add_theme_stylebox_override("normal", UI.box(UI.TEXT if can else UI.RAISED, 16, 14, 6))
+		l.add_theme_color_override("font_color", UI.INK if can else UI.TEXT)
+		l.add_theme_font_override("font", UI.SEMI)
+		l.add_theme_font_size_override("font_size", 15)
+
+
+static func plain_value(r: Row, text: String, color: Color = UI.SUB) -> void:
+	## Back to a plain value (Owned, Done, Sell ...).
+	var l := r.value_l
+	l.text = text
+	var key := "plain|%s" % color.to_html()
+	if l.get_meta("look", "") != key:
+		l.set_meta("look", key)
+		l.remove_theme_stylebox_override("normal")
+		l.add_theme_color_override("font_color", color)
+		l.add_theme_font_override("font", UI.REG)
+		l.add_theme_font_size_override("font_size", 15)
+
+
 class BizCard extends Button:
 	## One compact row: picture, name and status, income, and a thin bar
-	## (units filled, or time left on an expansion).
-	const ART_W := 76.0
+	## (units filled, or time left on an expansion). "Can buy" / "Can expand"
+	## under the income says when there is something to do here.
+	const ART_W := 72.0
+	const ART_H := 56.0
 	var id := ""
 	var _scene: Art.Scene
 	var _name: Label
 	var _status: Label
 	var _income: Label
-	var _mark: ColorRect
+	var _hint: Label
 	var _track: ColorRect
 	var _fill: ColorRect
 	var _bar_tw: Tween
@@ -231,8 +262,9 @@ class BizCard extends Button:
 		for st in ["normal", "hover", "pressed", "focus"]:
 			add_theme_stylebox_override(st, bg)
 		var b := Data.business(id)
-		_scene = Art.Scene.new(b["kind"], 12.0)
+		_scene = Art.Scene.new(b["kind"], 8.0)
 		_scene.seed_id = id
+		_scene.muted = true
 		add_child(_scene)
 		_name = UI.label("", 17, UI.TEXT, true)
 		_name.clip_text = true
@@ -240,29 +272,29 @@ class BizCard extends Button:
 		_status = UI.label("", 13, UI.SUB)
 		_income = UI.label("", 17, UI.TEXT, true)
 		_income.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_mark = ColorRect.new()
-		_mark.color = UI.RED
-		_mark.size = Vector2(8, 8)
+		_hint = UI.label("", 13, UI.TEXT, true)
+		_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_track = ColorRect.new()
 		_track.color = UI.TRACK
 		_fill = ColorRect.new()
 		_fill.color = UI.TEXT
-		for n in [_name, _status, _income, _mark, _track, _fill]:
+		for n in [_name, _status, _income, _hint, _track, _fill]:
 			(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 			add_child(n)
 		resized.connect(_layout)
 
 	func _layout() -> void:
-		_scene.position = Vector2(10, 10)
-		_scene.size = Vector2(ART_W, size.y - 20)
-		var x := ART_W + 24.0
+		_scene.position = Vector2(12, (size.y - ART_H) / 2.0)
+		_scene.size = Vector2(ART_W, ART_H)
+		var x := ART_W + 26.0
 		var right := size.x - 16.0
 		_income.size = Vector2(110, 24)
 		_income.position = Vector2(right - 110, 16)
 		_name.position = Vector2(x, 16)
 		_name.size = Vector2(maxf(40.0, right - 116 - x), 24)
 		_status.position = Vector2(x, 42)
-		_mark.position = Vector2(right - 8, 48)
+		_hint.size = Vector2(90, 18)
+		_hint.position = Vector2(right - 90, 43)
 		_track.position = Vector2(x, size.y - 16)
 		_track.size = Vector2(right - x, 3)
 		_fill.position = _track.position
@@ -282,18 +314,18 @@ class BizCard extends Button:
 		var frac := float(units) / float(maxi(1, cap))
 		var unit_word: String = Data.business(id).get("units", "units")
 		if Game.expanding(id):
-			_status.text = "Stage %d · expanding %s" % [s["stage"], Game.clock(Game.expansion_left(id))]
+			_status.text = "Expanding · %s" % Game.clock(Game.expansion_left(id))
 			frac = 1.0 - Game.expansion_left(id) / maxf(1.0, Game.expansion_seconds(id))
-			_mark.visible = false
+			_hint.text = ""
 		elif units >= cap and int(s["stage"]) < Data.MAX_STAGE:
-			_status.text = "Stage %d · full, expand" % s["stage"]
-			_mark.visible = Game.can_expand(id)
+			_status.text = "Stage %d · full" % s["stage"]
+			_hint.text = "Can expand" if Game.can_expand(id) else ""
 		elif units >= cap:
 			_status.text = "Stage %d · max" % s["stage"]
-			_mark.visible = false
+			_hint.text = ""
 		else:
 			_status.text = "Stage %d · %d/%d %s" % [s["stage"], units, cap, unit_word]
-			_mark.visible = Game.cash >= Game.unit_price(id)
+			_hint.text = "Can buy" if Game.cash >= Game.unit_price(id) else ""
 		# The bar glides to its new length instead of jumping.
 		var want := _track.size.x * clampf(frac, 0.0, 1.0)
 		_fill.size.y = 3

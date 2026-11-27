@@ -30,22 +30,30 @@ func build() -> void:
 		t.focus_mode = Control.FOCUS_NONE
 		t.custom_minimum_size = Vector2(0, 132)
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var sc := Art.Scene.new(b["kind"], 12.0)
+		var sc := Art.Scene.new(b["kind"], 8.0)
 		sc.seed_id = String(b["id"])
+		sc.muted = true
 		sc.position = Vector2(8, 8)
 		t.add_child(sc)
+		# Not affordable yet: a lock on the picture (the art itself stays clear).
+		var lk := PanelContainer.new()
+		lk.add_theme_stylebox_override("panel", UI.box(Color(UI.INK, 0.7), 12, 6, 6))
+		lk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lk.add_child(Icon.new("lock", UI.TEXT, 16.0))
+		t.add_child(lk)
 		var n := UI.label(b["name"], 17)
 		var c := UI.label(Game.money_short(float(b["cost"])), 13, UI.SUB)
 		t.add_child(n)
 		t.add_child(c)
 		t.resized.connect(func():
 			sc.size = Vector2(t.size.x - 16, 62)
+			lk.position = Vector2(t.size.x - 44, 14)
 			n.position = Vector2(12, 78)
 			c.position = Vector2(12, 102))
 		t.pressed.connect(func(): _pick(id))
 		Kit.press_fx(t)
 		_grid.add_child(t)
-		_tiles[id] = [t, n, c, sc]
+		_tiles[id] = [t, n, c, sc, lk]
 		_name_index[id] = 0
 	# Owned kinds fold into one line, so the grid only shows what's left to open.
 	var oc := card()
@@ -91,10 +99,14 @@ func refresh() -> void:
 		var owned := Game.owns(id)
 		t.visible = not owned
 		var can := Game.cash >= float(b["cost"])
-		var bg := UI.box(UI.RAISED if can and not owned else UI.PANEL, 16)
-		for st in ["normal", "hover", "pressed", "focus"]:
-			t.add_theme_stylebox_override(st, bg)
-		(parts[1] as Label).add_theme_color_override("font_color", UI.TEXT if (can or owned) else UI.SUB)
+		var look := "%s|%s" % [can, owned]
+		if t.get_meta("look", "") != look:
+			t.set_meta("look", look)
+			var bg := UI.box(UI.RAISED if can and not owned else UI.PANEL, 16)
+			for st in ["normal", "hover", "pressed", "focus"]:
+				t.add_theme_stylebox_override(st, bg)
+		(parts[1] as Label).add_theme_color_override("font_color", UI.TEXT)
+		(parts[4] as Control).visible = not can and not owned
 		if owned:
 			(parts[2] as Label).text = "Owned"
 		elif can:
@@ -104,7 +116,6 @@ func refresh() -> void:
 			if wait.ends_with("days") and int(wait.trim_prefix("~").get_slice(" ", 0)) > 30:
 				wait = ""  # too far off to be useful
 			(parts[2] as Label).text = Game.money_short(float(b["cost"])) + ("" if wait == "" else " · " + wait)
-		(parts[3] as Control).modulate.a = 1.0 if (can or owned) else 0.45
 
 
 func _pick(id: String) -> void:

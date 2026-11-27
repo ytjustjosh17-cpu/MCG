@@ -1,10 +1,17 @@
 class_name HeadOfficePage
 extends Page
-## Head office: one-off upgrades that change how the game works.
+## Head office: one-off upgrades that change how the game works, in four
+## small groups so the list never reads as a wall.
 
 var _rows := {}
 const ICONS := {"tap": "earn", "deals": "coins", "away1": "clock", "fast1": "level", "sun": "star",
-	"lock": "lock", "mine": "cpu", "away2": "clock", "fast2": "level", "mgr": "profile"}
+	"lock": "lock", "mine": "cpu", "away2": "home", "fast2": "gauge", "mgr": "profile"}
+const GROUPS := [
+	["Taps and luck", ["tap", "deals", "sun"]],
+	["While away", ["away1", "away2"]],
+	["Companies", ["fast1", "fast2", "mgr"]],
+	["Crypto", ["lock", "mine"]],
+]
 
 
 func _init() -> void:
@@ -15,17 +22,38 @@ func build() -> void:
 	var hint := UI.label("Pay once. Each upgrade lasts for good.", 15, UI.SUB)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
-	var c := card()
-	for i in range(Data.UPGRADES.size()):
-		if i > 0:
-			separator(c, 50)
-		var u: Array = Data.UPGRADES[i]
-		var r := Row.new(ICONS.get(u[0], "sparkle"), "", false)
-		r.custom_minimum_size = Vector2(0, 64)
-		var id: String = u[0]
-		r.pressed.connect(func(): _on_tap(id))
-		c.add_child(r)
-		_rows[id] = r
+	var placed := {}
+	for g in GROUPS:
+		section(g[0])
+		var c := card()
+		var first := true
+		for uid in g[1]:
+			if Game.upgrade(uid).is_empty():
+				continue
+			if not first:
+				separator(c, 50)
+			first = false
+			_add_row(c, uid)
+			placed[uid] = true
+	# Anything added later without a group still shows, at the end.
+	var others: Array = []
+	for u in Data.UPGRADES:
+		if not placed.has(u[0]):
+			others.append(u[0])
+	if not others.is_empty():
+		section("More")
+		var c2 := card()
+		for i in range(others.size()):
+			if i > 0:
+				separator(c2, 50)
+			_add_row(c2, others[i])
+
+
+func _add_row(c: Control, uid: String) -> void:
+	var r := Row.new(ICONS.get(uid, "sparkle"), "", false)
+	r.pressed.connect(func(): _on_tap(uid))
+	c.add_child(r)
+	_rows[uid] = r
 
 
 func refresh() -> void:
@@ -34,12 +62,11 @@ func refresh() -> void:
 		if r == null:
 			continue
 		var cost := float(u[3])
+		r.set_texts(u[1], u[2])
 		if Game.has_up(u[0]):
-			r.set_texts(u[1], u[2], "Owned")
-			r.value_l.add_theme_color_override("font_color", UI.SUB)
+			BusinessPage.plain_value(r, "Owned")
 		else:
-			r.set_texts(u[1], u[2], "Buy · " + Game.money_short(cost))
-			r.value_l.add_theme_color_override("font_color", UI.TEXT if Game.cash >= cost else UI.SUB)
+			BusinessPage.price_pill(r, Game.money_short(cost), Game.cash >= cost)
 
 
 func _on_tap(id: String) -> void:

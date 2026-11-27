@@ -8,6 +8,10 @@ extends Page
 var _room: Room
 var _sub: Label
 var _shown: Label
+var _shown_head: Control
+var _shown_card: Control
+var _grid: GridContainer
+var _shown_key := "-"
 
 
 func _init() -> void:
@@ -19,9 +23,20 @@ func build() -> void:
 	body.add_child(_sub)
 	var c := card()
 	_room = Room.new()
-	_room.custom_minimum_size = Vector2(0, 380)
+	_room.custom_minimum_size = Vector2(0, 400)
 	c.add_child(_room)
-	_shown = UI.label("", 15, UI.SUB)
+	# What's on show: a tidy two-column list, one set per cell.
+	section("On show")
+	_shown_head = body.get_child(body.get_child_count() - 1)
+	var sc := card()
+	_shown_card = sc.get_parent()
+	var pad := padded(sc, 16, 0)
+	_grid = GridContainer.new()
+	_grid.columns = 2
+	_grid.add_theme_constant_override("h_separation", 12)
+	_grid.add_theme_constant_override("v_separation", 4)
+	pad.add_child(_grid)
+	_shown = UI.label("Items you buy appear here.", 15, UI.SUB)
 	_shown.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(_shown)
 
@@ -35,8 +50,33 @@ func refresh() -> void:
 	for col in Game.collections():
 		var n := Game.collection_count(String(col["id"]))
 		if n > 0:
-			parts.append("%s %d" % [String(col["name"]), n])
-	_shown.text = ("On show · " + " · ".join(parts)) if not parts.is_empty() else "Items you buy appear here."
+			parts.append([String(col["id"]), String(col["name"]), n])
+	_shown.visible = parts.is_empty()
+	_shown_head.visible = not parts.is_empty()
+	_shown_card.visible = not parts.is_empty()
+	var key := str(parts)
+	if key != _shown_key:
+		_shown_key = key
+		for ch in _grid.get_children():
+			ch.queue_free()
+		for pt in parts:
+			var cell := HBoxContainer.new()
+			cell.custom_minimum_size = Vector2(0, 40)
+			cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			cell.add_theme_constant_override("separation", 8)
+			var art := ItemArt.new(pt[0], maxi(0, HomePage.best_item(pt[0])), 28.0)
+			art.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			cell.add_child(art)
+			var nm := UI.label(pt[1], 15)
+			nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			nm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			nm.clip_text = true
+			nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			cell.add_child(nm)
+			var cnt := UI.label(str(pt[2]), 15, UI.SUB)
+			cnt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			cell.add_child(cnt)
+			_grid.add_child(cell)
 	_room.set_home(Game.home)
 
 
@@ -72,8 +112,12 @@ class Room extends Control:
 		_place_items()
 		queue_redraw()
 
+	const SHELF_X := 0.35   # the display shelf: left edge and width, as shares of the room
+	const SHELF_W := 0.36
+	const SHELF_Y := 0.47
+
 	func _floor_y() -> float:
-		return size.y * 0.72
+		return size.y * 0.8
 
 	func _place_items() -> void:
 		for ch in get_children():
@@ -86,21 +130,24 @@ class Room extends Control:
 		var art := HomePage.best_item("art")
 		if art >= 0:
 			_add(ItemArt.new("art", art, 64.0), Vector2(w * 0.06, size.y * 0.16))
-		# A watch on the side table.
+		# A watch on the side table (on the mantel once there is a fireplace).
 		var watch := HomePage.best_item("watches")
 		if watch >= 0:
-			_add(ItemArt.new("watches", watch, 30.0), Vector2(w * 0.09, fy - 48.0))
+			var wp := Vector2(w * 0.09, fy - 48.0)
+			if tier >= 6:
+				wp = Vector2(w * 0.05 + w * 0.11 - 15.0, size.y * 0.46 - 30.0)
+			_add(ItemArt.new("watches", watch, 30.0), wp)
 		# A car in the garage bay on the right (from the town house up).
 		var car := HomePage.best_item("cars")
 		if car >= 0:
 			_add(ItemArt.new("cars", car, 78.0), Vector2(w * 0.76, fy - 42.0))
-		# Models and relics on the shelf.
-		var x := w * 0.39
+		# Models and relics on the display shelf.
+		var x := w * SHELF_X + 6.0
 		for col in ["jets", "yachts", "islands", "relics"]:
 			var i := HomePage.best_item(col)
 			if i >= 0:
-				_add(ItemArt.new(col, i, 30.0), Vector2(x, size.y * 0.47 - 30.0))
-				x += 34.0
+				_add(ItemArt.new(col, i, 26.0), Vector2(x, size.y * SHELF_Y - 29.0))
+				x += 30.0
 
 	func _add(c: Control, pos: Vector2) -> void:
 		c.position = pos
@@ -139,8 +186,14 @@ class Room extends Control:
 				draw_rect(Rect2(px - 1.5, win.position.y, 3.0, win.size.y), UI.INK, true)
 			draw_rect(Rect2(win.position.x, win.position.y + win.size.y * 0.55, win.size.x, 2.0), UI.INK, true)
 		draw_rect(win, UI.INK, false, 4.0)
-		# Shelf for models and relics.
-		draw_rect(Rect2(w * 0.37, h * 0.47, w * 0.3, 4.0), UI.INK, true)
+		# A display shelf for models and relics: a back panel and two posts,
+		# so the pieces stand on furniture, not in the window.
+		var shelf := Rect2(w * SHELF_X, h * SHELF_Y - 36.0, w * SHELF_W, 36.0)
+		draw_rect(shelf, UI.SIDE, true)
+		draw_rect(Rect2(shelf.position.x, h * SHELF_Y, shelf.size.x, 4.0), UI.INK, true)
+		draw_rect(Rect2(shelf.position.x, shelf.position.y, 3.0, 40.0), UI.INK, true)
+		draw_rect(Rect2(shelf.end.x - 3.0, shelf.position.y, 3.0, 40.0), UI.INK, true)
+		draw_rect(Rect2(shelf.position.x, shelf.position.y, shelf.size.x, 3.0), UI.INK, true)
 		# Furniture, richer as you move up.
 		if tier == 0:
 			draw_rect(Rect2(w * 0.08, fy - 16.0, w * 0.34, 16.0), UI.TRACK, true)   # a mattress on the floor
@@ -156,7 +209,7 @@ class Room extends Control:
 			draw_rect(Rect2(sx - 6.0, fy - 36.0, 8.0, 36.0), UI.TRACK, true)
 			draw_rect(Rect2(sx + sw - 2.0, fy - 36.0, 8.0, 36.0), UI.TRACK, true)
 			# A rug in front.
-			draw_rect(Rect2(sx + sw * 0.1, fy + 10.0, sw * 0.8, 10.0), Color(UI.RED, 0.35 + 0.3 * rich), true)
+			draw_rect(Rect2(sx + sw * 0.1, fy + 10.0, sw * 0.8, 10.0), UI.HAZE.lerp(UI.TRACK, rich), true)   # red stays for the sun
 		if tier >= 2:
 			# A lamp, and a plant.
 			draw_rect(Rect2(w * 0.68, fy - 60.0, 2.0, 60.0), UI.INK, true)

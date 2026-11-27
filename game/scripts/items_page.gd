@@ -4,6 +4,7 @@ extends Page
 
 var _total: Label
 var _casino_row: Row
+var _casino_lock: Icon
 var _relic_sep: Control
 var _hint: Label
 var _rows := {}
@@ -32,36 +33,40 @@ func build() -> void:
 		hb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 	hb.custom_minimum_size = Vector2(0, 88)
 	hb.clip_contents = true
-	hb.pressed.connect(func():
-		Kit.tick()
-		push_page.emit(HomePage.new()))
+	hb.pressed.connect(_look_inside)
 	Kit.press_fx(hb)
 	hc.add_child(hb)
 	_home_art = Control.new()
 	_home_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_home_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hb.add_child(_home_art)
-	var inside := UI.label("Look inside ›", 13, UI.TEXT, true)
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	inside.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	inside.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	inside.offset_right = -12
-	inside.offset_bottom = -8
-	hb.add_child(inside)
+	# Name and bonus, with "Look inside" as a clear row of its own (never
+	# text over the art).
 	var hp := padded(hc, 16, 4)
-	_home_name = UI.label("", 22, UI.TEXT, true)
-	hp.add_child(_home_name)
+	var nh := HBoxContainer.new()
+	hp.add_child(nh)
+	var nv := VBoxContainer.new()
+	nv.add_theme_constant_override("separation", 2)
+	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nh.add_child(nv)
+	_home_name = UI.label("", 17, UI.TEXT, true)
+	nv.add_child(_home_name)
 	_home_sub = UI.label("", 13, UI.SUB)
-	hp.add_child(_home_sub)
+	nv.add_child(_home_sub)
+	var inside := UI.pill("Look inside", UI.RAISED, UI.TEXT, 15, 20)
+	inside.custom_minimum_size = Vector2(0, UI.BTN_H)
+	inside.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	inside.pressed.connect(_look_inside)
+	Kit.press_fx(inside)
+	nh.add_child(inside)
 	# The ladder: one small step mark per home, lit up to where you are.
 	var lad := HBoxContainer.new()
 	lad.add_theme_constant_override("separation", 4)
-	lad.custom_minimum_size = Vector2(0, 22)
+	lad.custom_minimum_size = Vector2(0, 28)
 	hp.add_child(lad)
 	for i in range(1, Data.HOMES.size()):
 		var sq := ColorRect.new()
-		sq.custom_minimum_size = Vector2(0, 4)
+		sq.custom_minimum_size = Vector2(0, 6)
 		sq.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sq.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		sq.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -72,6 +77,7 @@ func build() -> void:
 	_steps.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	lad.add_child(_steps)
 	_move = button("", true, _on_move)
+	_move.custom_minimum_size.y = UI.BTN_PRIMARY_H
 	hp.add_child(_move)
 	_next = UI.label("", 13, UI.SUB)
 	_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -81,12 +87,16 @@ func build() -> void:
 	var cc := card()
 	_casino_row = Row.new()
 	_casino_row.set_lead(CasinoPage.CasinoArt.new("roulette", 44.0))
+	# Locked: a lock where the value goes, and the art dimmed.
+	_casino_lock = Icon.new("lock", UI.SUB, 18.0)
+	_casino_lock.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_casino_row.value_l.get_parent().add_child(_casino_lock)
 	_casino_row.pressed.connect(func():
 		Kit.tick()
 		push_page.emit(CasinoPage.new()))
 	cc.add_child(_casino_row)
 
-	_total = section("Collections")
+	_total = section("Collections")   # right: "Complete 2 / 6"
 	_hint = UI.label("Own a full set for bonus income", 13, UI.SUB)
 	body.add_child(_hint)
 	var list := card()
@@ -110,10 +120,15 @@ func build() -> void:
 func refresh() -> void:
 	if _total == null:
 		return
-	if Game.casino_open():
+	var open := Game.casino_open()
+	if open:
 		_casino_row.set_texts("Casino", "Slots and tables", "Chips " + Game.money_short(Game.chips()) if Game.chips() >= 0.01 else "")
 	else:
 		_casino_row.set_texts("Casino", "Unlocks in the Rebirth tree", "")
+	_casino_row.lead.modulate.a = 1.0 if open else 0.4
+	_casino_row.title_l.add_theme_color_override("font_color", UI.TEXT if open else UI.SUB)
+	_casino_lock.visible = not open
+	_casino_row.value_l.visible = open
 	var h: Array = Data.HOMES[Game.home]
 	if _home_kind != String(h[3]):
 		_home_kind = h[3]
@@ -166,7 +181,7 @@ func refresh() -> void:
 					break
 		var r: Row = _rows[cid]
 		r.set_texts(col["name"], sub, "%d / %d" % [n, total])
-	_total.text = "%d / %d" % [done, Game.collections().size()]
+	_total.text = "Complete %d / %d" % [done, Game.collections().size()]
 	if bonus > 0.0:
 		_total.text += " · +%d%%" % int(round(bonus * 100.0))
 	_hint.visible = not started
@@ -175,6 +190,7 @@ func refresh() -> void:
 class CollectionPage extends Page:
 	var cid := ""
 	var _note: Label
+	var _bar: ProgressBar
 	var _rows: Array = []
 	var _bought_at := {}  # row index -> ms; a quick second tap must not offer to sell
 
@@ -187,6 +203,15 @@ class CollectionPage extends Page:
 		_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body.add_child(_note)
 		var col := Game.collection(cid)
+		# How far through the set you are.
+		_bar = ProgressBar.new()
+		_bar.show_percentage = false
+		_bar.max_value = col["items"].size()
+		_bar.custom_minimum_size = Vector2(0, 6)
+		_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_bar.add_theme_stylebox_override("background", UI.box(UI.TRACK, 3))
+		_bar.add_theme_stylebox_override("fill", UI.box(UI.TEXT, 3))
+		body.add_child(_bar)
 		var list := card()
 		for i in range(col["items"].size()):
 			if i > 0:
@@ -203,10 +228,12 @@ class CollectionPage extends Page:
 
 	func refresh() -> void:
 		var col := Game.collection(cid)
+		var have := Game.collection_count(cid)
+		_bar.value = have
 		if Game.collection_done(cid):
 			_note.text = "Done · " + _bonus_text()
 		else:
-			_note.text = "Own all %d for %s" % [col["items"].size(), _bonus_text()]
+			_note.text = "%d of %d owned · all for %s" % [have, col["items"].size(), _bonus_text()]
 		var next := -1
 		for i in range(_rows.size()):
 			var it: Array = col["items"][i]
@@ -214,18 +241,17 @@ class CollectionPage extends Page:
 			(r.lead as ItemArt).set_owned(Game.item_owned(cid, i))
 			var price := float(it[1])
 			if Game.item_owned(cid, i):
-				r.set_texts(it[0], "", "Sell " + Game.money_short(price * Data.ITEM_RESALE))
-				r.title_l.add_theme_color_override("font_color", UI.TEXT)
-				r.value_l.add_theme_color_override("font_color", UI.SUB)
+				r.set_texts(it[0], "Owned")
+				BusinessPage.plain_value(r, "Sell " + Game.money_short(price * Data.ITEM_RESALE))
 				continue
 			var can := Game.cash >= price
 			var sub := ""
 			if next < 0:
 				next = i
-				sub = Game.eta(price)
-			r.set_texts(it[0], sub, Game.money_short(price))
-			r.title_l.add_theme_color_override("font_color", UI.TEXT if can else UI.SUB)
-			r.value_l.add_theme_color_override("font_color", UI.TEXT if can else UI.SUB)
+				var wait := Game.eta(price)
+				sub = ("Afford in " + wait) if wait != "" else ""
+			r.set_texts(it[0], sub)
+			BusinessPage.price_pill(r, Game.money_short(price), can)
 
 	func _tap(i: int) -> void:
 		var it: Array = Game.collection(cid)["items"][i]
@@ -247,6 +273,11 @@ class CollectionPage extends Page:
 				Kit.toast("Bought " + String(it[0]), true)
 		else:
 			Kit.toast("Need " + Game.money_short(float(it[1]) - Game.cash) + " more")
+
+
+func _look_inside() -> void:
+	Kit.tick()
+	push_page.emit(HomePage.new())
 
 
 func _on_move() -> void:
