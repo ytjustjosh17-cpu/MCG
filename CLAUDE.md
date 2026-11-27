@@ -13,7 +13,8 @@ Read this file first, then the doc for the area you touch:
 - British English. Replies short and simple, in small chunks.
 - Look: premium, clean, Apple-meets-brutalist, dark teal with one red sun.
 - Pace: the game takes weeks, not days. It must never become easy by accident.
-- **Ask before every push.** Every push to the working branch makes a release, so commit locally, batch changes and push only when told "push".
+- **Ask before every push.** Commit locally and push only when told "push". A push only checks and builds.
+- **Releases are rare.** A release (the in-game Update) is made only when the owner says "release", after many changes have built up.
 
 ## Never
 
@@ -71,6 +72,6 @@ With every change a player can see, in the same commit:
 ## Releasing
 
 1. All checks pass.
-2. Commit, then ask. Push to the working branch only on "push".
-3. GitHub Actions tests, builds and signs `Sol.apk` (key and password from the repo Secrets `SOL_KEYSTORE_B64` and `SOL_KEYSTORE_PASSWORD`), and publishes `v1.2.<run number>`.
+2. Commit, then ask. Push to the working branch only on "push". Every push runs the tests and builds, but publishes nothing.
+3. Only on "release": start the Android APK workflow by hand. It builds and signs `Sol.apk` (key and password from the repo Secrets `SOL_KEYSTORE_B64` and `SOL_KEYSTORE_PASSWORD`) and publishes `v1.2.<run number>` with notes for every version (`.github/release-notes/`). Then run Tidy releases so only the newest release stays.
 4. The player taps Update in Profile.

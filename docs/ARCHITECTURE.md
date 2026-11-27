@@ -77,6 +77,8 @@ Pages never change state directly.
 
 `.github/workflows/android.yml`:
 1. `rules` job: `python3 tools/check_rules.py`.
-2. `android` job (Godot 4.4.1 container): download fonts, import, smoke, stress, market and touch tests, export and sign `Sol.apk`, write its SHA-256, stamp build provenance (`actions/attest-build-provenance`), publish release `v1.1.<run>` with the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
+2. `android` job (Godot 4.4.1 container): download fonts, import, smoke, stress, market and touch tests, export and sign `Sol.apk`, write its SHA-256, stamp build provenance (`actions/attest-build-provenance`), on a by-hand run only (never on a push), publish release `v1.2.<run>` with grouped notes for every version, the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
+
+`.github/workflows/tidy-releases.yml` (by hand only) deletes every release but the newest, so the Releases page shows one release.
 
 The in-game updater checks the latest release every 30 minutes and on resume, downloads `Sol.apk` and opens the Android installer.

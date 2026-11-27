@@ -1,6 +1,6 @@
 # Sol testing guide
 
-Every push runs the rules and the tests on GitHub before a release is built.
+Every push runs the rules and the tests on GitHub. Releases are only made by hand.
 Run them yourself first. A release with a failing test is never pushed.
 
 ## Setup

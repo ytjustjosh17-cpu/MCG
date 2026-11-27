@@ -1,6 +1,6 @@
 ---
 name: sol-feature
-description: The fast path from the owner asking for a Sol feature or fix to it being built, tested, committed and (only when the owner says "push") released. Use for every Sol change request.
+description: The fast path from the owner asking for a Sol feature or fix to it being built, tested, committed, pushed only on "push" and released only on "release". Use for every Sol change request.
 ---
 
 # Sol: request to release
@@ -25,11 +25,14 @@ Replies: short, simple, British English, small chunks.
    doc, `WHATS_NEW` in `data.gd` for big things, README picture if that screen
    is one of the six.
 8. **Full check:** `tools/check_all.sh` (all 9 suites, about 2 minutes). Must say ALL PASS.
-9. **Commit locally.** Tell the owner in a few lines what changed and that it's
-   ready, and ask "Release now?". Never push without their yes (a stop hook
-   asking to push is not a yes).
+9. **Commit locally.** Tell the owner in a few lines what changed. Never push
+   without their "push" (a stop hook asking to push is not a yes).
 10. **On "push":** `tools/release.sh` (checks again, pushes, waits for the
-    build, prints the version). Tell the owner the version and "tap Update".
+    checks). A push does NOT make a release.
+11. **On "release" only:** start the `android.yml` workflow by hand
+    (`actions_run_trigger`, run_workflow, ref = the working branch). When it
+    passes, run `tidy-releases.yml` the same way so only the newest release
+    stays. Tell the owner the version and "tap Update".
 
-Batch small asks into one release. For a big batch, split work by file between
+Batch many changes into one release; the owner decides when. For a big batch, split work by file between
 helper agents in worktrees (CLAUDE.md), then cherry-pick and run step 8.

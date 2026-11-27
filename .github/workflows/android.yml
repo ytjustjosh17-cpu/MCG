@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - claude/mobile-game-samsung-s23-jipcyi
-      - main
+  # A push only checks and builds. A release (the in-game Update) is made
+  # only when started by hand: Actions > Android APK > Run workflow.
   workflow_dispatch:
 
 permissions:
@@ -160,6 +161,7 @@ jobs:
           echo "SHA-256: $SUM"
 
       - name: Stamp where the APK came from (build provenance)
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: game/build/Sol.apk
@@ -172,6 +174,7 @@ jobs:
           if-no-files-found: error
 
       - name: Release notes (every version, grouped)
+        if: github.event_name == 'workflow_dispatch'
         working-directory: game
         shell: bash
         run: |
@@ -189,6 +192,7 @@ jobs:
           } >> build/notes.md
 
       - name: Publish release
+        if: github.event_name == 'workflow_dispatch'
         id: publish
         continue-on-error: true  # GitHub sometimes errors here; the next step retries
         uses: softprops/action-gh-release@v2
@@ -203,11 +207,11 @@ jobs:
           body_path: game/build/notes.md
 
       - name: Wait before retrying
-        if: steps.publish.outcome == 'failure'
+        if: github.event_name == 'workflow_dispatch' && steps.publish.outcome == 'failure'
         run: sleep 60
 
       - name: Publish release (retry)
-        if: steps.publish.outcome == 'failure'
+        if: github.event_name == 'workflow_dispatch' && steps.publish.outcome == 'failure'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.2.${{ github.run_number }}

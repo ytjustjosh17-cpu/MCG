@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Release in one command, ONLY after the owner has said "push":
+# Push in one command, ONLY after the owner has said "push":
 #   tools/release.sh
 # Refuses with uncommitted changes, runs every check, pushes the working
-# branch, waits for GitHub Actions and prints the new release.
+# branch and waits for GitHub's checks. A push never makes a release: that
+# only happens when the owner says "release" (Actions > Android APK > Run
+# workflow, then Tidy releases).
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -22,7 +24,7 @@ for i in 1 2 3 4; do
 	echo "push failed, retrying"; sleep $((2 ** i))
 done
 SHA="$(git rev-parse --short=7 HEAD)"
-echo "Pushed $SHA, waiting for the build..."
+echo "Pushed $SHA, waiting for the checks..."
 for i in $(seq 1 90); do
 	r=$(curl -s "https://api.github.com/repos/$REPO/actions/runs?per_page=5" | python3 -c "
 import sys,json
@@ -30,7 +32,7 @@ for d in json.load(sys.stdin).get('workflow_runs',[]):
     if d['head_sha'].startswith('$SHA'):
         print(d['run_number'], d['status'], d['conclusion']); break" 2>/dev/null)
 	case "$r" in
-		*completed*success*) echo "Released v1.2.${r%% *} (build ok). Owner: tap Update in Profile."; exit 0;;
+		*completed*success*) echo "Checks and build ok (run ${r%% *}). Not released: that needs \"release\"."; exit 0;;
 		*completed*) echo "Build finished but not ok: $r. Check the Actions log."; exit 1;;
 	esac
 	sleep 20
