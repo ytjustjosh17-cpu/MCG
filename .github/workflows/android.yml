@@ -29,8 +29,9 @@ jobs:
       image: barichello/godot-ci:4.4.1
     env:
       GODOT_VERSION: 4.4.1
-      # Personal hobby app: the signing key is kept in the repo (owner's choice)
-      # so every build installs over the last one and keeps the save.
+      # The signing key and its password live in the repo's Secrets, never in
+      # git. Same certificate as every earlier build, so updates keep the save.
+      KEYSTORE_B64: ${{ secrets.SOL_KEYSTORE_B64 }}
       KEYSTORE_PASSWORD: ${{ secrets.SOL_KEYSTORE_PASSWORD }}
       KEYSTORE_ALIAS: redsun
       BUILD_NUMBER: ${{ github.run_number }}
@@ -45,8 +46,13 @@ jobs:
 
       - name: Set signing key and version number
         working-directory: game
+        shell: bash
         run: |
-          sed -i "s|keystore/release=\".*\"|keystore/release=\"$GITHUB_WORKSPACE/game/android/release.keystore\"|" export_presets.cfg
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "Signing secrets SOL_KEYSTORE_B64 / SOL_KEYSTORE_PASSWORD are missing"; exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > /tmp/release.keystore
+          sed -i "s|keystore/release=\".*\"|keystore/release=\"/tmp/release.keystore\"|" export_presets.cfg
           sed -i "s|keystore/release_user=\".*\"|keystore/release_user=\"$KEYSTORE_ALIAS\"|" export_presets.cfg
           sed -i "s|keystore/release_password=\".*\"|keystore/release_password=\"$KEYSTORE_PASSWORD\"|" export_presets.cfg
           sed -i "s|^version/code=.*|version/code=$BUILD_NUMBER|" export_presets.cfg

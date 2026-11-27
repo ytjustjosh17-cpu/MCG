@@ -45,7 +45,7 @@ Read this file first, then the doc for the area you touch:
 | R5 | Only the OFL Inter fonts in git |
 | R6 | Package name never changes |
 | R7 | Every saved field is loaded back; `SAVE_VERSION` has a migrate step |
-| R8 | No throwaway files in git (`_agent*`, `_dbg*`, `override.cfg`) |
+| R8 | No throwaway files or signing keys in git (`_agent*`, `_dbg*`, `override.cfg`, `*.keystore`) |
 | R9 | No `print()` in game code; use `GameLog.info()` |
 | R10 | Pushed pages use `super(title, true)`; the back button sits in the bottom bar |
 | R11 | Every suite CI runs exists |
@@ -72,5 +72,5 @@ With every change a player can see, in the same commit:
 
 1. All checks pass.
 2. Commit, then ask. Push to the working branch only on "push".
-3. GitHub Actions tests, builds and signs `Sol.apk`, and publishes `v1.2.<run number>`.
+3. GitHub Actions tests, builds and signs `Sol.apk` (key and password from the repo Secrets `SOL_KEYSTORE_B64` and `SOL_KEYSTORE_PASSWORD`), and publishes `v1.2.<run number>`.
 4. The player taps Update in Profile.

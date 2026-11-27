@@ -138,8 +138,8 @@ for f in tracked_files():
     base = os.path.basename(f)
     if base.startswith(("_agent", "_dbg", "_bench", "_touch", "_stress", "_ld", "_mk")) or base == "override.cfg":
         fail("R8", os.path.join(ROOT, f), 0, "throwaway file is tracked")
-    if f.endswith(".keystore") and f != "game/android/release.keystore":
-        fail("R8", os.path.join(ROOT, f), 0, "unexpected signing key in git")
+    if f.endswith((".keystore", ".jks")):
+        fail("R8", os.path.join(ROOT, f), 0, "signing key in git (it lives in the repo Secrets)")
 
 # R9  No leftover debug prints in game code (use GameLog instead).
 for p in SCRIPTS:

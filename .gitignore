@@ -1,1 +1,5 @@
 .claude/worktrees/
+
+# Signing keys live in the repo Secrets, never in git.
+*.keystore
+*.jks
