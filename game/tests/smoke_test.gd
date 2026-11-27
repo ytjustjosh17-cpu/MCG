@@ -1015,6 +1015,31 @@ func _run() -> void:
 	_check(game.season_pts() <= sp0 + 5.0 and int(game.counters.get("tap_day", -1)) != td0 or game.season_pts() == sp0, "season: the day's first tap adds 5 once, more taps add nothing")
 	game.sim_time = -1.0
 	game.reset_game(true)
+	# 1.2 company upgrade paths: five named steps, +25% each, gated by stage,
+	# priced no faster than a unit's payback, counted in what you've invested.
+	game.reset_game(true)
+	game.cash = 1.0e6
+	game.open_business("shop", "Up Test")
+	_check(game.biz_up_level("shop") == 0 and not bool(game.biz_up_next("shop")["ready"]), "upgrade path: step 1 waits for stage 2")
+	game.biz["shop"]["stage"] = 2
+	game.biz["shop"]["units"] = 10
+	game.recalc()
+	var bu: Dictionary = game.biz_up_next("shop")
+	var up_inc0: float = game.biz_income("shop")
+	var up_inv0: float = float(game.biz["shop"]["invested"])
+	_check(String(bu["name"]) != "" and float(bu["cost"]) / float(bu["gain_now"]) >= Data.BIZ_UP_MIN_H - 0.01, "upgrade path: a step pays back no faster than the minimum hours")
+	_check(is_equal_approx(game.biz_income_after_up("shop"), up_inc0 * (1.0 + Data.BIZ_UP_STEP)), "upgrade path: before and after income")
+	game.cash = 1.0e12
+	_check(game.buy_biz_up("shop") and game.biz_up_level("shop") == 1 and is_equal_approx(game.biz_income("shop"), up_inc0 * (1.0 + Data.BIZ_UP_STEP)), "upgrade path: buying step 1 lifts income by one step")
+	_check(float(game.biz["shop"]["invested"]) > up_inv0, "upgrade path: the spend counts as invested")
+	_check(not game.buy_biz_up("shop"), "upgrade path: step 2 needs stage 4")
+	game.biz["shop"]["stage"] = 10
+	for k in 6:
+		game.buy_biz_up("shop")
+	_check(game.biz_up_level("shop") == 5 and game.biz_up_next("shop").is_empty(), "upgrade path: five steps, then done")
+	game.biz["shop"].erase("ups")
+	_check(game.biz_up_level("shop") == 0, "upgrade path: old saves (no steps saved) start at 0")
+	game.reset_game(true)
 	# 1.2 records and rivals.
 	_check(Data.RIVALS.size() >= 30, "at least 30 rivals")
 	var round_worths := 0

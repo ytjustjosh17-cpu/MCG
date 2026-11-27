@@ -208,6 +208,12 @@ func _spend() -> void:
 			var mc: float = g.miner_up_cost(mk)
 			if g.rigs_total() > 0 and mc > 0.0 and mc < g.cash * 0.1 and (mk == "speed" or g.mining_capped()):
 				g.buy_miner_up(mk); bought = true
+		# Company upgrade steps when ready and under a fifth of cash (they are
+		# priced to pay back no faster than units, so this is a fair buy).
+		for bid in g.biz.keys():
+			var nx: Dictionary = g.biz_up_next(bid)
+			if not nx.is_empty() and bool(nx["ready"]) and float(nx["cost"]) <= g.cash * 0.2:
+				g.buy_biz_up(bid); bought = true
 		# Head office upgrades when they cost under a fifth of cash.
 		for up in Data.UPGRADES:
 			if not g.has_up(up[0]) and float(up[3]) <= g.cash * 0.2:

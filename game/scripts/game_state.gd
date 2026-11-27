@@ -480,6 +480,7 @@ func biz_income(id: String) -> float:
 	var b := Data.business(id)
 	var s: Dictionary = biz[id]
 	var v := float(s["units"]) * float(b["unit_income"]) * pow(float(b["stage_mult"]), int(s["stage"]) - 1)
+	v *= 1.0 + Data.BIZ_UP_STEP * float(s.get("ups", 0))
 	v *= Data.INCOME_SCALE * merger_mult(id) * global_mult() * milestone_mult(id) * synergy_mult(id) * (1.0 + rb("income") + rb("all"))
 	if ibost_active():
 		v *= 2.0
@@ -839,6 +840,72 @@ func _finish_expansions() -> void:
 			_task_progress("expand", 1)
 			recalc()
 			expansion_done.emit(id, int(s["stage"]))
+
+
+# ---- company upgrade paths (1.2) ------------------------------------------
+# Five named steps per company (Data.BIZ_UPS), +10% of its income each. Step
+# k opens at stage 2k + 2. Price: the extra income times the slower of a unit's
+# payback at this stage (x1.5) and 60 h, so a step never beats buying units. The
+# spend counts in `invested` like units do: net worth doesn't dip when you
+# buy one, and selling the company returns half of it.
+
+func biz_up_level(id: String) -> int:
+	return int(biz[id].get("ups", 0)) if biz.has(id) else 0
+
+
+func _unit_payback_h(id: String) -> float:
+	var u := int(biz[id]["units"])
+	var per_unit := biz_income(id) / float(maxi(u, 1))
+	if per_unit <= 0.0:
+		return Data.BIZ_UP_MIN_H
+	return unit_price(id) / per_unit
+
+
+func biz_up_next(id: String) -> Dictionary:
+	## The next step, or {} when all five are done (or the company isn't owned):
+	## {index, name, line, cost, gain_now, need_stage, ready}
+	if not biz.has(id):
+		return {}
+	var k := biz_up_level(id)
+	var steps := Data.biz_ups(id)
+	if k >= steps.size():
+		return {}
+	var gain := biz_up_gain(id)
+	var hours := maxf(Data.BIZ_UP_MIN_H, _unit_payback_h(id) * Data.BIZ_UP_X)
+	var need := 2 * k + 2
+	return {"index": k, "name": String(steps[k][0]), "line": String(steps[k][1]),
+		"cost": maxf(float(Data.business(id)["cost"]), gain * hours), "gain_now": gain,
+		"need_stage": need, "ready": int(biz[id]["stage"]) >= need}
+
+
+func biz_up_gain(id: String) -> float:
+	## Extra income an hour the next step adds now.
+	if not biz.has(id):
+		return 0.0
+	var k := biz_up_level(id)
+	return biz_income(id) * Data.BIZ_UP_STEP / (1.0 + Data.BIZ_UP_STEP * float(k))
+
+
+func biz_income_after_up(id: String) -> float:
+	## This company's income an hour once the next step is bought.
+	return biz_income(id) + biz_up_gain(id)
+
+
+func buy_biz_up(id: String) -> bool:
+	var nx := biz_up_next(id)
+	if nx.is_empty() or not bool(nx["ready"]):
+		return false
+	var c := float(nx["cost"])
+	if cash < c:
+		return false
+	_save_soon = true
+	cash -= c
+	biz[id]["ups"] = biz_up_level(id) + 1
+	biz[id]["invested"] = float(biz[id]["invested"]) + c
+	_bump("biz_ups")
+	GameLog.info("game", "%s: %s (%s)" % [String(biz[id]["name"]), String(nx["name"]), money(c)])
+	recalc()
+	return true
 
 
 func biz_value(id: String) -> float:

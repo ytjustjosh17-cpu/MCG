@@ -412,6 +412,37 @@ static func coin(sym: String) -> Array:
 	return []
 
 
+# Company upgrade paths (1.2): five named steps per company, each +25% to
+# that company's income (+10% each, 1.2 robot-tuned). Step k (0-based) opens at stage 2k + 2. Made-up names.
+const BIZ_UP_STEP := 0.10
+const BIZ_UP_MIN_H := 60.0   # a step never pays back faster than this many hours...
+const BIZ_UP_X := 1.5        # ...nor faster than a unit at the company's stage (x this)
+const BIZ_UPS := {
+	"shop": [["Late opening", "Open till ten."], ["Loyalty cards", "Regulars come back."], ["Self checkout", "Shorter queues."], ["Own-label range", "Better margins."], ["Flagship store", "The one on the high street."]],
+	"food": [["Better grills", "Faster service."], ["Lunch rush rota", "Never short at noon."], ["Festival pitches", "Summer crowds."], ["Signature menu", "People ask by name."], ["Truck depot", "Fleet under one roof."]],
+	"taxi": [["Night shift", "Cars out after dark."], ["Booking app", "Rides at a tap."], ["Airport rank", "Long fares all day."], ["Electric fleet", "Cheaper miles."], ["City contract", "The council calls you."]],
+	"shipping": [["Route planner", "Fewer empty miles."], ["Bigger lorries", "More per trip."], ["Night depot", "Round the clock."], ["Cold chain", "Food and medicine too."], ["Port office", "Straight off the ship."]],
+	"factory": [["Second shift", "Lines never stop."], ["New presses", "Faster runs."], ["Quality lab", "Fewer returns."], ["Robot cell", "Steady output."], ["Export desk", "Orders from abroad."]],
+	"construction": [["Better cranes", "Higher, faster."], ["Site office", "Tighter schedules."], ["Prefab yard", "Walls arrive built."], ["Big tenders", "Schools and stations."], ["Landmark build", "Your name on a skyline."]],
+	"dealer": [["Valet bays", "Cars shine on arrival."], ["Trade-in desk", "Easy swaps."], ["Finance team", "Monthly plans."], ["Service centre", "They come back."], ["Showroom tower", "Glass on every floor."]],
+	"gym": [["24-hour doors", "Open all night."], ["Class studio", "Spin and box."], ["Personal trainers", "Results people pay for."], ["Spa floor", "Members stay longer."], ["Flagship club", "The one with the pool."]],
+	"it": [["Help desk", "Fast fixes."], ["Cloud racks", "More clients online."], ["Security team", "Banks sign up."], ["Own software", "Licences, not hours."], ["Campus office", "Talent comes to you."]],
+	"hotel": [["Room service", "Guests stay in."], ["Rooftop bar", "Locals visit too."], ["Conference hall", "Weekday trade."], ["Spa and pool", "Weekend breaks."], ["Grand suite", "Five stars."]],
+	"tv": [["New studio", "More shows a week."], ["Quiz hour", "Prime-time ratings."], ["Sports rights", "Saturday crowds."], ["Drama slate", "Sold abroad."], ["Own channel", "Your logo on every box."]],
+	"bank": [["Mobile banking", "Accounts at a tap."], ["Mortgage desk", "Steady interest."], ["Business loans", "Firms bank with you."], ["Private office", "The very rich."], ["Head branch", "Marble and brass."]],
+	"sports": [["New pitch", "Better football."], ["Youth academy", "Your own stars."], ["Bigger stand", "More seats sold."], ["Kit deal", "Shirts in every shop."], ["Stadium", "Sold out every week."]],
+	"mining": [["Deeper shaft", "Richer seams."], ["Bigger trucks", "More per haul."], ["Wash plant", "Cleaner ore."], ["Rail spur", "Straight to port."], ["Second pit", "Double the dig."]],
+	"oil": [["New rig", "More barrels."], ["Pipeline", "Cheaper transport."], ["Refinery unit", "Higher grade."], ["Offshore field", "Deep water."], ["Tanker fleet", "Your own ships."]],
+	"airline": [["New routes", "More cities."], ["Lounge", "Business class fills."], ["Bigger jets", "More seats a flight."], ["Cargo wing", "Freight at night."], ["Hub airport", "Everyone changes here."]],
+	"space": [["Reusable boosters", "Cheaper launches."], ["Satellite deals", "Steady contracts."], ["Second pad", "Twice the launches."], ["Crew capsule", "Paying passengers."], ["Orbital station", "Rent in the sky."]],
+}
+const BIZ_UPS_DEFAULT := [["Better kit", "Faster work."], ["Night crew", "Round the clock."], ["Big contract", "Steady orders."], ["New wing", "Room to grow."], ["Flagship", "The best in the business."]]
+
+
+static func biz_ups(id: String) -> Array:
+	return BIZ_UPS.get(id, BIZ_UPS_DEFAULT)
+
+
 static func business(id: String) -> Dictionary:
 	for b in BUSINESSES:
 		if b["id"] == id:
