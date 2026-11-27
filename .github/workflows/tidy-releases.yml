@@ -1,0 +1,40 @@
+name: Tidy releases
+
+# Run by hand only (Actions > Tidy releases > Run workflow).
+# Keeps the newest release of 1.0, of 1.1 and the newest release overall,
+# deletes every other release and its tag, and gives the kept ones grouped
+# notes from .github/release-notes/.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fold old releases into one per version
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release list --limit 500 --json tagName --jq '.[].tagName' | sort -V > tags.txt
+          LATEST=$(gh release view --json tagName --jq .tagName)
+          K10=$(grep '^v1\.0\.' tags.txt | tail -1 || true)
+          K11=$(grep '^v1\.1\.' tags.txt | tail -1 || true)
+          echo "Keeping: $K10 $K11 $LATEST"
+          while read -r t; do
+            if [ "$t" != "$LATEST" ] && [ "$t" != "$K10" ] && [ "$t" != "$K11" ]; then
+              gh release delete "$t" --cleanup-tag --yes
+            fi
+          done < tags.txt
+          [ -n "$K10" ] && gh release edit "$K10" --title "Sol 1.0" --notes-file .github/release-notes/1.0.md
+          [ -n "$K11" ] && gh release edit "$K11" --title "Sol 1.1" --notes-file .github/release-notes/1.1.md
+          gh release view "$LATEST" --json body --jq .body > body.md
+          cat .github/release-notes/1.2.md body.md > latest.md
+          gh release edit "$LATEST" --notes-file latest.md
+          gh release list --limit 20
