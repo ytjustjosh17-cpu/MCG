@@ -232,7 +232,7 @@ func refresh() -> void:
 	var earn := free * Game.dividend_rate(sym) if kind == "share" else Game.stake_earn_per_hour(sym) + Game.mine_per_hour(sym) * Game.price(sym)
 	_own_qty.text = InvestPage.qty_short(total)
 	_own_val.text = Game.money_short(worth)
-	_own_earn.text = "+%s /h" % Game.money_short(earn) if earn > 0.0 else "£0 /h"
+	_own_earn.text = "+%s /h" % Game.money_short(earn) if earn > 0.0 else Game.CUR + "0 /h"
 	var gain := worth - paid
 	var pct := gain / paid * 100.0 if paid > 0.0 else 0.0
 	_profit.text = "%s%s (%.1f%%)" % ["+" if gain >= 0 else "−", Game.money_short(absf(gain)), absf(pct)]
