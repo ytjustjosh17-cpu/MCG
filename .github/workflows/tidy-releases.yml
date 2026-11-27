@@ -18,6 +18,8 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Fold old releases into one per version
         shell: bash
         run: |
@@ -32,6 +34,16 @@ jobs:
               gh release delete "$t" --cleanup-tag --yes
             fi
           done < tags.txt
+          # History was rewritten once (personal details removed). Point each kept
+          # tag at the matching new commit (same date and subject), if it moved.
+          git fetch -q --tags --force origin
+          for t in $K10 $K11; do
+            old=$(git log -1 --format='%at %s' "$t")
+            new=$(git log --format='%H %at %s' HEAD | grep -F " $old" | head -1 | cut -d' ' -f1)
+            if [ -n "$new" ] && [ "$new" != "$(git rev-list -n1 "$t")" ]; then
+              git tag -f "$t" "$new" && git push -f origin "refs/tags/$t"
+            fi
+          done
           [ -n "$K10" ] && gh release edit "$K10" --title "Sol 1.0" --notes-file .github/release-notes/1.0.md
           [ -n "$K11" ] && gh release edit "$K11" --title "Sol 1.1" --notes-file .github/release-notes/1.1.md
           gh release view "$LATEST" --json body --jq .body > body.md
