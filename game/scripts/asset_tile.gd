@@ -6,7 +6,6 @@ extends Control
 var sym := ""
 var col := UI.TEXT
 var shape := "coin"
-var seed_i := 0
 var cut := UI.PANEL   # colour behind the mark, used for cut-outs
 
 
@@ -15,8 +14,6 @@ func _init(s := "", side := 40.0) -> void:
 	col = UI.asset_color(s)
 	custom_minimum_size = Vector2(side, side)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for c in s.to_utf8_buffer():
-		seed_i += c
 	for st in Data.STOCKS:
 		if st[0] == s:
 			shape = st[4]

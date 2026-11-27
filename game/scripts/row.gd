@@ -87,6 +87,10 @@ func _init(icon := "", art := "", chevron := true) -> void:
 func set_texts(t: String, s := "", v := "", n := "") -> void:
 	title_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if title_l.autowrap_mode == TextServer.AUTOWRAP_OFF else TextServer.OVERRUN_NO_TRIMMING
 	title_l.text = t
+	# One row height everywhere: 56 px, 60 with a second line (a page can pin
+	# its own with set_meta("fixed_h", true)).
+	if not has_meta("fixed_h"):
+		custom_minimum_size.y = UI.ROW_H_SUB if s != "" else UI.ROW_H
 	sub_l.text = s
 	sub_l.visible = s != ""
 	value_l.text = v

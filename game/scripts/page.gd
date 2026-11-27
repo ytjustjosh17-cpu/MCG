@@ -7,16 +7,13 @@ signal push_page(page: Control)
 signal pop_page
 
 var title := ""
-var has_back := false
 var scroll: ScrollContainer
 var body: VBoxContainer
 var _title_label: Label
-var _needs_refresh := true
 
 
-func _init(t := "", back := false) -> void:
+func _init(t := "", _back := false) -> void:   # _back: pushed pages pass true (rule R10)
 	title = t
-	has_back = back
 
 
 func _ready() -> void:
@@ -53,12 +50,6 @@ func _ready() -> void:
 		if is_visible_in_tree():
 			refresh())
 	refresh()
-
-
-func set_title(t: String) -> void:
-	title = t
-	if _title_label:
-		_title_label.text = t
 
 
 const REFRESH_MS := 250   # pages redraw at most 4 times a second (battery)

@@ -380,7 +380,7 @@ func refresh() -> void:
 				if Game.prop_owned(i):
 					r.set_texts(p[0], p[1], Game.money_short(Game.prop_rent(i)) + " /h")
 				else:
-					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h" % Game.money_short(Game.prop_price(i) * Data.RENT_PER_H * Game.global_mult()))
+					r.set_texts(p[0], p[1], Game.money_short(Game.prop_price(i)), "%s /h" % Game.money_short(Game.rent_quote(i)))
 				r.mark.visible = false   # owned ones sit under "Yours"
 				r.modulate.a = 1.0 if (Game.prop_owned(i) or Game.cash >= Game.prop_price(i)) else 0.6
 		2:
@@ -619,7 +619,7 @@ func _property(i: int) -> void:
 		return
 	var p: Array = Data.property(i)
 	var price := Game.prop_price(i)
-	var rent := price * Data.RENT_PER_H * Game.global_mult()
+	var rent := Game.rent_quote(i)
 	var can := Game.cash >= price
 	var wait := Game.eta(price)
 	var need := "Need " + Game.money_short(price - Game.cash) + (" · " + wait if wait != "" else "")

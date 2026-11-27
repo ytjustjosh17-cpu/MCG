@@ -2,8 +2,6 @@ class_name IconButton
 extends Button
 ## Round icon button with an optional progress ring, red dot and small caption below.
 
-var icon_kind := "bolt"
-var icon_color := UI.TEXT
 var ring := -1.0          # 0..1 shows a ring, -1 hides it
 var dot := false
 var caption := ""
@@ -14,7 +12,6 @@ var _cap: Label
 
 
 func _init(kind := "bolt", d := 64.0) -> void:
-	icon_kind = kind
 	diameter = d
 	focus_mode = Control.FOCUS_NONE
 	flat = true
@@ -39,7 +36,6 @@ func _layout() -> void:
 
 
 func set_state(c: Color, r := -1.0, d := false, cap := "") -> void:
-	icon_color = c
 	ring = r
 	dot = d
 	caption = cap

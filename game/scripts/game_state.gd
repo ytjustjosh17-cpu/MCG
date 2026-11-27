@@ -3,12 +3,9 @@ extends Node
 ## collections, mergers, achievements, daily tasks, saving.
 
 signal changed
-signal tapped(amount: float)
-signal achievement(title: String, reward: float)
 signal goal_done(scope: String, text: String, reward: float)
 signal deal_ready(deal: Dictionary)
 signal rival_beaten(index: int)
-signal streak_gift(days: int, amount: float)
 signal golden_sun
 signal expansion_done(biz_id: String, stage: int)
 signal market_news(item: Dictionary)
@@ -79,7 +76,6 @@ var weekly := {}       # {week, tasks: [...]}, same shape as daily
 var deal := {}         # the offer waiting for an answer, if any
 var deal_wait := 1500.0  # seconds of play until the next deal
 var div_hour := -1         # last whole clock hour dividends were paid for (v15)
-var last_dividend := 0.0
 var _in_offline := false   # dividends paid while away go in the welcome-back note, not a toast
 var payouts: Array = []  # [{amount, at}] money owed later by a deal
 var history: Array = []
@@ -119,6 +115,8 @@ var income_per_hour := 0.0
 var _income_parts := {}
 var _dirty := false
 var _save_timer := 0.0
+var _save_soon := false
+const SAVE_EVERY_S := 30.0
 var _hist_timer := 0.0
 var _market_timer := 0.0
 var _tick_t := -1.0      # time stamp used for news made while fast-forwarding
@@ -248,10 +246,6 @@ func rush_active() -> bool:
 	return now() < rush_until
 
 
-func next_tap_value() -> float:
-	return Data.tap_base(level + 1) + income_per_hour * 0.002
-
-
 func level_cost() -> float:
 	return Data.level_cost(level)
 
@@ -362,7 +356,6 @@ func tap() -> float:
 	last_tap_at = now()
 	_task_progress("taps", 1)
 	_earn(v)
-	tapped.emit(v)
 	return v
 
 
@@ -450,7 +443,12 @@ func ach_bonus() -> float:
 	return minf(Data.ACH_BONUS_CAP, Data.ACH_BONUS * float(achieved.size()))
 
 
+var _gm_live := -1.0   # global_mult worked out once while recalc() runs
+
+
 func global_mult() -> float:
+	if _gm_live >= 0.0:
+		return _gm_live
 	var m := 1.0 + ach_bonus()
 	for c in collections():
 		if collection_done(c["id"]):
@@ -583,6 +581,7 @@ func roll_deal() -> Dictionary:
 
 
 func accept_deal() -> bool:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	if deal.is_empty():
 		return false
 	var d := deal
@@ -634,6 +633,7 @@ func catch_sun() -> float:
 	## The player tapped the sun: a cash prize (minutes of income), or a short
 	## buff: Frenzy (taps ×5 for 20 s) or Rush (+1× income for 10 min).
 	## Returns the cash paid (0 for a buff); last_sun says which it was.
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	_bump("suns")
 	var pick := _tap_rng.randf()
 	if pick >= Data.SUN_CASH_CHANCE:
@@ -659,6 +659,7 @@ func catch_sun() -> float:
 
 
 func decline_deal() -> void:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	deal = {}
 
 
@@ -748,12 +749,14 @@ func buy_units(id: String, n: int) -> int:
 		return 0
 	var got := 0
 	for k in n:
-		if buy_unit(id):
+		if buy_unit(id, false):
 			got += 1
+	if got > 0:
+		recalc()   # once for the whole batch, not once per unit
 	return got
 
 
-func buy_unit(id: String) -> bool:
+func buy_unit(id: String, do_recalc := true) -> bool:
 	if not biz.has(id):
 		return false
 	var s: Dictionary = biz[id]
@@ -767,7 +770,8 @@ func buy_unit(id: String) -> bool:
 	s["invested"] = float(s["invested"]) + p
 	_bump("units_bought")
 	_task_progress("units", 1)
-	recalc()
+	if do_recalc:
+		recalc()
 	return true
 
 
@@ -865,6 +869,7 @@ func stake_rate(sym: String) -> float:
 
 func stake(sym: String, fraction: float) -> bool:
 	## Locks coins for 24 hours; they earn more coins while locked.
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var free := holding(coins, sym)
 	var q := free * clampf(fraction, 0.0, 1.0)
 	if q <= 0.0:
@@ -880,6 +885,7 @@ func stake(sym: String, fraction: float) -> bool:
 
 
 func unstake(sym: String) -> bool:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	if staked(sym) <= 0.0 or stake_left(sym) > 0.0:
 		return false
 	coins[sym]["qty"] = holding(coins, sym) + staked(sym)
@@ -1073,6 +1079,7 @@ func market_mood() -> float:
 
 func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
 	## Buys `amount_cash` worth of a share or coin.
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var p := price(sym)
 	if p <= 0.0 or amount_cash <= 0.0 or cash < amount_cash - 0.001:
 		return false
@@ -1090,6 +1097,7 @@ func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
 
 
 func sell_asset(kind: String, sym: String, fraction: float) -> float:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var book: Dictionary = shares if kind == "share" else coins
 	if not book.has(sym):
 		return 0.0
@@ -1174,7 +1182,6 @@ func _pay_dividends() -> void:
 	if v <= 0.0:
 		return
 	_earn(v)
-	last_dividend = v
 	counters["dividends_earned"] = float(counters.get("dividends_earned", 0.0)) + v
 	if not _in_offline:
 		dividends_paid.emit(v)
@@ -1422,6 +1429,12 @@ func collections() -> Array:
 	return Data.COLLECTIONS + [Data.RELICS] if rb("u_relics") > 0.0 else Data.COLLECTIONS
 
 
+func rent_quote(i: int) -> float:
+	## Rent a property would pay with no improvements: what the shop shows
+	## before you buy it (includes tree bonuses, like prop_rent).
+	return prop_price(i) * Data.RENT_PER_H * global_mult() * (1.0 + rb("rent") + rb("all"))
+
+
 func prop_rent(i: int) -> float:
 	if not prop_owned(i):
 		return 0.0
@@ -1445,6 +1458,7 @@ func prop_value(i: int) -> float:
 
 
 func buy_property(i: int) -> bool:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	if i < 0 or i >= property_count() or prop_owned(i) or cash < prop_price(i):
 		return false
 	cash -= prop_price(i)
@@ -1456,6 +1470,7 @@ func buy_property(i: int) -> bool:
 
 
 func improve_property(i: int, k: int) -> bool:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	if not prop_owned(i):
 		return false
 	var imps: Array = props[str(i)]["imps"]
@@ -1473,6 +1488,7 @@ func sell_property_value(i: int) -> float:
 
 
 func sell_property(i: int) -> float:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	if not prop_owned(i):
 		return 0.0
 	var got := sell_property_value(i)
@@ -1561,19 +1577,12 @@ func fill_all() -> int:
 			if int(biz[id]["units"]) < capacity(id) and unit_price(id) < best_p:
 				best = id
 				best_p = unit_price(id)
-		if best == "" or not buy_unit(best):
+		if best == "" or not buy_unit(best, false):
 			break
 		n += 1
+	if n > 0:
+		recalc()
 	return n
-
-
-func fill_all_cost() -> float:
-	## What the single cheapest next outlet costs (0 if every company is full).
-	var best := INF
-	for id in biz.keys():
-		if int(biz[id]["units"]) < capacity(id):
-			best = minf(best, unit_price(id))
-	return 0.0 if best == INF else best
 
 
 func expandable() -> Array:
@@ -1770,6 +1779,10 @@ func business_per_hour() -> float:
 
 
 func recalc() -> void:
+	# Every company, share and property uses the same global bonus: work it
+	# out once here instead of ~60 times (it scans every collection).
+	_gm_live = -1.0
+	_gm_live = global_mult()
 	var b := 0.0
 	for id in biz.keys():
 		b += biz_income(id)
@@ -1777,6 +1790,7 @@ func recalc() -> void:
 	var r := rent_per_hour()
 	_income_parts = {"biz": b, "div": d, "rent": r}
 	income_per_hour = b + d + r
+	_gm_live = -1.0
 	_mark()
 
 
@@ -1871,7 +1885,7 @@ func achievements() -> Array:
 func metric(m: String) -> float:
 	match m:
 		"taps": return float(taps)
-		"worth": return net_worth()
+		"worth": return _nw_check if _nw_check >= 0.0 else net_worth()
 		"biz": return float(biz.size())
 		"expansions": return float(counters.get("expansions", 0))
 		"props": return float(props.size())
@@ -1910,8 +1924,12 @@ func metric(m: String) -> float:
 	return 0.0
 
 
+var _nw_check := -1.0   # net worth worked out once per achievement check
+
+
 func _check_achievements() -> void:
 	var got := false
+	_nw_check = net_worth()   # up to 12 worth goals read it; work it out once
 	for a in _achievements:
 		if achieved.has(a["id"]):
 			continue
@@ -1921,7 +1939,7 @@ func _check_achievements() -> void:
 			GameLog.info("game", "Achievement: %s" % a["title"])
 			var reward := maxf(500.0, income_per_hour * 1.0)
 			add_reward("ach:" + String(a["id"]), "ach", String(a["title"]), reward)   # waits for a tap
-			achievement.emit(a["title"], reward)
+	_nw_check = -1.0
 	if got:
 		recalc()  # each achievement adds a little to all income
 
@@ -1952,7 +1970,6 @@ func _check_streak() -> void:
 	var gift := maxf(250.0, income_per_hour * 0.15 * float(mini(streak, 7)))
 	add_reward("streak:%d" % today, "streak", "Day %d in a row" % streak, gift)   # waits for a tap
 	streak_unseen = [streak, gift]
-	streak_gift.emit(streak, gift)
 
 
 func _ensure_daily() -> void:
@@ -2081,6 +2098,7 @@ func reward_for(key: String) -> Dictionary:
 func claim(key: String) -> float:
 	## Pays a waiting reward. The amount was fixed when it was earned, so
 	## waiting to claim never pays more.
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	for i in range(rewards.size()):
 		var r: Dictionary = rewards[i]
 		if String(r.get("key", "")) == key:
@@ -2096,6 +2114,7 @@ func claim(key: String) -> float:
 
 
 func claim_all(kind := "") -> float:
+	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var total := 0.0
 	for r in rewards.duplicate():
 		if kind == "" or String(r.get("kind", "")) == kind:
@@ -2107,22 +2126,6 @@ func unclaimed(kind := "") -> int:
 	var n := 0
 	for r in rewards:
 		if kind == "" or String(r.get("kind", "")) == kind:
-			n += 1
-	return n
-
-
-func unclaimed_total(kind := "") -> float:
-	var v := 0.0
-	for r in rewards:
-		if kind == "" or String(r.get("kind", "")) == kind:
-			v += float(r.get("amount", 0.0))
-	return v
-
-
-func goals_open() -> int:
-	var n := 0
-	for t in daily_tasks() + weekly_tasks():
-		if not t["done"]:
 			n += 1
 	return n
 
@@ -2184,6 +2187,7 @@ func advance(dt: float, earn_income := true) -> void:
 		var catching_up := recent > 2
 		if catching_up:
 			_quiet = true
+		_save_soon = true   # prices moved: keep them, so a restart can't re-roll them
 		for i in recent:
 			_bump("market_ticks")
 			if catching_up:
@@ -2194,8 +2198,6 @@ func advance(dt: float, earn_income := true) -> void:
 		_quiet = false
 		recalc()
 	_finish_expansions()
-	if ibost_until > 0.0 and now() >= ibost_until and _income_parts.get("ib", false):
-		pass
 	_hist_timer += dt
 	if _hist_timer >= HISTORY_EVERY_S:
 		_hist_timer = 0.0
@@ -2237,10 +2239,14 @@ func _process(delta: float) -> void:
 		_ensure_weekly()
 		_check_achievements()
 		_check_rivals()
+	# Full saves every 30 s (the save is ~100 KB, mostly price history), and
+	# within a second after a money action or a market move, so closing the
+	# app can never undo a trade or re-roll prices.
 	_save_timer += delta
-	if _save_timer >= 5.0:
+	if (_save_soon and _save_timer >= 1.0) or _save_timer >= SAVE_EVERY_S:
 		_save_timer = 0.0
-		if _dirty:
+		if _dirty or _save_soon:
+			_save_soon = false
 			save_game()
 
 
@@ -2458,18 +2464,6 @@ func _record_history() -> void:
 		history.pop_front()
 
 
-func week_change() -> Array:
-	if history.size() < 2:
-		return []
-	var cutoff := now() - WEEK_S
-	var start_value: float = history[0][1]
-	for p in history:
-		if p[0] >= cutoff:
-			start_value = p[1]
-			break
-	return [start_value, net_worth()]
-
-
 # ==== saving ==============================================================
 
 func to_dict() -> Dictionary:
@@ -2522,10 +2516,7 @@ func _guard_strict() -> void:
 	## Marks this game: nothing saved before now may be restored into it.
 	_guard_load()
 	_guard[str(int(started_at)) + "!"] = now()
-	var f := FileAccess.open(GUARD_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(_guard))
-		f.close()
+	_guard_write()
 
 
 func _guard_note() -> void:
@@ -2536,6 +2527,24 @@ func _guard_note() -> void:
 	if float(_guard.get(key, 0.0)) >= t - 30.0:
 		return
 	_guard[key] = t
+	_guard_write()
+
+
+func _guard_write() -> void:
+	## Keeps the records of the 50 newest games (it grew by one per new game,
+	## for ever). This game's records are always kept.
+	var games := {}
+	for k in _guard.keys():
+		games[String(k).trim_suffix("!")] = true
+	if games.size() > 50:
+		var ids: Array = games.keys()
+		ids.sort_custom(func(a, b): return float(a) > float(b))
+		var keep := {str(int(started_at)): true}
+		for i in 50:
+			keep[ids[i]] = true
+		for k in _guard.keys():
+			if not keep.has(String(k).trim_suffix("!")):
+				_guard.erase(k)
 	var f := FileAccess.open(GUARD_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(_guard))

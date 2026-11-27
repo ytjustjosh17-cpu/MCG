@@ -6,9 +6,7 @@ extends RefCounted
 ## Built from the LottieFiles motion-design skill, design-motion-principles
 ## and Apple's Human Interface Guidelines on motion.
 
-const QUICK := 0.14
 const STANDARD := 0.28
-const SLOW := 0.45
 
 
 static func reduced() -> bool:

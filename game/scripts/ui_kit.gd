@@ -33,8 +33,9 @@ func _ready() -> void:
 
 func _on_node_added(n: Node) -> void:
 	## Every button lets drags through to the scroll view behind it.
-	if n is BaseButton:
+	if n is BaseButton and not n.has_meta("kit_hooked"):
 		var b := n as BaseButton
+		b.set_meta("kit_hooked", true)   # rows re-added to a list would stack hooks
 		b.mouse_filter = Control.MOUSE_FILTER_PASS
 		b.button_down.connect(func(): _down_btn = b)
 		if not b.has_theme_stylebox_override("disabled") and b.has_theme_stylebox_override("normal"):

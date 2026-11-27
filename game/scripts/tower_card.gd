@@ -36,8 +36,20 @@ func _ready() -> void:
 	add_child(_sky)
 	add_child(SkyTime.Layer.new())   # rain or fog on top, when the weather turns
 	tier = _tier_now()
-	Game.changed.connect(queue_redraw)
+	Game.changed.connect(_on_game_changed)
 	resized.connect(_reshape)
+
+
+var _lit_key := ""
+
+
+func _on_game_changed() -> void:
+	## Income ticks change the game ten times a second; the tower only needs
+	## a redraw when the number of lit windows or the tier actually changes.
+	var k := "%d|%d" % [lit_count(), tier]
+	if k != _lit_key:
+		_lit_key = k
+		queue_redraw()
 
 
 func _reshape() -> void:

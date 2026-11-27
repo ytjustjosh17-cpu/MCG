@@ -51,6 +51,8 @@ func _audit(where: String) -> void:
 				problems.append("%s: off screen '%s'" % [where, l.text.left(40)])
 				continue
 			checked += 1
+			if l.get_theme_font_size("font_size") < 13:
+				problems.append("%s: text under 13 px (%d) '%s'" % [where, l.get_theme_font_size("font_size"), l.text.left(30)])
 			if l.autowrap_mode != TextServer.AUTOWRAP_OFF:
 				continue
 			var f: Font = l.get_theme_font("font")

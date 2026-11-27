@@ -127,7 +127,7 @@ func _meter(parent: Control, cap: String) -> Label:
 	v.add_theme_constant_override("separation", 0)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(v)
-	v.add_child(UI.label(cap, 11, UI.SUB))
+	v.add_child(UI.label(cap, 13, UI.SUB))
 	var l := UI.label("", 17, UI.TEXT, true)
 	l.clip_text = true
 	v.add_child(l)
