@@ -150,8 +150,10 @@ func build() -> void:
 	sort_row.add_theme_constant_override("separation", 8)
 	coins_box.add_child(sort_row)
 	_my_coins_l = _head(sort_row, "Yours")
-	_my_coins_l.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_my_coins_l.get_parent().size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var gap := Control.new()   # keeps Sort on the right even when "Yours" is hidden
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sort_row.add_child(gap)
 	var csp := _sort_pill()
 	csp.custom_minimum_size.x = 150
 	sort_row.add_child(csp)
@@ -413,7 +415,7 @@ func refresh() -> void:
 				r.set_change(Game.change_pct(st[0], 1440))
 		1:
 			var isles := Game.rb("u_isles") > 0.0
-			_isles_l.visible = isles
+			_isles_l.get_parent().visible = isles
 			_isles_card.visible = isles
 			_sum_sub.text = "My property"
 			_sum_value.text = Game.money(Game.props_value())
@@ -444,7 +446,9 @@ func refresh() -> void:
 					var price := Game.prop_price(i)
 					var can := Game.cash >= price
 					# Not affordable yet: a lock and what's still needed, not a faded row.
-					r.set_texts(p[0], p[1] if can else "Need " + Game.money_short(price - Game.cash), Game.money_short(price), "%s /h" % Game.money_short(Game.rent_quote(i)))
+					# "Need £X" once it's within reach; far off, the town (the lock says enough).
+					var near := Game.cash >= price * 0.25
+					r.set_texts(p[0], "Need " + Game.money_short(price - Game.cash) if near and not can else p[1], Game.money_short(price), "%s /h" % Game.money_short(Game.rent_quote(i)))
 					r.set_locked(not can)
 		2:
 			var v := Game.book_value(Game.coins)

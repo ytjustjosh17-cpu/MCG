@@ -122,7 +122,7 @@ func _ready() -> void:
 	_field.placeholder_text = "Type an amount"
 	_field.select_all_on_focus = true   # a tap replaces the amount, never mixes into it
 	_field.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER_DECIMAL
-	_field.custom_minimum_size = Vector2(0, 46)
+	_field.custom_minimum_size = Vector2(0, 48)
 	_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_field.add_theme_font_override("font", UI.REG)
 	_field.add_theme_font_size_override("font_size", 17)
