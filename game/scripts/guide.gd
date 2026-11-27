@@ -146,16 +146,31 @@ func _process(delta: float) -> void:
 	# The card floats at the foot of the tower art, just above the action
 	# strip (near the thumb, clear of the roof lights), or above the ring
 	# when the ring would sit under it.
+	var x := 16.0
 	var w := size.x - 32.0
+	var strip: Control = null
+	if main != null and main._pages[0].get("_strip") != null:
+		strip = main._pages[0]._strip
+	var art: Control = null
+	if main != null and main._pages[0].get("_card") != null:
+		art = main._pages[0]._card
+	if Kit.landscape and art != null:
+		# Landscape: the card floats at the foot of the tower art (as in
+		# portrait), clear of the cash, the actions column and the rail.
+		var ar := art.get_global_rect()
+		x = ar.position.x - global_position.x + 12.0
+		w = ar.size.x - 24.0
 	_card.size = Vector2(w, 0)
 	_card.size = Vector2(w, _card.get_combined_minimum_size().y)
 	var foot := size.y - 92.0 - 72.0 - 12.0   # EarnPage NAV_SPACE, STRIP_H, gap
-	if main != null and main._pages[0].get("_strip") != null:
-		foot = (main._pages[0]._strip as Control).get_global_rect().position.y - global_position.y - 12.0
+	if Kit.landscape and art != null:
+		foot = art.get_global_rect().end.y - global_position.y
+	elif strip != null:
+		foot = strip.get_global_rect().position.y - global_position.y - 12.0
 	var y := foot - 12.0 - _card.size.y
-	if _ring.size != Vector2.ZERO and _ring.end.y + 8.0 > y and _ring.position.y < y + _card.size.y + 8.0:
-		y = _ring.position.y - 16.0 - _card.size.y
-	_card.position = Vector2(16, y)
+	if _ring.size != Vector2.ZERO and Rect2(x, y, w, _card.size.y).grow(8.0).intersects(_ring):
+		y = _ring.position.y - 16.0 - _card.size.y   # never cover what it points at
+	_card.position = Vector2(x, maxf(4.0, y))
 	queue_redraw()
 
 

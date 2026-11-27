@@ -8,6 +8,10 @@ var _rbp: Label
 var _sub: Label
 var _go: Button
 var _view: TreeView
+var _top_panel: Control
+var _key: Control
+var _split: HBoxContainer   # landscape: hero on the left, the map on the right
+var _left: VBoxContainer
 
 
 func _init() -> void:
@@ -47,14 +51,61 @@ func build() -> void:
 	_view = TreeView.new()
 	_view.node_tapped.connect(_on_node)
 	body.add_child(_view)
+	_top_panel = top.get_parent()
+	_key = key
+	_split = HBoxContainer.new()
+	_split.add_theme_constant_override("separation", 16)
+	_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_left = VBoxContainer.new()
+	_left.add_theme_constant_override("separation", 12)
+	_left.custom_minimum_size.x = 280.0
+	_split.add_child(_left)
+	Kit.layout_changed.connect(func(_l: bool): _arrange())
 
 
 func _ready() -> void:
 	super()
-	# The map fills what's left of the screen above the bottom bar.
+	_arrange()
+
+
+func _arrange() -> void:
+	## Portrait: title, hero card, legend and the map one under another.
+	## Landscape: title, hero and legend in a left column; the map fills the
+	## rest of the width and the height. The same nodes move, nothing is rebuilt.
+	if _view == null:
+		return
+	var land := Kit.landscape
+	var nodes: Array = [_title_label, _top_panel, _key]
+	if land and _split.get_parent() == null:
+		for n in nodes:
+			if n != null and n.get_parent() != null:
+				n.get_parent().remove_child(n)
+				_left.add_child(n)
+		_view.get_parent().remove_child(_view)
+		_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_split.add_child(_view)
+		body.add_child(_split)
+	elif not land and _split.get_parent() != null:
+		body.remove_child(_split)
+		for n in nodes:
+			if n != null and n.get_parent() == _left:
+				_left.remove_child(n)
+				body.add_child(n)
+		_split.remove_child(_view)
+		body.add_child(_view)
+	_fit_map.call_deferred()
+
+
+func _fit_map() -> void:
+	# The map fills what's left of the screen above the bottom bar (portrait)
+	# or down to the bottom edge (landscape).
 	await get_tree().process_frame
-	if is_instance_valid(_view):
-		var used := _view.global_position.y
+	if not is_instance_valid(_view) or not is_inside_tree():
+		return
+	var used := _view.global_position.y
+	if Kit.landscape:
+		_view.custom_minimum_size.y = maxf(240.0, get_viewport_rect().size.y - used - 24.0)
+	else:
 		_view.custom_minimum_size.y = maxf(320.0, get_viewport_rect().size.y - used - 104.0)
 
 

@@ -36,6 +36,7 @@ func build() -> void:
 	_grid.add_theme_constant_override("h_separation", 12)
 	_grid.add_theme_constant_override("v_separation", 4)
 	pad.add_child(_grid)
+	Kit.layout_changed.connect(func(_l: bool): refresh())
 	_shown = UI.label("Items you buy appear here.", 15, UI.SUB)
 	_shown.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(_shown)
@@ -56,6 +57,10 @@ func refresh() -> void:
 	_shown.visible = parts.is_empty()
 	# Nothing on show yet: the room takes the space instead of a big gap.
 	_room.custom_minimum_size.y = 400.0 if not parts.is_empty() else 540.0
+	if Kit.landscape:
+		# 390 high: the whole room fits on screen under the title (about 210
+		# of the 390); the list of what's on show scrolls up below it.
+		_room.custom_minimum_size.y = 210.0
 	_shown_head.visible = not parts.is_empty()
 	_shown_card.visible = not parts.is_empty()
 	var key := str(parts)

@@ -12,7 +12,7 @@ func _ok(c: bool, what: String) -> void:
 
 
 func _initialize() -> void:
-	create_timer(60.0).timeout.connect(func():
+	create_timer(90.0).timeout.connect(func():
 		print("FAIL  test timed out")
 		quit(1))
 	_run.call_deferred()
@@ -437,6 +437,26 @@ func _run() -> void:
 	_check_targets(main.back_btn, small)
 	_ok(small.is_empty(), "every button is at least 48 px (%d checked) %s" % [checked_n, ", ".join(small.slice(0, 8))])
 	_ok(checked_n > 40, "the size check saw the buttons")
+	# Landscape (1.2): the phone held sideways. Earn's actions and the rebirth
+	# tree stay fully on screen, and the tower still pays on a tap.
+	root.size = Vector2i(844, 390)
+	await create_timer(0.6).timeout
+	_ok(root.get_node("Kit").landscape, "a wide window switches to landscape")
+	main.show_page(0)
+	await create_timer(0.6).timeout
+	var ls_vr := root.get_visible_rect()
+	var ls_ep = main._pages[0]
+	_ok(ls_vr.encloses(ls_ep._strip.get_global_rect()), "landscape: the Earn actions are fully on screen")
+	var ls_c0: float = g.cash
+	await _wobble_tap(ls_ep._card.get_global_rect().get_center())
+	_ok(g.cash > ls_c0, "landscape: a tap on the tower earns money")
+	main.push(load("res://scripts/rebirth_page.gd").new())
+	await create_timer(1.0).timeout
+	_ok(ls_vr.encloses(main._stack.back()._view.get_global_rect()), "landscape: the rebirth tree is fully on screen")
+	main.pop()
+	await create_timer(0.5).timeout
+	root.size = Vector2i(390, 844)
+	await create_timer(0.5).timeout
 	print("Failures: ", fails)
 	quit(1 if fails > 0 else 0)
 

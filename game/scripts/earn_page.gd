@@ -3,11 +3,16 @@ extends Control
 ## Earn tab, tower first: cash, the big tower to tap, and an action strip
 ## under it (Level up, Boost, Auto). The tower card is pure art: only small
 ## chips sit on it, never buttons or captions.
+## Landscape (1.2): side by side. Cash, level and the three actions (as a
+## column of rows) on the left; the tower fills the height on the right.
+## The same nodes are moved, never rebuilt, so a combo survives a turn.
 
 signal push_page(page: Control)
 
 const NAV_SPACE := 92.0
 const STRIP_H := 72.0
+const LAND_COL := 340.0     # landscape: width of the cash and actions column
+const LAND_ROW_H := 56.0    # landscape: each action is one row of the strip
 
 var _worth: CountLabel
 var _rate: Label
@@ -97,6 +102,7 @@ func _ready() -> void:
 			Motion.pop(_auto_btn, 1.04))
 
 	resized.connect(_layout)
+	Kit.layout_changed.connect(func(_l: bool): _layout())
 	Game.changed.connect(_refresh)
 	var t := Timer.new()
 	t.wait_time = 0.25
@@ -127,9 +133,22 @@ func _action(icon: String, title: String, call: Callable) -> IconButton:
 	return b
 
 
+func _refit_cash(w: float) -> void:
+	## The big number shrinks to fit its column; a new width needs a refit.
+	if is_equal_approx(_worth.fit_width, w):
+		return
+	_worth.fit_width = w
+	_worth.text = ""
+	_worth.set_value(Game.cash, true)
+
+
 func _layout() -> void:
+	if Kit.landscape:
+		_layout_land()
+		return
 	var w := size.x
 	var h := size.y
+	_refit_cash(358.0)
 	_tasks.position = Vector2(16, 4)
 	_tasks.size = Vector2(48, 48)
 	_pill.size = Vector2(112, 48)
@@ -148,6 +167,33 @@ func _layout() -> void:
 		var b: IconButton = [_level_btn, _boost_btn, _auto_btn][i]
 		b.position = Vector2(8.0 + tw * i, 8.0)
 		b.size = Vector2(tw, STRIP_H - 16.0)
+	_refresh()
+
+
+func _layout_land() -> void:
+	## 844 x 390 minus the rail: the column on the left, the tower on the right.
+	var w := size.x
+	var h := size.y
+	var col := minf(LAND_COL, w * 0.45)
+	_refit_cash(col - 8.0)
+	_tasks.position = Vector2(4, 8)
+	_tasks.size = Vector2(48, 48)
+	_pill.size = Vector2(112, 48)
+	_pill.position = Vector2(col - 112.0, 8)
+	_lv_track.position = Vector2(62, 22)
+	_worth.position = Vector2(8, 62)
+	_rate.position = Vector2(10, 116)
+	# The three actions stacked as rows at the foot of the column.
+	var strip_h := LAND_ROW_H * 3.0 + 16.0
+	_strip.position = Vector2(0, maxf(148.0, h - 16.0 - strip_h))
+	_strip.size = Vector2(col, strip_h)
+	for i in 3:
+		var b: IconButton = [_level_btn, _boost_btn, _auto_btn][i]
+		b.position = Vector2(8.0, 8.0 + LAND_ROW_H * i)
+		b.size = Vector2(col - 16.0, LAND_ROW_H)
+	var cx := col + 16.0
+	_card.position = Vector2(cx, 8)
+	_card.size = Vector2(maxf(160.0, w - cx - 16.0), h - 8.0 - 16.0)
 	_refresh()
 
 
