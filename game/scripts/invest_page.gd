@@ -530,8 +530,9 @@ func _ordered(list: Array, key: String) -> Array:
 
 
 func _props_owned() -> Dictionary:
-	## Owned properties when the page was shown, so rows don't jump on a buy.
-	if _sorted.has("props_owned"):
+	## Owned properties. A home you just bought moves to "Yours" straight away
+	## (rebuilt whenever the number owned changes, not only when the page opens).
+	if _sorted.has("props_owned") and (_sorted["props_owned"] as Dictionary).size() == Game.props_owned():
 		return _sorted["props_owned"]
 	var out := {}
 	for i in range(Data.PROPERTIES.size()):

@@ -327,6 +327,24 @@ func _run() -> void:
 		_check(gp.body.get_child_count() > 2, "%s builds" % path.get_file())
 		main.pop()
 		await create_timer(0.5).timeout
+	# Buying a home from the Property list moves it to "Yours" at once.
+	main.show_page(2)
+	await create_timer(0.4).timeout
+	var ivp = main._pages[2]
+	ivp._seg.select(1, true)
+	await create_timer(0.5).timeout
+	var free_i := -1
+	for pi in range(Data.PROPERTIES.size()):
+		if not game.prop_owned(pi):
+			free_i = pi
+			break
+	game.cash += game.prop_price(free_i) + 10.0
+	game.buy_property(free_i)
+	await create_timer(0.6).timeout
+	_check(ivp._prop_rows[free_i].get_parent() == ivp._my_props, "a bought home shows under Yours without leaving the page")
+	game.props.erase(str(free_i))   # leave the rest of the test as it was
+	game.recalc()
+	ivp._seg.select(0, true)
 	# Opening a page and backing out very fast must not leave a blank tab.
 	main.show_page(2)
 	await create_timer(0.5).timeout
