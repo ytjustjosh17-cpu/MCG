@@ -3239,11 +3239,17 @@ func tree_owned_count() -> int:
 
 
 func rebirth_pending() -> int:
-	## RBP a rebirth would give now: 10 at £10B net worth, then the cube root.
+	## RBP a rebirth would give now: 10 at £10B net worth, then the cube root
+	## (100 at £10T, 1,000 at £10Q). Past 1,000 it grows far more slowly, so
+	## waiting months can't buy the whole tree in one go (it costs ~19,000).
 	var nw := net_worth()
 	if nw < Data.REBIRTH_MIN:
 		return 0
-	return int(floor(10.0 * pow(nw / Data.REBIRTH_MIN, 1.0 / 3.0) * (1.0 + minf(0.5, rb("rbp"))) + 1e-6))
+	var x := nw / Data.REBIRTH_MIN
+	var base := 10.0 * pow(x, 1.0 / 3.0)
+	if base > Data.RBP_SOFT_CAP:
+		base = Data.RBP_SOFT_CAP * pow(x / pow(Data.RBP_SOFT_CAP / 10.0, 3.0), 1.0 / 9.0)
+	return int(floor(base * (1.0 + minf(0.5, rb("rbp"))) + 1e-6))
 
 
 func start_level() -> int:

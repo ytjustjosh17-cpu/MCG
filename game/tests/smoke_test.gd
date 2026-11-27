@@ -719,6 +719,11 @@ func _run() -> void:
 	_check(game.rewards.is_empty(), "rebirth clears unclaimed rewards (no hoarding into a new run)")
 	_check(game.achieved.has("test_ach") and game.sci, "rebirth keeps achievements and settings")
 	_check(game.rebirths() == 1 and game.rbp_free() == 100, "RBP banked")
+	var cash_keep: float = game.cash
+	game.cash = 6.7e21   # months of waiting: the old formula gave 87,000 RBP
+	var huge: int = game.rebirth_pending()
+	_check(huge > 1000 and huge < 6000, "a huge fortune can't buy the whole tree in one rebirth (%d RBP)" % huge)
+	game.cash = cash_keep
 	game._guard[str(int(game.started_at))] = game.now() + 3600.0
 	_check(not game.restore_code(rb_code), "a backup from before a rebirth can't undo it")
 	game.restore_guard = false

@@ -266,6 +266,7 @@ const LOAN_FEE := 0.25            # repay 125% of what you borrowed
 const LOAN_PAYMENTS := 5          # in 5 equal payments
 const LOAN_EVERY_H := 4.0         # one every 4 hours
 const REBIRTH_MIN := 1.0e10          # net worth needed to rebirth (gives 10 RBP)
+const RBP_SOFT_CAP := 1000.0         # past this a rebirth's RBP grows much more slowly (1.2)
 const SUN_PER_DAY := 4                # never more than this a day
 # What a caught sun gives: chance of a cash prize, else a short buff (1.1).
 const SUN_CASH_CHANCE := 0.5
