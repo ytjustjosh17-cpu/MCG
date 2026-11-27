@@ -2,18 +2,18 @@ class_name SettingsPage
 extends Page
 ## Settings, pushed from Profile: feel, pop-ups, updates, help, backup and reset.
 
-const POPUPS := [["news", "News on"], ["none", "None"]]   # deals never pop up (they wait on Business)
 const VOLUMES := [[0.0, "Off"], [0.25, "Low"], [0.5, "Medium"], [1.0, "High"]]
-const FORMATS := [["short", "Short (£1.2M)"], ["sci", "Scientific (£1.2e6)"]]
+const FORMATS := [["short", "Short"], ["sci", "Scientific"]]
 
-var _vib_row: Row
-var _motion_row: Row
-var _pop_row: Row
-var _awake_row: Row
+var _vib: Switch
+var _motion: Switch
+var _news: Switch
+var _awake: Switch
 var _sound_row: Row
 var _num_row: Row
 var _upd_row: Row
 var _report_row: Row
+var _vib_row: Row
 var _checking := false
 var _storage := ""
 
@@ -23,37 +23,28 @@ func _init() -> void:
 
 
 func build() -> void:
+	# On/off settings use switches; rows with a chevron open a choice.
 	var st := card()
 	_sound_row = _row(st, "sound", true)
 	_sound_row.pressed.connect(_on_sound)
 	separator(st, 50)
-	_vib_row = _row(st, "vibrate", false)
-	_vib_row.pressed.connect(func():
-		Game.vibrate = not Game.vibrate
-		Kit.tick()
-		Game.save_game()
-		refresh())
-	separator(st, 50)
-	_motion_row = _row(st, "sparkle", false)
-	_motion_row.pressed.connect(func():
-		Game.reduce_motion = not Game.reduce_motion
-		Kit.tick()
-		Game.save_game()
-		refresh())
-	separator(st, 50)
-	_pop_row = _row(st, "news", true)
-	_pop_row.pressed.connect(_on_popups)
-	separator(st, 50)
-	_awake_row = _row(st, "clock", false)
-	_awake_row.pressed.connect(func():
-		Game.ui["keep_awake"] = not bool(Game.ui.get("keep_awake", false))
-		Kit.tick()
-		DisplayServer.screen_set_keep_on(bool(Game.ui["keep_awake"]))
-		Game.save_game()
-		refresh())
-	separator(st, 50)
 	_num_row = _row(st, "hash", true)
 	_num_row.pressed.connect(_on_numbers)
+	separator(st, 50)
+	_vib = _switch_row(st, "vibrate", "Vibration", func(on: bool):
+		Game.vibrate = on)
+	_vib_row = _vib.get_meta("row")
+	separator(st, 50)
+	_motion = _switch_row(st, "sparkle", "Less motion", func(on: bool):
+		Game.reduce_motion = on)
+	separator(st, 50)
+	# Deals never pop up (they wait on Business); only news can.
+	_news = _switch_row(st, "news", "News pop-ups", func(on: bool):
+		Game.ui["news_quiet"] = not on)
+	separator(st, 50)
+	_awake = _switch_row(st, "clock", "Keep screen on", func(on: bool):
+		Game.ui["keep_awake"] = on
+		DisplayServer.screen_set_keep_on(on))
 
 	var hc := card()
 	_upd_row = _row(hc, "update", false)
@@ -82,53 +73,56 @@ func build() -> void:
 	Updater.state_changed.connect(_on_update_state)
 	Updater.check_finished.connect(_on_check_finished)
 
-	var reset := UI.flat_button()
-	reset.text = "Reset"
-	reset.custom_minimum_size = Vector2(0, 48)
-	for k in ["font_color", "font_hover_color", "font_pressed_color"]:
-		reset.add_theme_color_override(k, UI.DOWN)
-	reset.add_theme_font_size_override("font_size", 17)
+	# Reset: a quiet row of its own, with a confirm. Never next to the rest.
+	var rc := card()
+	var reset := _row(rc, "trash", false)
+	reset.set_texts("Reset game")
+	reset.title_l.add_theme_color_override("font_color", UI.DOWN)
+	(reset.lead as Icon).set_style(UI.DOWN)
 	reset.pressed.connect(_on_reset)
-	body.add_child(reset)
 
 
 func _row(parent: Control, icon: String, chevron: bool) -> Row:
 	var r := Row.new(icon, "", chevron)
-	r.custom_minimum_size = Vector2(0, 52)
 	parent.add_child(r)
 	return r
 
 
+func _switch_row(parent: Control, icon: String, title: String, apply: Callable) -> Switch:
+	## A row with a switch at the end; a tap anywhere on the row flips it.
+	var r := _row(parent, icon, false)
+	r.set_texts(title)
+	var sw := Switch.new()
+	sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r._h.add_child(sw)
+	sw.set_meta("row", r)
+	var commit := func(on: bool):
+		apply.call(on)
+		Game.save_game()
+	sw.toggled_on.connect(commit)
+	r.pressed.connect(func():
+		sw.set_on(not sw.on)
+		Kit.haptic("selection")
+		commit.call(sw.on))
+	return sw
+
+
 func refresh() -> void:
-	if _vib_row == null:
+	if _vib == null:
 		return
 	_sound_row.set_texts("Sound", "", _vol_label())
 	_num_row.set_texts("Numbers", "", "Scientific" if Game.sci else "Short")
-	_vib_row.set_texts("Vibration", "", "On" if Game.vibrate else "Off")
-	_motion_row.set_texts("Less motion", "", "On" if Game.reduce_motion else "Off")
-	_pop_row.set_texts("Pop-ups", "", _popup_label(_popup_mode()))
-	_awake_row.set_texts("Keep screen on", "", "On" if bool(Game.ui.get("keep_awake", false)) else "Off")
+	_sync(_vib, Game.vibrate)
+	_sync(_motion, Game.reduce_motion)
+	_sync(_news, not bool(Game.ui.get("news_quiet", false)))
+	_sync(_awake, bool(Game.ui.get("keep_awake", false)))
 	_upd_row.set_texts("Updates", "", "Update ready" if Updater.has_update() else "Up to date")
 	_report_row.set_texts("Report a problem", "", _storage)
 
 
-static func _popup_mode() -> String:
-	return "none" if bool(Game.ui.get("news_quiet", false)) else "news"
-
-
-static func _popup_label(mode: String) -> String:
-	for o in POPUPS:
-		if o[0] == mode:
-			return o[1]
-	return "News on"
-
-
-func _on_popups() -> void:
-	Kit.tick()
-	Kit.pick("Pop-ups", POPUPS, _popup_mode(), func(v):
-		Game.ui["news_quiet"] = v == "none"
-		Game.save_game()
-		refresh())
+static func _sync(sw: Switch, v: bool) -> void:
+	if sw.on != v:
+		sw.set_on(v)
 
 
 static func _vol_label() -> String:
@@ -142,25 +136,36 @@ static func _vol_label() -> String:
 
 func _on_sound() -> void:
 	Kit.tick()
-	var cur := 0.0
-	for o in VOLUMES:
-		if o[1] == _vol_label():
-			cur = o[0]
-	Kit.pick("Sound", VOLUMES, cur, func(v):
+	var cur := 0
+	for i in range(VOLUMES.size()):
+		if VOLUMES[i][1] == _vol_label():
+			cur = i
+	_seg_sheet("Sound", VOLUMES, cur, func(v):
 		Game.ui["vol"] = float(v)
-		Kit.sound("buy")
-		Game.save_game()
-		refresh())
+		Kit.sound("buy"))
 
 
 func _on_numbers() -> void:
 	Kit.tick()
-	Kit.pick("Numbers", FORMATS, "sci" if Game.sci else "short", func(v):
+	_seg_sheet("Numbers", FORMATS, 1 if Game.sci else 0, func(v):
 		Game.sci = v == "sci"
 		Game.ui["sci"] = Game.sci
+		Game.flush_changes())
+
+
+func _seg_sheet(title: String, options: Array, cur: int, apply: Callable) -> void:
+	## A short choice (2 to 4 options) as one segmented control; it applies
+	## at once, so the sheet only needs Done.
+	var labels: Array = []
+	for o in options:
+		labels.append(String(o[1]))
+	var seg := Segmented.new(labels)
+	seg.select(cur)
+	seg.changed.connect(func(i: int):
+		apply.call(options[i][0])
 		Game.save_game()
-		Game.flush_changes()
 		refresh())
+	Kit.sheet(title, "", [{"text": "Done", "style": "primary"}], true, seg)
 
 
 func _on_update_state() -> void:
@@ -202,7 +207,7 @@ func _on_backup_menu() -> void:
 		if v == "copy":
 			_on_backup()
 		else:
-			_on_restore())
+			_on_restore(), "A code that holds your whole game. Keep it in Notes.")
 
 
 func _on_backup() -> void:
