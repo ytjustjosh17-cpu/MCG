@@ -543,7 +543,7 @@ func tick_deals(dt: float) -> void:
 		return
 	deal_wait -= dt
 	if deal_wait <= 0.0:
-		deal_wait = randf_range(Data.DEAL_EVERY_MIN[0], Data.DEAL_EVERY_MIN[1]) * 60.0 * (0.75 if has_up("deals") else 1.0)
+		deal_wait = randf_range(Data.DEAL_EVERY_MIN[0], Data.DEAL_EVERY_MIN[1]) * 60.0 * (0.75 if has_up("deals") else 1.0) * (1.0 - minf(0.5, rb("deals")))
 		deal = roll_deal()
 		if not deal.is_empty():
 			deal_ready.emit(deal)
