@@ -430,6 +430,38 @@ func _refit_sheets() -> void:
 		panel.position.y = float(geo["rest"])
 
 
+# ---- money flies to your cash (1.2) -------------------------------------------
+# A claimed amount leaves where you tapped and lands on the cash readout (the
+# pill, or the big number on Earn), which then counts up. Never blocks taps.
+var cash_target: Callable   # set by main.gd: returns the global centre of the cash readout
+
+
+func fly_money(from: Vector2, amount: float) -> void:
+	if amount <= 0.0 or not cash_target.is_valid():
+		return
+	var to: Vector2 = cash_target.call()
+	if Motion.reduced():
+		return
+	var chip := Label.new()
+	chip.text = "+" + Game.money_short(amount)
+	chip.add_theme_font_override("font", UI.SEMI)
+	chip.add_theme_font_size_override("font_size", 15)
+	chip.add_theme_color_override("font_color", UI.INK)
+	chip.add_theme_stylebox_override("normal", UI.box(UI.TEXT, 14, 12, 4))
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(chip)
+	chip.position = from - Vector2(30, 14)
+	var mid := (from + to) * 0.5 + Vector2(0, -60)
+	var t := chip.create_tween()
+	t.tween_method(func(k: float):
+		var p := from.lerp(mid, k).lerp(mid.lerp(to, k), k)   # a soft arc
+		chip.position = p - chip.size * 0.5
+		chip.scale = Vector2.ONE * (1.0 - 0.35 * k), 0.0, 1.0, Motion.d(0.55)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_callback(func():
+		chip.queue_free()
+		haptic("light"))
+
+
 # ---- centred alert ----------------------------------------------------------
 
 func alert(title: String, body: String, actions: Array) -> Control:

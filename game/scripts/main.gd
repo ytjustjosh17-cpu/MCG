@@ -162,6 +162,12 @@ func _ready() -> void:
 
 	get_viewport().size_changed.connect(_apply_safe_area)
 	Kit.layout_changed.connect(func(_l: bool): _apply_safe_area())
+	# Claimed money flies here: the cash pill, or Earn's big number when the pill is hidden.
+	Kit.cash_target = func() -> Vector2:
+		if cash_pill.visible:
+			return cash_pill.get_global_rect().get_center()
+		var big := _pages[0].find_child("CashLabel", true, false) as Control
+		return big.get_global_rect().get_center() if big != null else Vector2(get_viewport_rect().size.x * 0.5, 80.0)
 	_apply_safe_area()
 	_pages[0].visible = true
 	_nav.set_active(0)

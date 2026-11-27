@@ -25,6 +25,7 @@ Read this file first, then the doc for the area you touch:
 5. Show real brands or companies. Crypto coins use real names; their prices are a made-up simulation.
 6. Push with a failing test.
 7. Put personal details (names, emails, devices, health) in any file. The repo is public.
+8. Add anything paid: no ads, shops, real-money currency, passes, "watch to double" or paid skips. It is the owner's own game.
 
 ## Commands
 

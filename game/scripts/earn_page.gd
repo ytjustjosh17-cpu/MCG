@@ -61,6 +61,7 @@ func _ready() -> void:
 
 	# Big number is cash to the penny; net worth sits on the line below.
 	_worth = CountLabel.new(Game.cash_text)
+	_worth.name = "CashLabel"   # claimed money flies here (Kit.fly_money)
 	_worth.fit_width = 358.0
 	_worth.add_theme_font_size_override("font_size", 44)
 	_worth.add_theme_font_override("font", UI.DISPLAY)
