@@ -10,6 +10,7 @@ var _loan_line: Label
 var _loan_btn: Button
 var _minus: Label
 var _dots: HBoxContainer
+var _paid_l: Label
 
 
 func _init() -> void:
@@ -20,7 +21,7 @@ func build() -> void:
 	var sc := card()
 	var sp := padded(sc, 16, 14)
 	sp.add_child(UI.label("Savings", 13, UI.SUB))
-	_saved = UI.display("", 36)
+	_saved = UI.display("", 40)
 	sp.add_child(_saved)
 	_rate = UI.label("", 13, UI.SUB)
 	sp.add_child(_rate)
@@ -48,6 +49,7 @@ func build() -> void:
 	_loan_line = UI.label("", 13, UI.SUB)
 	_loan_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lp.add_child(_loan_line)
+	# Payments as segments: paid ones lit, the rest a quiet track, with words under.
 	_dots = HBoxContainer.new()
 	_dots.add_theme_constant_override("separation", 6)
 	lp.add_child(_dots)
@@ -57,8 +59,9 @@ func build() -> void:
 		d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		d.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		_dots.add_child(d)
-	_loan_btn = UI.pill("", UI.TEXT, UI.INK, 17, 16)
-	_loan_btn.custom_minimum_size = Vector2(0, 48)
+	_paid_l = UI.label("", 13, UI.SUB)
+	lp.add_child(_paid_l)
+	_loan_btn = UI.secondary_btn("")
 	_loan_btn.pressed.connect(_on_loan)
 	Kit.press_fx(_loan_btn)
 	lp.add_child(_loan_btn)
@@ -71,23 +74,27 @@ func refresh() -> void:
 	if _saved == null:
 		return
 	_saved.text = Game.money(Game.savings())
-	_rate.text = "+%s an hour · 0.2%% interest, paid hourly" % Game.money_short(Game.savings_per_hour())
+	_rate.text = "+%s an hour (%s%% interest, paid hourly)" % [Game.money_short(Game.savings_per_hour()), str(snappedf(Data.BANK_RATE_H * 100.0, 0.1))]
 	var l := Game.loan()
 	var has := not l.is_empty()
+	var fee := int(round(Data.LOAN_FEE * 100.0))
 	_dots.visible = has
+	_paid_l.visible = has
 	if has:
 		var left := int(l["left"])
+		var paid := Data.LOAN_PAYMENTS - left
 		_loan_title.text = "Loan · %s left" % Game.money_short(Game.loan_owed())
-		_loan_line.text = "Next payment %s in %s · %d of %d to go" % [Game.money_short(float(l["payment"])), Game.clock(maxf(0.0, float(l["next"]) - Game.now())), left, Data.LOAN_PAYMENTS]
+		_loan_line.text = "Next payment %s in %s" % [Game.money_short(float(l["payment"])), Game.clock(maxf(0.0, float(l["next"]) - Game.now()))]
 		for i in _dots.get_child_count():
-			(_dots.get_child(i) as ColorRect).color = UI.TRACK if i < Data.LOAN_PAYMENTS - left else UI.TEXT
+			(_dots.get_child(i) as ColorRect).color = UI.TEXT if i < paid else UI.TRACK
+		_paid_l.text = "%d of %d paid · %d%% fee included" % [paid, Data.LOAN_PAYMENTS, fee]
 		_loan_btn.text = "Pay it all now · " + Game.money_short(Game.loan_owed())
 		Page.set_enabled(_loan_btn, Game.cash >= Game.loan_owed(), false)
 	else:
 		_loan_title.text = "Loan"
-		_loan_line.text = "Borrow up to %s. Pay back %d payments, one every %d h, plus 25%%." % [Game.money_short(Game.loan_limit()), Data.LOAN_PAYMENTS, int(Data.LOAN_EVERY_H)]
+		_loan_line.text = "Borrow up to %s. Pay it back in %d payments, one every %d h, plus a %d%% fee." % [Game.money_short(Game.loan_limit()), Data.LOAN_PAYMENTS, int(Data.LOAN_EVERY_H), fee]
 		_loan_btn.text = "Borrow"
-		Page.set_enabled(_loan_btn, true)
+		Page.set_enabled(_loan_btn, true, false)
 	_minus.visible = Game.in_minus()
 	_minus.text = "You're %s in the minus. Buying waits until your income covers it." % Game.money_short(-Game.cash)
 

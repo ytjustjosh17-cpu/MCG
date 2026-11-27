@@ -19,7 +19,10 @@ var _field: LineEdit
 var _go: Button
 var _targets: Dictionary = {}
 var _typing := false
-var _type_btn: Button
+var _type_btn: Button     # looks like the amount box; a tap opens the real one
+var _field_box: Control   # the amount box: £ then the typed number
+var _warn: Control        # a short warning line with an icon (lock: the 24 h restarts)
+var _warn_l: Label
 var _typed := -1.0        # an amount typed in £ (-1 = use the slider)
 var _amount := 0.0        # what the button shows, in £
 var _panel: Control       # the sheet, lifted above the phone keyboard
@@ -41,24 +44,16 @@ func _ready() -> void:
 	add_child(_have)
 	if mode == "convert":
 		add_child(UI.label("Into", 13, UI.SUB))
+		# The other 12 coins, 3 across, so no coin sits alone on a row.
 		var grid := GridContainer.new()
-		grid.columns = 4
-		grid.add_theme_constant_override("h_separation", 6)
-		grid.add_theme_constant_override("v_separation", 6)
+		grid.columns = 3
+		grid.add_theme_constant_override("h_separation", 8)
+		grid.add_theme_constant_override("v_separation", 8)
 		add_child(grid)
 		for c in Data.COINS:
 			if c[0] == sym:
 				continue
-			var b := UI.pill("", UI.RAISED, UI.TEXT, 13, 12)
-			b.custom_minimum_size = Vector2(0, 48)
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			var tile := AssetTile.new(c[0], 26.0)
-			tile.position = Vector2(6, 11)
-			b.add_child(tile)
-			var l := UI.label(c[0], 13, UI.TEXT, true)
-			l.position = Vector2(34, 14)
-			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			b.add_child(l)
+			var b := InvestPage.coin_chip(c[0], false)
 			var target: String = c[0]
 			b.pressed.connect(func():
 				Kit.haptic("selection")
@@ -73,7 +68,20 @@ func _ready() -> void:
 	_big = UI.display("", 40)
 	add_child(_big)
 	_sub = UI.label("", 15, UI.TEXT)
+	_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_sub)
+	var wh := HBoxContainer.new()
+	wh.add_theme_constant_override("separation", 8)
+	wh.visible = false
+	add_child(wh)
+	_warn = wh
+	var wi := Icon.new("clock", UI.TEXT, 18.0)
+	wi.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	wh.add_child(wi)
+	_warn_l = UI.label("", 15, UI.TEXT)
+	_warn_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_warn_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	wh.add_child(_warn_l)
 	_slider = AmountSlider.new()
 	_slider.changed.connect(func(v: float):
 		_field.release_focus()
@@ -98,23 +106,44 @@ func _ready() -> void:
 			_update())
 		Kit.press_fx(b)
 		chips.add_child(b)
-	# Or type an amount in pounds.
+	# Or type an amount in pounds: a real-looking box with a £ in front.
+	var fb := PanelContainer.new()
+	fb.add_theme_stylebox_override("panel", _field_style())
+	fb.visible = false   # shown by a tap, so the amount isn't on screen three times
+	add_child(fb)
+	_field_box = fb
+	var fh := HBoxContainer.new()
+	fh.add_theme_constant_override("separation", 6)
+	fb.add_child(fh)
+	var cur := UI.label(Game.CUR, 17, UI.SUB)
+	cur.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	fh.add_child(cur)
 	_field = LineEdit.new()
-	_field.placeholder_text = "Type an amount in £"
+	_field.placeholder_text = "Type an amount"
 	_field.select_all_on_focus = true   # a tap replaces the amount, never mixes into it
 	_field.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER_DECIMAL
-	_field.custom_minimum_size = Vector2(0, 48)
+	_field.custom_minimum_size = Vector2(0, 46)
+	_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_field.add_theme_font_override("font", UI.REG)
 	_field.add_theme_font_size_override("font_size", 17)
 	_field.add_theme_color_override("font_color", UI.TEXT)
 	_field.add_theme_color_override("font_placeholder_color", UI.SUB)
-	_field.add_theme_stylebox_override("normal", UI.box(UI.RAISED, 12, 14, 10))
-	_field.add_theme_stylebox_override("focus", UI.box(UI.RAISED, 12, 14, 10))
+	for st in ["normal", "focus", "read_only"]:
+		_field.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 	_field.text_changed.connect(_on_typed)
-	_field.visible = false   # shown by "Type an amount", so the amount isn't on screen three times
-	add_child(_field)
-	_type_btn = UI.pill("Type an amount", UI.PANEL, UI.SUB, 15, 16)
+	fh.add_child(_field)
+	# Until tapped, the same box shows "£  Type an amount" as a button.
+	_type_btn = Button.new()
+	_type_btn.text = Game.CUR + "   Type an amount"
+	_type_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_type_btn.focus_mode = Control.FOCUS_NONE
 	_type_btn.custom_minimum_size = Vector2(0, 48)
+	_type_btn.add_theme_font_override("font", UI.REG)
+	_type_btn.add_theme_font_size_override("font_size", 17)
+	for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+		_type_btn.add_theme_stylebox_override(st, _field_style())
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		_type_btn.add_theme_color_override(st, UI.SUB)
 	_type_btn.pressed.connect(func():
 		Kit.haptic("selection")
 		show_field())
@@ -131,15 +160,28 @@ func _ready() -> void:
 	_slider.set_value(frac)
 	_update()
 	Game.changed.connect(_update)   # cash and prices move while it is open
-	_field.focus_exited.connect(func(): _field.text = "" if _amount <= 0.0 else Game.money(_amount))
+	_field.focus_exited.connect(func(): _field.text = _plain(_amount))
 
 
 func show_field() -> void:
-	## Swaps the "Type an amount" link for the amount box and focuses it.
+	## Swaps the "Type an amount" button for the amount box and focuses it.
 	_type_btn.visible = false
-	_field.visible = true
-	_field.text = "" if _amount <= 0.0 else Game.money(_amount)
+	_field_box.visible = true
+	_field.text = _plain(_amount)
 	_field.grab_focus()
+
+
+static func _field_style() -> StyleBoxFlat:
+	## The amount box: raised fill, a thin border, so it reads as somewhere to type.
+	var sb := UI.box(UI.RAISED, 12, 14, 0)
+	sb.border_color = UI.TRACK
+	sb.set_border_width_all(1)
+	return sb
+
+
+static func _plain(v: float) -> String:
+	## An amount for the box, without the £ (the box shows its own).
+	return "" if v <= 0.0 else Game.money(v).replace(Game.CUR, "")
 
 
 func _book() -> Dictionary:
@@ -192,6 +234,7 @@ func _update() -> void:
 	var amount := mx * frac
 	_amount = amount
 	var units := amount / p if p > 0.0 else 0.0
+	_warn.visible = false
 	if mode == "bank_in" or mode == "bank_out":
 		var dep := mode == "bank_in"
 		_have.text = "Cash %s · saved %s" % [Game.money(Game.cash), Game.money(Game.savings())]
@@ -225,9 +268,10 @@ func _update() -> void:
 		_big.text = "%s %s" % [AssetDetail.qty_text(units), sym]
 		if mode == "lock":
 			var rate := Game.stake_rate(sym) * 2400.0
-			_sub.text = "Earns up to %.2f%% a day · can't sell for 24 h" % rate
+			_sub.text = "Earns up to %.2f%% a day. Can't sell for 24 h." % rate
 			if Game.staked(sym) > 0.0:
-				_sub.text = "Adds to your lock · the 24 h starts again"
+				_warn.visible = true
+				_warn_l.text = "Adds to your lock. The 24 h starts again."
 			_after.text = "After: %s %s free · %s locked" % [AssetDetail.qty_text(free - units), sym, AssetDetail.qty_text(Game.staked(sym) + units)]
 			_go.text = "Lock · %s %s" % [AssetDetail.qty_text(units), sym]
 		elif mode == "sell":
@@ -244,7 +288,7 @@ func _update() -> void:
 			_have.text += " (%s locked)" % AssetDetail.qty_text(Game.staked(sym))
 	Page.set_enabled(_go, amount >= 0.01)
 	if not _typing and not _field.has_focus():
-		_field.text = "" if frac <= 0.0 else Game.money(amount)
+		_field.text = "" if frac <= 0.0 else _plain(amount)
 
 
 func _process(_d: float) -> void:
@@ -339,8 +383,10 @@ class AmountSlider extends Control:
 			_set_from(e.position.x)
 			accept_event()
 
+	const PAD := 20.0   # the knob (14 px) stays inside the sheet at Max
+
 	func _set_from(x: float) -> void:
-		var pad := 14.0
+		var pad := PAD
 		var v := clampf((x - pad) / maxf(1.0, size.x - pad * 2.0), 0.0, 1.0)
 		# Gentle snaps at the quarters, with a tick you can feel.
 		for q in [0.0, 0.25, 0.5, 0.75, 1.0]:
@@ -353,7 +399,7 @@ class AmountSlider extends Control:
 		changed.emit(value)
 
 	func _draw() -> void:
-		var pad := 14.0
+		var pad := PAD
 		var y := size.y * 0.5
 		var w := size.x - pad * 2.0
 		draw_line(Vector2(pad, y), Vector2(pad + w, y), UI.TRACK, 8.0, true)
