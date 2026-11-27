@@ -52,6 +52,8 @@ func refresh() -> void:
 		if n > 0:
 			parts.append([String(col["id"]), String(col["name"]), n])
 	_shown.visible = parts.is_empty()
+	# Nothing on show yet: the room takes the space instead of a big gap.
+	_room.custom_minimum_size.y = 400.0 if not parts.is_empty() else 540.0
 	_shown_head.visible = not parts.is_empty()
 	_shown_card.visible = not parts.is_empty()
 	var key := str(parts)
@@ -95,6 +97,7 @@ class Room extends Control:
 	## The drawn room; owned items sit on top as small ItemArt pictures.
 	var tier := -1
 	var _sig := ""
+	var _shelf := false   # draw the display shelf only when something stands on it
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,9 +146,11 @@ class Room extends Control:
 			_add(ItemArt.new("cars", car, 78.0), Vector2(w * 0.76, fy - 42.0))
 		# Models and relics on the display shelf.
 		var x := w * SHELF_X + 6.0
+		_shelf = false
 		for col in ["jets", "yachts", "islands", "relics"]:
 			var i := HomePage.best_item(col)
 			if i >= 0:
+				_shelf = true
 				_add(ItemArt.new(col, i, 26.0), Vector2(x, size.y * SHELF_Y - 29.0))
 				x += 30.0
 
@@ -188,12 +193,13 @@ class Room extends Control:
 		draw_rect(win, UI.INK, false, 4.0)
 		# A display shelf for models and relics: a back panel and two posts,
 		# so the pieces stand on furniture, not in the window.
-		var shelf := Rect2(w * SHELF_X, h * SHELF_Y - 36.0, w * SHELF_W, 36.0)
-		draw_rect(shelf, UI.SIDE, true)
-		draw_rect(Rect2(shelf.position.x, h * SHELF_Y, shelf.size.x, 4.0), UI.INK, true)
-		draw_rect(Rect2(shelf.position.x, shelf.position.y, 3.0, 40.0), UI.INK, true)
-		draw_rect(Rect2(shelf.end.x - 3.0, shelf.position.y, 3.0, 40.0), UI.INK, true)
-		draw_rect(Rect2(shelf.position.x, shelf.position.y, shelf.size.x, 3.0), UI.INK, true)
+		if _shelf:
+			var shelf := Rect2(w * SHELF_X, h * SHELF_Y - 36.0, w * SHELF_W, 36.0)
+			draw_rect(shelf, UI.SIDE, true)
+			draw_rect(Rect2(shelf.position.x, h * SHELF_Y, shelf.size.x, 4.0), UI.INK, true)
+			draw_rect(Rect2(shelf.position.x, shelf.position.y, 3.0, 40.0), UI.INK, true)
+			draw_rect(Rect2(shelf.end.x - 3.0, shelf.position.y, 3.0, 40.0), UI.INK, true)
+			draw_rect(Rect2(shelf.position.x, shelf.position.y, shelf.size.x, 3.0), UI.INK, true)
 		# Furniture, richer as you move up.
 		if tier == 0:
 			draw_rect(Rect2(w * 0.08, fy - 16.0, w * 0.34, 16.0), UI.TRACK, true)   # a mattress on the floor
