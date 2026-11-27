@@ -327,6 +327,25 @@ func _run() -> void:
 		_check(gp.body.get_child_count() > 2, "%s builds" % path.get_file())
 		main.pop()
 		await create_timer(0.5).timeout
+	# Turning the phone keeps what's open: the page stack and a pop-up.
+	var kit_r = root.get_node("Kit")
+	main.push(load("res://scripts/settings_page.gd").new())
+	await create_timer(0.5).timeout
+	kit_r.sheet("Rotate test", "Stays open", [{"text": "Close", "style": "plain"}])
+	await create_timer(0.3).timeout
+	var stack_n: int = main._stack.size()
+	root.size = Vector2i(844, 390)
+	await create_timer(0.4).timeout
+	_check(kit_r.landscape and root.get_visible_rect().size.y < 400.0, "turning the phone switches to the landscape layout")
+	_check(main._stack.size() == stack_n and kit_r.has_open(), "turning the phone keeps the open page and pop-up")
+	_check(main._nav.vertical and main.back_btn.visible, "landscape: tab rail on the left with back under it")
+	root.size = Vector2i(390, 844)
+	await create_timer(0.4).timeout
+	_check(not kit_r.landscape and not main._nav.vertical, "turning back restores portrait")
+	while kit_r.close_top():
+		await create_timer(0.3).timeout
+	main.pop()
+	await create_timer(0.5).timeout
 	# Buying a home from the Property list moves it to "Yours" at once.
 	main.show_page(2)
 	await create_timer(0.4).timeout

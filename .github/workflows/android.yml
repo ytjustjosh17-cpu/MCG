@@ -108,6 +108,10 @@ jobs:
         working-directory: game
         run: godot --headless --path . -s res://tests/fit_test.gd
 
+      - name: Fit test, landscape (phone held sideways)
+        working-directory: game
+        run: godot --headless --path . -s res://tests/fit_test.gd -- land
+
       - name: Casino test (the house always keeps a small edge)
         working-directory: game
         run: godot --headless --path . -s res://tests/casino_test.gd

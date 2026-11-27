@@ -9,6 +9,7 @@ var main
 var g
 var problems: Array = []
 var checked := 0
+var land := false   # `-- land`: the same checks with the phone held sideways (844 x 390)
 
 
 func _initialize() -> void:
@@ -50,6 +51,9 @@ func _audit(where: String) -> void:
 			if r.position.x < -1.0 or r.end.x > wide + 1.0:
 				problems.append("%s: off screen '%s'" % [where, l.text.left(40)])
 				continue
+			if land and r.position.x < 84.0 - 1.0 and not kit.has_open():
+				problems.append("%s: under the tab rail '%s'" % [where, l.text.left(40)])
+				continue
 			checked += 1
 			if l.get_theme_font_size("font_size") < 13:
 				problems.append("%s: text under 13 px (%d) '%s'" % [where, l.get_theme_font_size("font_size"), l.text.left(30)])
@@ -74,7 +78,8 @@ func _push(p: Control, where: String) -> void:
 
 func _run() -> void:
 	g = root.get_node("Game")
-	root.size = Vector2i(390, 844)   # the phone's screen in game units
+	land = OS.get_cmdline_user_args().has("land")
+	root.size = Vector2i(844, 390) if land else Vector2i(390, 844)   # the phone's screen in game units
 	g.reset_game(true)
 	main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)

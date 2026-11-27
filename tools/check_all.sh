@@ -45,7 +45,7 @@ rm -rf "$HOME/.local/share/sol-check-$RUN_ID-"* 2>/dev/null
 if [ $QUICK = 1 ]; then
 	LANES=("a|0|smoke_test" "b|1|scroll_test")
 else
-	LANES=("a|0|smoke_test market_test:20" "b|0|stress_test casino_test forge_test fit_test" \
+	LANES=("a|0|smoke_test market_test:20 fit_test:land" "b|0|stress_test casino_test forge_test fit_test" \
 		"c|1|scroll_test tables_ui_test" "d|1|slots_ui_test forge_ui_test casino12_test")
 fi
 
@@ -60,9 +60,10 @@ run_lane() {
 	for s in $suites; do
 		local t="${s%%:*}" a=""
 		[ "$s" != "$t" ] && a="-- ${s#*:}"
-		local log="$WORK/$t.log"
+		local key="${s//:/_}"
+		local log="$WORK/$key.log"
 		( cd "$dir" && timeout 900 "$G" --headless --path . -s "res://tests/$t.gd" $a >"$log" 2>&1 )
-		echo $? > "$WORK/$t.code"
+		echo $? > "$WORK/$key.code"
 	done
 }
 
@@ -75,7 +76,7 @@ wait
 for l in "${LANES[@]}"; do
 	IFS='|' read -r n tch su <<<"$l"
 	for s in $su; do
-		t="${s%%:*}"
+		t="${s//:/_}"
 		code=$(cat "$WORK/$t.code" 2>/dev/null || echo 1)
 		res=$(grep -E "^Failures" "$WORK/$t.log" | tail -1)
 		if [ "$code" != 0 ] || [ -z "$res" ] || [ "$res" != "Failures: 0" ]; then
