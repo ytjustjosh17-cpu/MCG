@@ -111,8 +111,9 @@ func _target_rect(t: String) -> Rect2:
 			var e = main._pages[0]
 			if main._current == 0 and e.get("_card") != null:
 				var r: Rect2 = (e._card as Control).get_global_rect()
-				# A ring round the middle of the tower, not the whole card.
-				return Rect2(r.get_center() - Vector2(70, 90) - global_position, Vector2(140, 180))
+				# A small ring on the middle of the tower, where a thumb would tap.
+				var mid := Vector2(r.position.x + r.size.x * 0.6, r.get_center().y)   # the tower stands at 60% across
+				return Rect2(mid - Vector2(44, 44) - global_position, Vector2(88, 88))
 		"level":
 			var e2 = main._pages[0]
 			if main._current == 0 and e2.get("_level_btn") != null:
@@ -146,7 +147,7 @@ func _process(delta: float) -> void:
 	var w := size.x - 32.0
 	_card.size = Vector2(w, 0)
 	_card.size = Vector2(w, _card.get_combined_minimum_size().y)
-	var y := 152.0   # under the cash and income lines
+	var y := 160.0   # floats on the top of the tower card, under the cash
 	if _ring.size != Vector2.ZERO and _ring.position.y < y + _card.size.y + 20.0:
 		y = _ring.end.y + 16.0
 	_card.position = Vector2(16, y)
@@ -154,13 +155,19 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	## A ring that hugs the target: round for the tower and tab icons, a
+	## rounded box for a wide tile. One thin pulsing line, not a big halo.
 	if _ring.size == Vector2.ZERO:
 		return
 	var pulse := 0.0 if Motion.reduced() else 0.5 + 0.5 * sin(_t * 4.0)
-	var c := _ring.get_center()
-	var r := maxf(_ring.size.x, _ring.size.y) * 0.5 + 6.0 + pulse * 4.0
-	draw_arc(c, r, 0.0, TAU, 64, Color(UI.RED, 0.9), 3.0, true)
-	draw_arc(c, r + 8.0, 0.0, TAU, 64, Color(UI.RED, 0.25 + 0.2 * pulse), 2.0, true)
+	var grow := 4.0 + pulse * 3.0
+	var r := _ring.grow(grow)
+	if absf(r.size.x - r.size.y) <= 8.0:
+		draw_arc(r.get_center(), maxf(r.size.x, r.size.y) * 0.5, 0.0, TAU, 64, Color(UI.RED, 0.9), 3.0, true)
+		return
+	var poly := UI.rounded_rect_poly(r, minf(20.0, r.size.y * 0.5), 8)
+	poly.append(poly[0])
+	draw_polyline(poly, Color(UI.RED, 0.9), 3.0, true)
 
 
 func finish() -> void:

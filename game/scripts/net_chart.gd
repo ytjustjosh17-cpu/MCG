@@ -1,11 +1,25 @@
 class_name NetChart
 extends Control
-## Pale line chart of net worth over the past week, with one lit red point at the end.
+## Pale line chart of net worth over the past week, with a dot at "now".
+## Profile hides it until week_points() >= 2 (a flat stub says nothing).
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
+
+
+static func week_points() -> int:
+	## Saved history points inside the past week (the live point not counted).
+	var cutoff := Game.now() - Game.WEEK_S
+	var n := 0
+	for i in range(Game.history.size() - 1, -1, -1):
+		if Game.history[i][0] < cutoff:
+			break
+		n += 1
+		if n >= 2:
+			break
+	return n
 
 
 var _hist_n := -1
@@ -74,4 +88,4 @@ func _draw() -> void:
 	draw_polygon(area, cols)
 	draw_polyline(line, UI.TEXT, 2.0, true)
 	var end := line[line.size() - 1]
-	draw_rect(Rect2(end - Vector2(5, 5), Vector2(10, 10)), UI.RED, true)
+	draw_circle(end, 4.0, UI.TEXT)

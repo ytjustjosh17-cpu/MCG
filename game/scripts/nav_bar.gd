@@ -42,19 +42,19 @@ func _ready() -> void:
 		var ic := Icon.new(TABS[i][0], UI.SUB, 26.0)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(ic)
-		var l := UI.label(TABS[i][1], 11, UI.TEXT, true)
+		var l := UI.label(TABS[i][1], 13, UI.TEXT, true)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.visible = false
 		col.add_child(l)
 		b.tooltip_text = TABS[i][1]
 		_buttons.append(b)
-		var dot := Panel.new()   # a small round dot
-		dot.add_theme_stylebox_override("panel", UI.box(UI.RED, 5))
-		dot.size = Vector2(9, 9)
+		var dot := Panel.new()   # a small round dot at the icon's top right (inactive tabs only)
+		dot.add_theme_stylebox_override("panel", UI.box(UI.RED, 4))
+		dot.size = Vector2(8, 8)
 		dot.visible = false
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(dot)
-		b.resized.connect(func(): dot.position = Vector2(b.size.x / 2.0 + 12.0, 8.0))
+		b.resized.connect(func(): dot.position = Vector2(b.size.x / 2.0 + 9.0, (b.size.y - 26.0) / 2.0 - 3.0))
 		_badges.append(dot)
 		_want.append(false)
 		_icons.append(ic)

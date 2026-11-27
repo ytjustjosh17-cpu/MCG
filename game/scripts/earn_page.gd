@@ -1,49 +1,58 @@
 class_name EarnPage
 extends Control
-## Earn tab, tower first: net worth, the big tower to tap, and three icon buttons.
+## Earn tab, tower first: cash, the big tower to tap, and an action strip
+## under it (Level up, Boost, Auto). The tower card is pure art: only small
+## chips sit on it, never buttons or captions.
 
 signal push_page(page: Control)
 
 const NAV_SPACE := 92.0
+const STRIP_H := 72.0
 
 var _worth: CountLabel
 var _rate: Label
 var _level_pill: Label
-var _meter: Array = []
+var _lv_track: ColorRect
+var _lv_fill: ColorRect
 var _pill: Panel
 var _tasks: IconButton
 var _card: TowerCard
+var _chips: VBoxContainer
 var _per_tap: Label
-var _buff: Label
+var _buff_row: HBoxContainer
+var _frenzy: Label
+var _rush: Label
+var _hint: Control
+var _strip: Panel
 var _level_btn: IconButton
 var _boost_btn: IconButton
 var _auto_btn: IconButton
-var _auto_cap: Label
-var _hint: Label
-var _level_cap: Label
-var _boost_cap: Label
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_tasks = IconButton.new("list", 48.0)
-	_tasks.custom_minimum_size = Vector2(48, 48)
 	_tasks.fill = UI.PANEL
 	_tasks.pressed.connect(_show_tasks)
 	add_child(_tasks)
 
-	_pill = UI.panel(UI.PANEL, 22)
+	# Level: "Lv 6" and a thin bar towards the next level (no coloured pips).
+	_pill = UI.panel(UI.PANEL, 24)
 	add_child(_pill)
 	_level_pill = UI.label("", 15, UI.TEXT, true)
-	_level_pill.position = Vector2(16, 12)
+	_level_pill.position = Vector2(16, 13)
 	_pill.add_child(_level_pill)
-	for i in 5:
-		var sq := ColorRect.new()
-		sq.size = Vector2(5, 12)
-		sq.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pill.add_child(sq)
-		_meter.append(sq)
+	_lv_track = ColorRect.new()
+	_lv_track.color = UI.TRACK
+	_lv_track.size = Vector2(36, 4)
+	_lv_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pill.add_child(_lv_track)
+	_lv_fill = ColorRect.new()
+	_lv_fill.color = UI.TEXT
+	_lv_fill.size = Vector2(0, 4)
+	_lv_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lv_track.add_child(_lv_fill)
 
 	# Big number is cash to the penny; net worth sits on the line below.
 	_worth = CountLabel.new(Game.cash_text)
@@ -56,43 +65,36 @@ func _ready() -> void:
 	_rate = UI.label("", 15, UI.SUB)
 	add_child(_rate)
 
-
 	_card = TowerCard.new()
 	_card.name = "TowerCard"
 	add_child(_card)
-	_per_tap = UI.label("", 15, UI.TEXT, true)
-	_per_tap.position = Vector2(18, 16)
-	_card.add_child(_per_tap)
-	# Golden sun buffs (Frenzy or Rush) with time left.
-	_buff = UI.label("", 13, UI.TEXT, true)
-	_buff.position = Vector2(18, 40)
-	_buff.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(_buff)
-	# First-time hint, gone after a few taps.
-	_hint = UI.label("Tap the tower", 15, UI.TEXT, true)
-	_hint.position = Vector2(18, 42)
-	_card.add_child(_hint)
-	_level_btn = IconButton.new("level", 64.0)
-	_level_btn.custom_minimum_size = Vector2(80, 86)
-	_level_btn.pressed.connect(_on_level_up)
-	_level_btn.mouse_filter = Control.MOUSE_FILTER_STOP  # don't also count as a tower tap
-	_card.add_child(_level_btn)
-	_boost_btn = IconButton.new("bolt", 64.0)
-	_boost_btn.custom_minimum_size = Vector2(80, 86)
-	_boost_btn.pressed.connect(_on_boost)
-	_boost_btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	_card.add_child(_boost_btn)
-	_auto_btn = IconButton.new("cpu", 64.0)
-	_auto_btn.custom_minimum_size = Vector2(80, 86)
-	_auto_btn.pressed.connect(_on_auto)
-	_auto_btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	_card.add_child(_auto_btn)
-	_level_cap = _caption("Level up")
-	_boost_cap = _caption("Boost")
-	_auto_cap = _caption("Auto")
+	# Chips at the top of the art: per tap, golden sun buffs, first-time hint.
+	# They ignore the mouse, so a tap on them still taps the tower.
+	_chips = VBoxContainer.new()
+	_chips.add_theme_constant_override("separation", 6)
+	_chips.position = Vector2(12, 12)
+	_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.add_child(_chips)
+	_per_tap = _chip(_chips, 15)
+	_buff_row = HBoxContainer.new()
+	_buff_row.add_theme_constant_override("separation", 6)
+	_buff_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chips.add_child(_buff_row)
+	_frenzy = _chip(_buff_row, 13)
+	_rush = _chip(_buff_row, 13)
+	var hl := _chip(_chips, 15)
+	hl.text = "Tap the tower"
+	_hint = hl.get_parent()
+
+	# The action strip: a solid panel under the art, three equal tiles.
+	_strip = UI.panel(UI.PANEL, 16)
+	add_child(_strip)
+	_level_btn = _action("level", "Level up", _on_level_up)
+	_boost_btn = _action("bolt", "Boost", _on_boost)
+	_auto_btn = _action("cpu", "Auto", _on_auto)
 	Game.auto_tapped.connect(func(_n: int, _v: float):
 		if is_visible_in_tree() and not Motion.reduced():
-			Motion.pop(_auto_btn, 1.06))
+			Motion.pop(_auto_btn, 1.04))
 
 	resized.connect(_layout)
 	Game.changed.connect(_refresh)
@@ -105,6 +107,26 @@ func _ready() -> void:
 	_refresh()
 
 
+func _chip(parent: Control, fs: int) -> Label:
+	## A small solid pill on the art, so its text never sits on lit windows.
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 14, 10, 4))
+	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pc.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	parent.add_child(pc)
+	var l := UI.label("", fs, UI.TEXT, true)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pc.add_child(l)
+	return l
+
+
+func _action(icon: String, title: String, call: Callable) -> IconButton:
+	var b := IconButton.new(icon, 40.0, title)
+	b.pressed.connect(call)
+	_strip.add_child(b)
+	return b
+
+
 func _layout() -> void:
 	var w := size.x
 	var h := size.y
@@ -112,32 +134,21 @@ func _layout() -> void:
 	_tasks.size = Vector2(48, 48)
 	_pill.size = Vector2(112, 48)
 	_pill.position = Vector2(w - 16 - 112, 4)
-	for i in 5:
-		_meter[i].position = Vector2(66 + i * 8, 18)
+	_lv_track.position = Vector2(62, 22)
 	_worth.position = Vector2(20, 58)
 	_rate.position = Vector2(22, 112)
 	var top := 148.0
+	var strip_y := maxf(top + 260.0 + 12.0, h - NAV_SPACE - STRIP_H)
+	_strip.position = Vector2(16, strip_y)
+	_strip.size = Vector2(w - 32, STRIP_H)
 	_card.position = Vector2(16, top)
-	_card.size = Vector2(w - 32, maxf(260.0, h - NAV_SPACE - top))
-	_level_btn.size = _level_btn.custom_minimum_size
-	_boost_btn.size = _boost_btn.custom_minimum_size
-	_auto_btn.size = _auto_btn.custom_minimum_size
-	_auto_btn.position = Vector2(182, _card.size.y - 118)
-	_auto_cap.position = Vector2(182, _card.size.y - 32)
-	_level_btn.position = Vector2(10, _card.size.y - 118)
-	_boost_btn.position = Vector2(96, _card.size.y - 118)
-	_level_cap.position = Vector2(10, _card.size.y - 32)
-	_boost_cap.position = Vector2(96, _card.size.y - 32)
+	_card.size = Vector2(w - 32, strip_y - 12.0 - top)
+	var tw := (_strip.size.x - 16.0) / 3.0
+	for i in 3:
+		var b: IconButton = [_level_btn, _boost_btn, _auto_btn][i]
+		b.position = Vector2(8.0 + tw * i, 8.0)
+		b.size = Vector2(tw, STRIP_H - 16.0)
 	_refresh()
-
-
-func _caption(text: String) -> Label:
-	var l := UI.label(text, 13, UI.SUB)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.size = Vector2(80, 18)
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(l)
-	return l
 
 
 func _refresh() -> void:
@@ -150,16 +161,24 @@ func _refresh() -> void:
 	parts.append("%s worth" % Game.money_short(Game.net_worth()))
 	_rate.text = "  ·  ".join(parts)
 	_level_pill.text = "Lv %d" % Game.level
-	var prog := Game.level_progress()
-	for i in 5:
-		_meter[i].color = UI.RED if prog >= (i + 1) / 5.0 - 0.001 else UI.TRACK
-	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
-	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if Game.tap_tired() else 1.0)) + " /tap" + (" · tired, rest a bit" if Game.tap_tired() else "")
 	var maxed := Game.level >= Data.MAX_LEVEL
-	var can := Game.can_level_up()
-	_level_btn.set_state(UI.TEXT if can else UI.SUB, prog if not maxed else 1.0, false, "MAX" if maxed else Game.money_short(Game.level_cost()))
+	var prog := 1.0 if maxed else clampf(Game.level_progress(), 0.0, 1.0)
+	_lv_fill.size = Vector2(_lv_track.size.x * prog, 4)
+	_hint.visible = Game.taps < 10 and not (Game.frenzy_active() or Game.rush_active())
 	_tasks.set_state(UI.TEXT, -1.0, Game.unclaimed("goal") + Game.unclaimed("streak") > 0)   # a dot only when a reward waits
 	_tick()
+
+
+func _best() -> String:
+	## The one action worth taking now gets the red ring (one red per screen):
+	## Level up first, then a ready Boost, then a first Auto clicker.
+	if Game.level < Data.MAX_LEVEL and Game.can_level_up():
+		return "level"
+	if Game.boost_ready() and not Game.boost_active() and Game.taps >= 20:
+		return "boost"
+	if Game.auto_level == 0 and Game.auto_cost() > 0.0 and Game.cash >= Game.auto_cost():
+		return "auto"
+	return ""
 
 
 func _tap_mult() -> float:
@@ -170,31 +189,36 @@ func _tap_mult() -> float:
 
 
 func _tick() -> void:
-	if _boost_btn == null:
+	if _boost_btn == null or not is_visible_in_tree():
 		return
-	var buffs: Array = []
+	var tired := Game.tap_tired()
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if tired else 1.0)) + " /tap" + ("  ·  tired, rest a bit" if tired else "")
+	_frenzy.get_parent().visible = Game.frenzy_active()
 	if Game.frenzy_active():
-		buffs.append("Taps ×%d · %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())])
+		_frenzy.text = "Taps ×%d  %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())]
+	_rush.get_parent().visible = Game.rush_active()
 	if Game.rush_active():
-		buffs.append("Income ×2 · %s" % Game.clock(Game.rush_until - Game.now()))
-	_buff.text = "     ".join(buffs)
-	_buff.visible = not buffs.is_empty()
-	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if Game.tap_tired() else 1.0)) + " /tap" + (" · tired, rest a bit" if Game.tap_tired() else "")
+		_rush.text = "Income ×2  %s" % Game.clock(Game.rush_until - Game.now())
+	_buff_row.visible = Game.frenzy_active() or Game.rush_active()
+	var best := _best()
+	var maxed := Game.level >= Data.MAX_LEVEL
+	var can := Game.can_level_up()
+	_level_btn.set_state(UI.TEXT if can or maxed else UI.SUB, 1.0 if maxed else Game.level_progress(), false,
+		"Max" if maxed else Game.money_short(Game.level_cost()), UI.RED if best == "level" else UI.TEXT)
 	if Game.boost_active():
-		_boost_btn.set_state(UI.RED, Game.boost_left() / Game.BOOST_LEN_S, false, Game.clock(Game.boost_left()))
+		_boost_btn.set_state(UI.TEXT, Game.boost_left() / Game.BOOST_LEN_S, false, Game.clock(Game.boost_left()))
 	elif Game.boost_ready():
-		_boost_btn.set_state(UI.TEXT, 1.0, false, "×3")   # the full ring says ready
+		_boost_btn.set_state(UI.TEXT, 1.0, false, "×3", UI.RED if best == "boost" else UI.TEXT)
 	else:
-		var total := Game.BOOST_COOLDOWN_S
-		_boost_btn.set_state(UI.SUB, 1.0 - Game.boost_cooldown_left() / total, false, Game.clock(Game.boost_cooldown_left()))
-	# Auto clicker: ring fills towards the next auto tap; caption shows speed or price.
+		_boost_btn.set_state(UI.SUB, 1.0 - Game.boost_cooldown_left() / Game.BOOST_COOLDOWN_S, false, Game.clock(Game.boost_cooldown_left()))
+	# Auto clicker: the ring fills towards the next auto tap.
 	if Game.auto_level == 0:
-		_auto_btn.set_state(UI.TEXT if Game.cash >= Game.auto_cost() else UI.SUB, -1.0, false, Game.money_short(Game.auto_cost()))
+		_auto_btn.set_state(UI.TEXT if Game.cash >= Game.auto_cost() else UI.SUB, 1.0 if best == "auto" else -1.0, false,
+			Game.money_short(Game.auto_cost()), UI.RED)
 	elif Game.auto_running():
 		_auto_btn.set_state(UI.TEXT, clampf(Game._auto_acc / Game.auto_interval(), 0.0, 1.0), false, "%s s" % str(Game.auto_interval()))
 	else:
 		_auto_btn.set_state(UI.SUB, 0.0, false, "Paused")
-	_card.queue_redraw()
 
 
 func _show_tasks() -> void:
