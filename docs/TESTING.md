@@ -73,3 +73,6 @@ Agent play-testers found real bugs every time. Personas that worked:
 - Design reviewers (screenshot every page, judge against DESIGN.md)
 
 Point them at the working branch (agent worktrees start from `main`), tell them to report only, and fix what they confirm.
+
+- `casino12_test` checks the shared casino layout on every game (main button ends above the nav), with and without phone insets. The casino UI tests pin the window to 390 x 844.
+- `fit_test` also fails any text under 13 px.

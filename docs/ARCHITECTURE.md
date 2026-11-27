@@ -35,6 +35,8 @@ Pages never change state directly.
 | Rebirth tree | `rebirth_tree.gd` (`RebirthTree`: every node with a fixed string id, position, links, cost and effects; built once). Effects are summed per stat by `Game.rb(stat)` and used where each rule lives |
 | 1.2 | `bank_page.gd` (savings and loans), `weather.gd` (`SkyTime`: day, night, weather), `home_page.gd` (inside your home), `guide.gd` (first-time guide), `stats_page.gd` (charts); casino `video_poker_page.gd`, `crash_page.gd`, `plinko_page.gd`, `race_page.gd`, `wheel_sheet.gd` with maths in `casino/` |
 | Casino pages | `casino_page.gd` (lobby: unlock, cage, limits, games; `CasinoPage.CasinoArt` drawings), `slots_page.gd`, `forge_page.gd` (Sun Forge, 6x5 tumble), `roulette_page.gd`, `blackjack_page.gd`. Money only moves through `Game.casino_stake()` and `Game.casino_pay()` |
+| Casino game base | `casino_game.gd` (`CasinoGame`): the shared layout for all nine games (title with "i" rules sheet, status row, game area, dock with bet bar or chip tray, one 56 px main button above the nav). Games write `build_game()` and fill `area` and `dock` |
+| Shared controls | `switch.gd` (on/off), `Row` options (`set_bold`, `set_locked`, `align_top`, `grow_to_fit`, `caption_on_top`), `UI.primary_btn` / `secondary_btn` / `text_btn`, `Art.Scene.muted` for list thumbnails |
 | Casino maths | `casino/forge_math.gd`, `casino/slot_math.gd`, `casino/roulette_math.gd`, `casino/blackjack_math.gd`: pure rules, seedable, no UI (`tests/casino_test.gd` checks their payback) |
 | Look and motion | `ui.gd` (colours, fonts, helpers), `motion.gd` |
 | Sound | `sfx.gd` (tones made in code), played via `Kit.sound()` |

@@ -1,12 +1,32 @@
 # Changelog
 
-## Dividend %, bigger dividends, news filter, nothing cut off
+## Design and speed pass
 
+- One look everywhere: one main button per screen, at most one red accent
+  plus the sun, nothing under 13 px, switches for on/off settings.
+- Earn: Level up, Boost and Auto sit in a strip under the tower, with one
+  red ring on the best move. Level shows as a thin bar.
+- Profile leads with net worth; the money list is sorted with a %.
+- Business: white unit blocks, one "+1" button, Sell company as a quiet
+  link. Head office in four groups. Clearer mergers. Calmer red suns in
+  list pictures; full red on the big pictures.
+- Items and Home: proper shelf, "On show" as a list, no empty gap.
+- Invest: one summary card for all three tabs, today's move as a %,
+  labelled news strip, locked homes show what you still need. Coin and
+  share pages show labelled columns and say why Sell is greyed out.
+- Bank shows "1 of 5 paid". The miner shelf is tidier.
+- Casino: every game has the same layout. Rules behind "i", chips and win
+  at the top, one main button at the bottom. Calmer colours.
 - To claim lists show a "Claim" pill on each row and the first five, with
   "Show N more". Goals: one bar edge, no bar when done, streak as a chip,
   "All done" line with the reset time. Rivals show three above you. Charts
   have start and end labels. Rebirth tree: readable branch names, quieter
   rings, "You have N RBP" before Buy.
+- Faster: fewer saves and redraws, bulk buys work out income once, the
+  casino and miners rest when nothing moves. Less battery.
+
+## Dividend %, bigger dividends, news filter, nothing cut off
+
 - Dividends now pay 1% to 5% a day by company (steady payers more, growth
   companies less), still once an hour. Robot: 90% day 36 to 38, unchanged.
 - News has All, Shares and Crypto filters, and opens on the one for the
