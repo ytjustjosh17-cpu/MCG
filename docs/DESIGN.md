@@ -41,6 +41,8 @@ Rules:
 | Body | Switzer Regular (`UI.REG`) | 15 to 17 |
 | Captions, sub-lines | Switzer Regular | 13 |
 
+The scale is 40 (display), 28 (big value), 17 (titles, body), 15 (secondary), 13 (captions). Nothing is smaller than 13 px; the fit test fails if it is.
+
 - Tanker and Switzer come from Fontshare at build time (licence: allowed in the app, not in the repo). Inter is the fallback if the download fails.
 - Tanker is all caps, so keep display text short. Money suffixes like "Qi" read as "QI" in Tanker; avoid display type for values above £1e18.
 - Money: `Game.money()` for exact amounts, `Game.money_short()` for everything else (£32K, £1.2M, £12.27M). No trailing zeros.
@@ -53,6 +55,8 @@ Rules:
 - The tab bar floats over content. Pages keep 104 px of bottom space, and a soft fade sits behind the bar.
 - Every pushed page gets the back button in the bottom bar, on the right where the thumb rests. It never scrolls away (rule R10, `main.gd`).
 - Cash you can spend is always shown: big on Earn, and as a small glass pill at the top right on every other screen (`main.gd`), fixed while you scroll.
+- Rows are 56 px, or 60 px with a sub-line. `Row` sets this itself; pages don't set their own row heights.
+- Buttons: `UI.primary_btn()` (52 px, one per screen), `UI.secondary_btn()` (48 px), `UI.text_btn()` for quiet actions (Close, Not now, Sell company). On/off settings use `Switch` (`switch.gd`); chevrons are only for rows that open something.
 - Every pressable thing is at least 48 x 48 px. The touch test measures what is on screen on each tab and the main detail pages.
 
 ## Components (use these, don't rebuild them)
@@ -134,6 +138,19 @@ One word per idea, everywhere: "units" (not outlets/spaces), "Stage", "Expand", 
 - Say what happens: "Expand · £272K", "Tap the tower to earn", "Ready again in 3:12".
 - No jargon without a hint. Staking, dividends and mergers each have a short explanation where they appear.
 - No em dashes, no "seamless", "elevate", "unlock your potential" or similar filler (rule R4 checks the dashes).
+
+## Patterns to avoid
+
+- More than one red accent per screen (plus the sun). Red is for the one main action, not for done states, info, borders or progress.
+- Coloured marks with no label (red squares, pips, dots that mean nothing).
+- Run-on lines with 3 or more facts joined by dots ("A · B · C · D"). Use 2 at most, or labelled columns.
+- Text under 13 px. `DIM` as a text colour. Grey text on a grey card. Text over busy art without a panel behind it.
+- Two equal primary buttons stacked. A full-width destructive button as loud as Buy.
+- Normal data that looks disabled. Disabled buttons with no reason shown.
+- Tappable rows with no chevron or trailing pill. A lone chip on its own line. "▾" text as a control (use `Kit.drop_pill` or the chevron icon).
+- Different controls for the same job on similar screens. Per-page row heights and paddings.
+- Empty space over 120 px at the bottom of a screen.
+- Pop-ups that open by themselves during play (deals, offers). Celebrations never block taps.
 
 ## Before calling a screen done
 
