@@ -191,7 +191,9 @@ func _roulette(kit) -> void:
 	var saved_ok: bool = absf(file_now - (before - total + paid)) < 0.01
 	_ok(spinning and saved_ok, "stake and result are saved before the ball settles (file %.2f)" % file_now)
 	_ok(status_t.find(g.money(before - total)) >= 0, "the chips shown wait for the ball (%s vs %s)" % [status_t.replace("\n", " "), g.money(before - total)])
-	await create_timer(5.4).timeout
+	await create_timer(2.0).timeout
+	await _shot("40b_roulette_spin")   # the wheel over the mat
+	await create_timer(3.4).timeout
 	_ok(not rp._spinning and rp._history.size() == 1, "the ball settles and the number joins the history")
 	_ok(absf(g.chips() - (before - total + paid)) < 0.01, "chips are exactly before - stake + paid (%s, paid %s)" % [g.money(g.chips()), g.money(paid)])
 	await _shot("41_roulette_result")

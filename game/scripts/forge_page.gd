@@ -518,7 +518,9 @@ class SymIcon extends Control:
 
 class ForgeGrid extends Control:
 	## The forge-framed 6 x 5 window. Plays drops, wins, tumbles and orbs.
-	const CELL := 56.0
+	const CELL := 56.0                    # the largest cell; smaller screens get smaller
+	const MIN_CELL := 42.0
+	var cell := CELL
 	const PAD := 11.0
 	var syms := PackedInt32Array()
 	var vals := PackedInt32Array()
@@ -547,7 +549,11 @@ class ForgeGrid extends Control:
 	var _was_active := true
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(0, CELL * 5.0 + PAD * 2.0 + 4.0)
+		custom_minimum_size = Vector2(0, MIN_CELL * 5.0 + PAD * 2.0 + 4.0)
+		resized.connect(func():
+			# Cells shrink on a shorter screen so the buttons never sit under the nav.
+			cell = clampf(minf((size.x - PAD * 2.0) / 6.0, (size.y - PAD * 2.0 - 4.0) / 5.0), MIN_CELL, CELL)
+			queue_redraw())
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		syms.resize(30)
 		vals.resize(30)
@@ -584,12 +590,12 @@ class ForgeGrid extends Control:
 
 	func _origin() -> Vector2:
 		# Centred in whatever height the page gives the grid.
-		return Vector2((size.x - CELL * 6.0) * 0.5, maxf(PAD + 2.0, (size.y - CELL * 5.0) * 0.5))
+		return Vector2((size.x - cell * 6.0) * 0.5, maxf(PAD + 2.0, (size.y - cell * 5.0) * 0.5))
 
 	func cell_center(i: int) -> Vector2:
 		var c := i / 5
 		var r := i % 5
-		return _origin() + Vector2(c * CELL + CELL * 0.5, r * CELL + CELL * 0.5)
+		return _origin() + Vector2(c * cell + cell * 0.5, r * cell + cell * 0.5)
 
 	func _process(delta: float) -> void:
 		_t += delta
@@ -661,7 +667,7 @@ class ForgeGrid extends Control:
 			scl[i] = 1.0
 			var c := i / 5
 			var r := i % 5
-			start_off[i] = -CELL * 6.0 - float(4 - r) * 6.0
+			start_off[i] = -cell * 6.0 - float(4 - r) * 6.0
 			off[i] = start_off[i]
 			delay[i] = c * 0.06 + float(4 - r) * 0.02
 		await _run("drop", Motion.d(0.62), fast)
@@ -704,11 +710,11 @@ class ForgeGrid extends Control:
 				hl[i] = 0
 				scl[i] = 1.0
 				if r < need:
-					start_off[i] = -CELL * float(need) - 8.0
+					start_off[i] = -cell * float(need) - 8.0
 					delay[i] = c * 0.03 + float(need - r) * 0.03
 				else:
 					var old_r: int = kept_rows[r - need]
-					start_off[i] = float(old_r - r) * CELL
+					start_off[i] = float(old_r - r) * cell
 					delay[i] = c * 0.03
 				off[i] = start_off[i]
 		await _run("drop", Motion.d(0.45), fast)
@@ -738,7 +744,7 @@ class ForgeGrid extends Control:
 
 	func _draw() -> void:
 		var o := _origin()
-		var win := Rect2(o, Vector2(CELL * 6.0, CELL * 5.0))
+		var win := Rect2(o, Vector2(cell * 6.0, cell * 5.0))
 		# Frame: dark iron with rivets, a molten seam along the top.
 		var frame := win.grow(PAD)
 		draw_rect(frame, UI.SIDE)
@@ -761,27 +767,27 @@ class ForgeGrid extends Control:
 				draw_line(Vector2(cx, cy), Vector2(cx, cy + dy), UI.GOLD, 3.0)
 		# A faint plate in every cell.
 		for i in 30:
-			var pr := Rect2(cell_center(i) - Vector2(CELL, CELL) * 0.5, Vector2(CELL, CELL)).grow(-3.0)
+			var pr := Rect2(cell_center(i) - Vector2(cell, cell) * 0.5, Vector2(cell, cell)).grow(-3.0)
 			draw_rect(pr, Color(UI.TEXT, 0.025))
 		# Column lines and a faint heat haze from below.
 		for c in range(1, 6):
-			draw_line(o + Vector2(c * CELL, 0), o + Vector2(c * CELL, CELL * 5.0), Color(UI.TEXT, 0.05), 1.0)
+			draw_line(o + Vector2(c * cell, 0), o + Vector2(c * cell, cell * 5.0), Color(UI.TEXT, 0.05), 1.0)
 		for hz in 8:
 			var hy := float(hz) * 6.0
 			draw_rect(Rect2(Vector2(win.position.x, win.end.y - hy - 6.0), Vector2(win.size.x, 6.0)), Color(UI.RED, (0.05 if not _feature else 0.09) * (1.0 - float(hz) / 8.0)))
 		# Symbols (clipped to the window).
 		for i in 30:
 			var p := cell_center(i) + Vector2(0, off[i])
-			if p.y < o.y - CELL * 0.5:
+			if p.y < o.y - cell * 0.5:
 				continue
-			var a := clampf((p.y - (o.y - CELL * 0.5)) / (CELL * 0.5), 0.0, 1.0)
+			var a := clampf((p.y - (o.y - cell * 0.5)) / (cell * 0.5), 0.0, 1.0)
 			if scl[i] <= 0.01:
 				continue
 			if hl[i] == 1:
-				var r := Rect2(cell_center(i) - Vector2(CELL, CELL) * 0.5, Vector2(CELL, CELL)).grow(-2.0)
+				var r := Rect2(cell_center(i) - Vector2(cell, cell) * 0.5, Vector2(cell, cell)).grow(-2.0)
 				draw_rect(r, Color(UI.GOLD, 0.14 + 0.12 * _glow))
 				draw_rect(r, Color(UI.GOLD, 0.7 + 0.3 * _glow), false, 2.0)
-			draw_symbol(self, syms[i], vals[i], p, CELL, a, scl[i])
+			draw_symbol(self, syms[i], vals[i], p, cell, a, scl[i])
 		# The top of the frame again, over symbols still dropping in.
 		draw_rect(Rect2(frame.position, Vector2(frame.size.x, PAD)), UI.SIDE)
 		draw_rect(Rect2(frame.position + Vector2(0, -2), Vector2(frame.size.x, 4)), seam)
@@ -807,7 +813,7 @@ class ForgeGrid extends Control:
 			var to := Vector2(size.x * 0.5, -26.0)
 			var k := _orb_k
 			var pp := from.lerp(to, k * k) + Vector2(0, -sin(k * PI) * 30.0)
-			draw_symbol(self, ForgeMath.ORB, int(of[1]), pp, CELL * (1.0 - 0.4 * k), 1.0, 1.0)
+			draw_symbol(self, ForgeMath.ORB, int(of[1]), pp, cell * (1.0 - 0.4 * k), 1.0, 1.0)
 		# Banners (never block taps: drawn, not a control).
 		if _banner_life > 0.0:
 			var ba := clampf(_banner_life / 0.3, 0.0, 1.0)

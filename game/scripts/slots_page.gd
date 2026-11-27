@@ -500,7 +500,7 @@ class SlotMachine extends Control:
 
 	func _init(t := "classic") -> void:
 		theme_id = t
-		custom_minimum_size = Vector2(0, 318)
+		custom_minimum_size = Vector2(0, 250)   # grows to fill the page; shorter screens get shorter reels
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_rng.randomize()
 		_reels = Control.new()
@@ -662,14 +662,18 @@ class SlotMachine extends Control:
 			return
 		# Full speed only while something moves (reels, a banner, win lines);
 		# at rest the marquee lights chase at 15 frames a second (battery).
-		if _spinning.has(true) or _banner_t > 0.0 or _show_line != -1:
+		if _spinning.has(true) or _banner_t > 0.0:
 			_acc = 0.0
 			_redraw()
 			return
-		if Game.reduce_motion:
-			return
 		_acc += delta
-		if _acc >= 1.0 / 15.0:
+		if _show_line != -1:
+			# Win lines pulse until the next spin: 20 frames a second is smooth enough.
+			if _acc >= 1.0 / 20.0:
+				_acc = 0.0
+				_redraw()
+			return
+		if not Game.reduce_motion and _acc >= 1.0 / 15.0:
 			_acc = 0.0
 			queue_redraw()
 

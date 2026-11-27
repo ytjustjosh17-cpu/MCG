@@ -126,12 +126,8 @@ func primary(text: String, call: Callable) -> Button:
 	var b := UI.pill(text, UI.TEXT, UI.INK, 17, 28)
 	b.custom_minimum_size = Vector2(0, PRIMARY_H)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.pressed.connect(func():
-		if b.get_meta("blocked", false):
-			Motion.shake(b)
-			Kit.haptic("light")
-			return
-		call.call())
+	# A "not yet" button still calls the page, which says why (and may offer chips).
+	b.pressed.connect(call)
 	Kit.press_fx(b)
 	return b
 
@@ -174,7 +170,7 @@ func dock_row(buttons: Array) -> HBoxContainer:
 func win_fx(paid: float, stake: float, big_x := CONFETTI_X, at := Vector2.INF) -> void:
 	## The same answer on every game: the win counts up in gold, a win buzzes,
 	## a big one throws confetti, a loss gives a soft tap. Never blocks a tap.
-	status.set_win(paid)
+	status.set_win(paid, paid > stake + 0.001)
 	if paid > stake + 0.001:
 		Kit.haptic("success")
 		if paid >= stake * big_x:
@@ -349,15 +345,15 @@ class StatusRow extends HBoxContainer:
 		_ctw = create_tween()
 		_ctw.tween_method(func(f: float): chips_l.text = Game.money(f), from, to, 0.6).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 
-	func set_win(v: float) -> void:
-		## Counts up in gold; 0 shows a quiet dash.
+	func set_win(v: float, gold := true) -> void:
+		## Counts up; gold only when more came back than was staked. 0 shows a dash.
 		if _tw and _tw.is_valid():
 			_tw.kill()
 		if v <= 0.0:
 			win_l.text = "-"
 			win_l.add_theme_color_override("font_color", UI.SUB)
 			return
-		win_l.add_theme_color_override("font_color", UI.GOLD)
+		win_l.add_theme_color_override("font_color", UI.GOLD if gold else UI.TEXT)
 		if Motion.reduced():
 			win_l.text = Game.money_short(v)
 			return

@@ -400,9 +400,12 @@ func _finish(n: int, paid: float, total: float) -> void:
 		st.tween_property(_mat_scroll, "scroll_vertical", to, Motion.d(0.35)).set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
 	var col := RouletteMath.color(n)
 	var said := "%d %s" % [n, col] if n != 0 else "Zero"
-	if paid > 0.0:
+	if paid > total + 0.001:
 		_win_l.text = said + ", you win"
 		_win_l.add_theme_color_override("font_color", UI.GOLD)
+	elif paid > 0.0:
+		_win_l.text = said + ", some back"
+		_win_l.add_theme_color_override("font_color", UI.TEXT)
 	else:
 		_win_l.text = said + ", no win"
 		_win_l.add_theme_color_override("font_color", UI.SUB)
