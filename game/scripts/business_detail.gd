@@ -257,7 +257,13 @@ func refresh() -> void:
 	else:
 		_exp_title.text = "Expand to Stage %d" % (stage + 1)
 		_exp_body.visible = true
-		_exp_body.text = "+%d %s · income ×%.1f" % [Data.UNITS_PER_STAGE, String(b["units"]), b["stage_mult"]]
+		# What it is worth: the stage lift on today's income, and with the new
+		# units filled too, so the price can be judged against the gain.
+		var inc := Game.biz_income(id)
+		var mult := float(b["stage_mult"])
+		var now_gain := inc * (mult - 1.0)
+		var full_gain := (inc / float(maxi(units, 1)) * float(cap + Data.UNITS_PER_STAGE) * mult - inc) if units > 0 else 0.0
+		_exp_body.text = "+%s /h now · +%s /h when full" % [Game.money_short(now_gain), Game.money_short(full_gain)]
 		_exp_bar.visible = false
 		_exp_btn.visible = true
 		var cost := Game.expansion_cost(id)

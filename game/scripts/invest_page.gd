@@ -676,7 +676,7 @@ func _refresh_mining() -> void:
 		notes.append("Earns it back in ~%s." % Game.clock(back_h * 3600.0))
 	notes.append("Mines while you're away (%d h max)." % int(Game.offline_cap_h()))
 	if Game.mining_capped():
-		notes.append("Capped at %.1f%% of your income; each new miner lifts the cap." % (Game.mine_cap() * 100.0))
+		notes.append("Capped at %d%% of your company income." % int(round(Game.mine_cap() * 100.0)))
 	_mine_note.text = "\n".join(notes)   # one fact a line
 
 

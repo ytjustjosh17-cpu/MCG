@@ -633,7 +633,10 @@ func _run() -> void:
 		game.buy_rig("LTC")
 	game.recalc()
 	var hash_now: float = float(game.miners.get("hash", 0.0))
-	_check(absf(game.mining_value_per_hour() - hash_now * Data.MINE_YIELD * float(game.mine_eff.get(game.mine_target, 1.0))) < 1.0, "each miner earns 4% of its price an hour, no income cap")
+	var raw_mine := hash_now * Data.MINE_YIELD * float(game.mine_eff.get(game.mine_target, 1.0))
+	var mine_cap_v := maxf(Data.MINE_CAP_FLOOR, Data.MINE_CAP * game.business_per_hour())
+	_check(absf(game.mining_value_per_hour() - minf(raw_mine, mine_cap_v)) < 1.0, "each miner earns 4% of its price an hour, up to a quarter of company income")
+	_check(raw_mine > mine_cap_v, "30 miners on a small empire hit the mining cap")
 	for k in 20:
 		game.cash = 1.0e30
 		game.buy_miner()

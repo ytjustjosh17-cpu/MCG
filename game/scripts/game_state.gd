@@ -1005,14 +1005,21 @@ func _mine_raw_value() -> float:
 
 
 func _mine_scale() -> float:
-	## 1.1 rebalance: no cap tied to income any more (it made early miners
-	## worthless). Miners are limited by their price, ×1.6 each, 40 at most.
-	return 1.0
+	## 1.2 balance: mining pays at most a quarter of what your companies earn
+	## (never less than £2K an hour), so miners help but can't outrun the rest.
+	var raw := _mine_raw_value()
+	if raw <= 0.0:
+		return 1.0
+	return minf(1.0, _mine_cap_value() / raw)
+
+
+func _mine_cap_value() -> float:
+	return maxf(Data.MINE_CAP_FLOOR, Data.MINE_CAP * float(_income_parts.get("biz", 0.0)))
 
 
 func mine_cap() -> float:
-	## Share of income all mining can pay: grows with every miner you own.
-	return Data.MINE_CAP + Data.MINE_CAP_PER_RIG * float(rigs_total())
+	## Share of company income all mining can pay.
+	return Data.MINE_CAP
 
 
 func mine_per_hour(sym: String) -> float:
