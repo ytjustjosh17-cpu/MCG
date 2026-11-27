@@ -111,7 +111,7 @@ func refresh() -> void:
 	if _total == null:
 		return
 	if Game.casino_open():
-		_casino_row.set_texts("Casino", "Slots, roulette, blackjack", "Chips " + Game.money_short(Game.chips()) if Game.chips() >= 0.01 else "")
+		_casino_row.set_texts("Casino", "Slots and tables", "Chips " + Game.money_short(Game.chips()) if Game.chips() >= 0.01 else "")
 	else:
 		_casino_row.set_texts("Casino", "Unlocks in the Rebirth tree", "")
 	var h: Array = Data.HOMES[Game.home]

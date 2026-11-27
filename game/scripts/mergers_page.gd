@@ -52,7 +52,10 @@ func _effect(m: Dictionary) -> String:
 	var names: Array = []
 	for bid in m["boost"]:
 		names.append(String(Data.business(bid)["name"]))
-	return "Boosts " + ", ".join(names)
+	# Short enough for one line: two names, then a count.
+	if names.size() == 1:
+		return "Boosts " + names[0]
+	return "Boosts %s +%d" % [names[0], names.size() - 1]
 
 
 func _need(n: Array) -> Array:

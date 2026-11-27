@@ -40,7 +40,7 @@ WORK="$(mktemp -d /tmp/sol-check.XXXX)"
 if [ $QUICK = 1 ]; then
 	LANES=("a|0|smoke_test" "b|1|scroll_test")
 else
-	LANES=("a|0|smoke_test market_test:20" "b|0|stress_test casino_test forge_test" \
+	LANES=("a|0|smoke_test market_test:20" "b|0|stress_test casino_test forge_test fit_test" \
 		"c|1|scroll_test tables_ui_test" "d|1|slots_ui_test forge_ui_test casino12_test")
 fi
 
