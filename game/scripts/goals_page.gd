@@ -40,7 +40,7 @@ func build() -> void:
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sp.add_child(hint)
 	# Finished goals, season rewards, day milestones and the daily gift wait here for a tap.
-	body.add_child(ClaimList.new(["goal", "streak", "season", "days"]))
+	body.add_child(ClaimList.new(["goal", "streak", "season", "days", "term"]))   # ended bank terms too, so none are missed
 	var d := _header()
 	_day_title = d[0]
 	_day_note = d[1]
