@@ -191,8 +191,16 @@ jobs:
         run: |
           AAPT="$(ls -d ${ANDROID_HOME:-/usr/lib/android-sdk}/build-tools/*/ 2>/dev/null | tail -1)aapt"
           if [ -x "$AAPT" ]; then
-            "$AAPT" dump badging build/Sol.apk | grep -q "package: name='com.redsunholdings.game'" || { echo "::error::Package name changed"; exit 1; }
-            "$AAPT" dump xmltree build/Sol.apk AndroidManifest.xml | grep -q "SolWidget" || { echo "::error::Widget missing from the manifest"; exit 1; }
+            echo "aapt: $AAPT"
+            # Whole output into a variable first: "aapt | grep -q" can fail
+            # under pipefail when grep stops reading early.
+            BADGING="$("$AAPT" dump badging build/Sol.apk 2>&1 || true)"
+            MANIFEST="$("$AAPT" dump xmltree build/Sol.apk AndroidManifest.xml 2>&1 || true)"
+            echo "$BADGING" | head -3
+            echo "$MANIFEST" | grep -n -i "receiver\|SolWidget\|appwidget" || echo "(no receiver lines)"
+            grep -n "SolWidget" android/build/AndroidManifest.xml || echo "(template manifest has no SolWidget)"
+            case "$BADGING" in *"package: name='com.redsunholdings.game'"*) ;; *) echo "::error::Package name changed"; exit 1;; esac
+            case "$MANIFEST" in *SolWidget*) ;; *) echo "::error::Widget missing from the manifest"; exit 1;; esac
             echo "Widget and package OK"
           else
             echo "aapt not found; skipped the widget check"
