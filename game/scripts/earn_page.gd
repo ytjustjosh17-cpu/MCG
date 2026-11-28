@@ -240,7 +240,7 @@ func _tick() -> void:
 	if _boost_btn == null or not is_visible_in_tree():
 		return
 	var tired := Game.tap_tired()
-	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if tired else 1.0)) + " /tap" + ("  ·  tired, rest a bit" if tired else "")
+	_per_tap.text = Game.money_short(Game.tap_value() * _tap_mult() * (Data.TAP_TIRED_MULT if tired else 1.0)) + " /tap"
 	_frenzy.get_parent().visible = Game.frenzy_active()
 	if Game.frenzy_active():
 		_frenzy.text = "Taps ×%d  %s" % [int(Data.FRENZY_MULT), Game.clock(Game.frenzy_until - Game.now())]
