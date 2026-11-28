@@ -219,7 +219,7 @@ const SYNERGIES := [
 	["launch_fuel", "Rocket fuel", "oil", 6, "space", 1.2, 1.5e12],
 ]
 # One dial for all company income, set so 1.1's new bonuses keep the same pace.
-const INCOME_SCALE := 0.85  # 1.2: companies earn 6% more (owner: money felt slow; was 0.8)
+const INCOME_SCALE := 1.05  # 1.2: companies earn more (owner: money felt slow; 0.8, then 0.85, then 1.05 once the robot stopped over-counting taps)
 const ACH_BONUS := 0.002      # each achievement adds 0.2% to all income (cap lands near the last ones)
 const ACH_BONUS_CAP := 0.15   # but never more than +15% in total
 # ---- head office (1.1): one-off upgrades that change the rules -----------

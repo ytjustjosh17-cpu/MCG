@@ -166,3 +166,5 @@ The robot now tires like a thumb (heat) and gets the tap boost for only its 60 s
 | one 15-minute visit a day (`once`) | 42.8 |
 
 In the `six` diary (`SIM_DIARY=1`), taps paid about 60% of everything earned before £10B, rewards about 6%, and companies the rest. One hour of tapping at 3 a second pays about 19 hours of income (0.12% of an hour a tap x 10,800 taps x about 1.46 for combos); past about 10 minutes non-stop at 3 a second taps tire to a tenth.
+
+Then (owner: "speed it up a little"): `INCOME_SCALE` 0.85 to 1.05 (companies earn about 24% more). Robot 90% day 32.3 and 33.3 (seeds 1234, 99), greedy 33.3; £10B on day 19.5 to 19.8 for the normal robot and 9.4 for six 10-minute visits. Tried: 0.92 (35.8), 0.97 (34.8), taps +25% (35.3), 1.12 (30.3, a little quick).

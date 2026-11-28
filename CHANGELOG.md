@@ -1,5 +1,10 @@
 # Changelog
 
+## A bit quicker
+
+- Companies earn about a quarter more. A normal player finishes 90% of the
+  game in about 33 days instead of 38.
+
 ## More detailed logos, icon, widget and pictures
 
 - Every company you can buy shares in has its own logo: a wind turbine
