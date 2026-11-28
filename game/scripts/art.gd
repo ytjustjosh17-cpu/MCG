@@ -79,6 +79,8 @@ static func draw(ci: CanvasItem, kind: String, o: Vector2, s: float, lit := 2, r
 		_detail = s >= 0.9
 		_lit_col = red
 	_draw_kind(ci, kind, o, s, lit, red, ink, win)
+	if _detail:
+		_extras(ci, kind, o, s, lit, red, ink, win)
 	_detail = keep_detail
 
 
@@ -365,6 +367,412 @@ static func _draw_kind(ci: CanvasItem, kind: String, o: Vector2, s: float, lit: 
 				_poly(ci, o, s, [[px - 10, 32], [px + 2, 26], [px + 14, 32], [px + 2, 30]], ink)
 		_:
 			_rect(ci, o, s, 30, 20, 60, 50, ink)
+
+
+# ---- hero detail -------------------------------------------------------------
+# Big pictures only (draw() turns _detail on from s >= 0.9; list thumbnails
+# and the sun's rim pass stay plain silhouettes). Everything here stands on
+# the ground (y = 70) or on the building itself: nothing floats.
+
+static func _line(ci: CanvasItem, o: Vector2, s: float, x1: float, y1: float, x2: float, y2: float, c: Color, w := 1.0) -> void:
+	ci.draw_line(o + Vector2(x1, y1) * s, o + Vector2(x2, y2) * s, c, maxf(1.0, w * s), true)
+
+
+static func _box(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, w: float, h: float, c: Color) -> void:
+	## A plain filled rect (no window or wall treatment from _rect).
+	ci.draw_rect(Rect2(o + Vector2(x, y) * s, Vector2(w, h) * s), c, true)
+
+
+static func _lamp(ci: CanvasItem, o: Vector2, s: float, x: float, ink: Color, face := 1.0) -> void:
+	## A street lamp standing on the ground, its head leaning `face` (+1 right).
+	_box(ci, o, s, x - 0.6, 44, 1.2, 26, ink)
+	_line(ci, o, s, x, 44.5, x + 5.0 * face, 43, ink, 1.0)
+	_box(ci, o, s, x + 3.5 * face - 1.5, 42.4, 3.0, 1.6, ink)
+	ci.draw_circle(o + Vector2(x + 3.5 * face, 44.6) * s, 2.2 * s, Color(UI.FLASH, 0.16))
+	_box(ci, o, s, x + 3.5 * face - 1.0, 43.8, 2.0, 0.8, Color(UI.FLASH, 0.85))
+
+
+static func _tree(ci: CanvasItem, o: Vector2, s: float, x: float, h: float, ink: Color) -> void:
+	_box(ci, o, s, x - 0.8, 70 - h * 0.55, 1.6, h * 0.55, ink)
+	_circle(ci, o, s, x, 70 - h * 0.62, h * 0.26, ink)
+	_circle(ci, o, s, x - h * 0.16, 70 - h * 0.5, h * 0.2, ink)
+	_circle(ci, o, s, x + h * 0.17, 70 - h * 0.48, h * 0.21, ink)
+
+
+static func _person(ci: CanvasItem, o: Vector2, s: float, x: float, ink: Color, y := 70.0) -> void:
+	## A small standing figure, feet on y.
+	_circle(ci, o, s, x, y - 9.2, 1.5, ink)
+	_poly(ci, o, s, [[x - 1.6, y - 7.6], [x + 1.6, y - 7.6], [x + 1.3, y - 3.4], [x - 1.3, y - 3.4]], ink)
+	_box(ci, o, s, x - 1.2, y - 3.6, 0.9, 3.6, ink)
+	_box(ci, o, s, x + 0.3, y - 3.6, 0.9, 3.6, ink)
+
+
+static func _awning(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, w: float, red: Color, ink: Color) -> void:
+	## A striped shop awning sloping out, with a scalloped edge.
+	var n := int(w / 5.0)
+	var sw := w / float(n)
+	for i in n:
+		var c := Color(red, 0.85) if i % 2 == 0 else Color(UI.FLASH, 0.55)
+		_poly(ci, o, s, [[x + i * sw, y], [x + (i + 1) * sw, y], [x + (i + 1) * sw + 1.2, y + 5], [x + i * sw + 1.2, y + 5]], c)
+		_circle(ci, o, s, x + i * sw + sw * 0.5 + 1.2, y + 5, sw * 0.5, c)
+	_box(ci, o, s, x - 0.5, y - 0.8, w + 1.0, 1.0, ink)
+
+
+static func _mark(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, w: float, h: float, red: Color, ink: Color) -> void:
+	## A made-up company sign: a dark plate, a small sun disc and two bars.
+	_box(ci, o, s, x, y, w, h, ink)
+	_box(ci, o, s, x, y + h - 0.6, w, 0.6, Color(UI.HAZE, 0.9))
+	_circle(ci, o, s, x + h * 0.55, y + h * 0.5, h * 0.3, red)
+	_box(ci, o, s, x + h * 1.1, y + h * 0.3, w - h * 1.5, h * 0.14, Color(UI.FLASH, 0.75))
+	_box(ci, o, s, x + h * 1.1, y + h * 0.58, (w - h * 1.5) * 0.6, h * 0.12, Color(UI.SUB, 0.7))
+
+
+static func _ac(ci: CanvasItem, o: Vector2, s: float, x: float, y: float, ink: Color) -> void:
+	## A rooftop air-con unit sitting on y.
+	_box(ci, o, s, x, y - 5, 9, 5, ink)
+	_circle(ci, o, s, x + 3, y - 2.5, 1.6, Color(UI.HAZE, 0.9))
+	_box(ci, o, s, x + 5.5, y - 4, 2.5, 0.6, Color(UI.HAZE, 0.9))
+	_box(ci, o, s, x + 5.5, y - 2.6, 2.5, 0.6, Color(UI.HAZE, 0.9))
+
+
+static func _wheel_hub(ci: CanvasItem, o: Vector2, s: float, x: float, y: float) -> void:
+	_circle(ci, o, s, x, y, 4.2, Color(UI.SIDE, 1.0))
+	for k in 5:
+		var a := TAU * float(k) / 5.0
+		_line(ci, o, s, x, y, x + cos(a) * 3.6, y + sin(a) * 3.6, Color(UI.HAZE, 0.9), 0.6)
+	_circle(ci, o, s, x, y, 1.3, Color(UI.SUB, 0.8))
+
+
+static func _extras(ci: CanvasItem, kind: String, o: Vector2, s: float, lit: int, red: Color, ink: Color, win: Color) -> void:
+	var k := Color(ink, 0.999)   # plain ink, without _rect's wall treatment
+	var haze := Color(UI.HAZE, 0.9)
+	var glow := Color(UI.FLASH, 0.85)
+	match kind:
+		"shop":
+			_awning(ci, o, s, 26, 30, 30, red, k)
+			# Shop sign on two posts, standing on the roof.
+			_box(ci, o, s, 49, 15, 1.2, 4, k)
+			_box(ci, o, s, 70, 15, 1.2, 4, k)
+			_mark(ci, o, s, 44, 8, 32, 8, red, k)
+			_ac(ci, o, s, 86, 18, k)
+			# Glass door: frame, a bar and a handle.
+			_box(ci, o, s, 66, 36, 22, 1.2, k)
+			_box(ci, o, s, 76.4, 36, 1.2, 34, k)
+			_box(ci, o, s, 73.5, 52, 1.2, 4, glow)
+			_line(ci, o, s, 68, 40, 74, 34 + 12, Color(UI.HAZE, 0.5), 0.8)
+			# A sale board, a lamp and a shopper outside.
+			_poly(ci, o, s, [[58, 70], [60, 60], [64, 60], [66, 70]], k)
+			_box(ci, o, s, 60.6, 62, 2.8, 0.7, Color(UI.FLASH, 0.6))
+			_lamp(ci, o, s, 8, k, 1.0)
+			_person(ci, o, s, 16, k)
+			_box(ci, o, s, 20, 68.6, 80, 1.4, haze)   # the step
+		"van":
+			# Counter shelf, a menu board, string lights and a flue.
+			_box(ci, o, s, 22, 48, 46, 1.6, haze)
+			_box(ci, o, s, 68, 36, 12, 12, win)
+			for my in [38.5, 41.5, 44.5]:
+				_box(ci, o, s, 70, my, 8, 0.8, Color(UI.SUB, 0.75))
+			for i in 9:
+				_circle(ci, o, s, 20 + i * 6, 31.5 + (1.0 if i % 2 == 0 else 0.0), 0.9, red if i % 3 == 0 else glow)
+			_box(ci, o, s, 74, 22, 2.4, 8, k)
+			_box(ci, o, s, 73, 21, 4.4, 1.4, k)
+			# Cab: door line, mirror, headlight.
+			_line(ci, o, s, 85, 40, 85, 60, Color(UI.HAZE, 0.8), 0.6)
+			_box(ci, o, s, 99, 41, 2.2, 3, k)
+			_box(ci, o, s, 106.5, 52, 2, 2, glow)
+			_box(ci, o, s, 14, 54, 2, 3, red)
+			_wheel_hub(ci, o, s, 30, 63)
+			_wheel_hub(ci, o, s, 94, 63)
+			_person(ci, o, s, 6, k)
+		"taxi":
+			# Roof sign lit, door lines, handles, mirror, lights and bumper.
+			_box(ci, o, s, 49, 40, 8, 3, Color(UI.FLASH, 0.9))
+			_box(ci, o, s, 51, 41, 4, 1, red)
+			_line(ci, o, s, 52, 46, 52, 61, Color(UI.HAZE, 0.9), 0.6)
+			_line(ci, o, s, 38, 46, 36, 61, Color(UI.HAZE, 0.9), 0.6)
+			_box(ci, o, s, 41, 55, 3, 0.8, Color(UI.SUB, 0.7))
+			_box(ci, o, s, 55, 55, 3, 0.8, Color(UI.SUB, 0.7))
+			_poly(ci, o, s, [[66, 50], [69, 49], [69, 51.5]], k)
+			_box(ci, o, s, 87, 55, 3, 2, glow)
+			_box(ci, o, s, 28, 55, 2, 2.4, red)
+			_box(ci, o, s, 27, 60, 64, 1.2, Color(UI.HAZE, 0.8))
+			_wheel_hub(ci, o, s, 40, 63)
+			_wheel_hub(ci, o, s, 76, 63)
+			_lamp(ci, o, s, 104, k, -1.0)
+			_person(ci, o, s, 112, k)
+		"ship":
+			# A quay under the lorry (piles into the water) and a bollard.
+			_box(ci, o, s, 2, 69, 116, 3, k)
+			_box(ci, o, s, 2, 69, 116, 0.8, haze)
+			for px in [8, 32, 56, 80, 104]:
+				_box(ci, o, s, px, 72, 3, 7, k)
+			_box(ci, o, s, 110, 65, 3, 4, k)
+			_box(ci, o, s, 109, 64, 5, 1.4, k)
+			# Container ribs, a made-up line's mark, cab detail, exhaust.
+			for rx in range(20, 76, 7):
+				_box(ci, o, s, rx, 31, 0.8, 30, Color(UI.HAZE, 0.55))
+			_mark(ci, o, s, 40, 40, 28, 9, red, k)
+			_box(ci, o, s, 80, 26, 2.4, 13, k)
+			_line(ci, o, s, 79, 44, 79, 60, Color(UI.HAZE, 0.8), 0.6)
+			_box(ci, o, s, 102, 54, 2, 2, glow)
+			_box(ci, o, s, 76, 54, 2, 7, k)
+			for wx in [26, 44, 70, 96]:
+				_wheel_hub(ci, o, s, wx, 63)
+		"factory":
+			# Glazed north lights on the sawtooth, a shutter door, a striped stack.
+			for sx in [10, 30, 50]:
+				_poly(ci, o, s, [[sx + 17, 30], [sx + 19, 29], [sx + 19, 39], [sx + 17, 39]], Color(UI.HAZE, 0.9))
+			_box(ci, o, s, 74, 50, 18, 20, win)
+			var fy := 52.0
+			while fy < 70.0:
+				_box(ci, o, s, 74, fy, 18, 0.7, Color(UI.HAZE, 0.9))
+				fy += 3.0
+			_box(ci, o, s, 80, 16, 9, 1.4, red)
+			_box(ci, o, s, 80, 22, 9, 1.0, Color(red, 0.55))
+			_circle(ci, o, s, 86, 6, 3.0, Color(UI.HAZE, 0.75))
+			_circle(ci, o, s, 90, 2, 4.0, Color(UI.HAZE, 0.55))
+			_circle(ci, o, s, 96, -2, 5.0, Color(UI.HAZE, 0.35))
+			_box(ci, o, s, 89, 30, 8, 2, k)   # a pipe off the stack
+			_box(ci, o, s, 95, 30, 2, 10, k)
+			_lamp(ci, o, s, 104, k, -1.0)
+			for fx in range(100, 118, 3):
+				_box(ci, o, s, fx, 62, 0.8, 8, k)
+			_box(ci, o, s, 100, 63, 18, 0.8, k)
+		"crane":
+			# Lattice on the tower and jib, a cab, counterweight, warning light.
+			for ty in range(12, 68, 6):
+				_line(ci, o, s, 30.5, ty, 35.5, ty + 6, haze, 0.5)
+				_line(ci, o, s, 35.5, ty, 30.5, ty + 6, haze, 0.5)
+			for jx in range(12, 104, 6):
+				_line(ci, o, s, jx, 8.5, jx + 3, 12.5, haze, 0.5)
+				_line(ci, o, s, jx + 3, 12.5, jx + 6, 8.5, haze, 0.5)
+			_box(ci, o, s, 10, 13, 12, 7, k)
+			_box(ci, o, s, 36, 13, 9, 7, k)
+			_box(ci, o, s, 38, 14.5, 5, 3.5, win)
+			_circle(ci, o, s, 33, 6, 1.5, red)
+			# A steel beam on the hook and scaffold on the new block.
+			_box(ci, o, s, 76, 41, 21, 2, k)
+			for sx in range(52, 98, 8):
+				_box(ci, o, s, sx, 40, 0.7, 30, Color(UI.HAZE, 0.8))
+			for sy in [50, 60]:
+				_box(ci, o, s, 50, sy, 48, 0.7, Color(UI.HAZE, 0.8))
+			# Cones and a worker on the ground.
+			for cx in [4, 12]:
+				_poly(ci, o, s, [[cx - 2, 70], [cx, 64], [cx + 2, 70]], Color(red, 0.85))
+				_box(ci, o, s, cx - 1.2, 66.5, 2.4, 0.8, Color(UI.FLASH, 0.8))
+			_person(ci, o, s, 22, k)
+		"dealer":
+			# Sign on the roof, glass mullions, bunting from two poles.
+			_box(ci, o, s, 53, 26, 1.2, 4, k)
+			_box(ci, o, s, 66, 26, 1.2, 4, k)
+			_mark(ci, o, s, 40, 18, 40, 8, red, k)
+			for mx in [37, 60, 83]:
+				_box(ci, o, s, mx, 36, 1.0, 22, k)
+			_box(ci, o, s, 14, 46, 92, 0.6, Color(UI.HAZE, 0.6))
+			_box(ci, o, s, 2, 8, 1.2, 62, k)
+			_box(ci, o, s, 116, 8, 1.2, 62, k)
+			var rope := PackedVector2Array()
+			for i in 17:
+				var t := float(i) / 16.0
+				rope.append(o + Vector2(lerpf(3.0, 116.0, t), 9.0 + sin(t * PI) * 4.0) * s)
+			ci.draw_polyline(rope, Color(ink, 0.9), maxf(1.0, s * 0.5), true)
+			for i in 13:
+				var t := (float(i) + 0.5) / 13.0
+				var bx := lerpf(3.0, 116.0, t)
+				var by := 9.0 + sin(t * PI) * 4.0
+				if bx > 38.0 and bx < 82.0 and by > 12.0:
+					continue   # none over the sign
+				_poly(ci, o, s, [[bx - 1.6, by], [bx + 1.6, by], [bx, by + 3]], red if i % 2 == 0 else Color(UI.FLASH, 0.7))
+			_box(ci, o, s, 8, 58, 104, 1.4, haze)
+		"gym":
+			# Posts holding the dumbbell sign, runners in the windows, a door.
+			_box(ci, o, s, 52, 15, 1.4, 9, k)
+			_box(ci, o, s, 67, 15, 1.4, 9, k)
+			for wx in [18, 62, 84]:
+				_person(ci, o, s, wx + 9, Color(UI.HAZE, 1.0), 57.5)
+			_person(ci, o, s, 49, Color(red.lerp(UI.INK, 0.55), 1.0), 57.5)
+			_box(ci, o, s, 48, 60, 12, 10, win)
+			_box(ci, o, s, 53.4, 60, 1.2, 10, k)
+			_box(ci, o, s, 46, 58.6, 16, 1.4, k)
+			_ac(ci, o, s, 90, 24, k)
+			_lamp(ci, o, s, 6, k, 1.0)
+			_tree(ci, o, s, 114, 16, k)
+		"screen":
+			# A sky bridge, a dish and mast, a glass entrance and a lit name plate.
+			_box(ci, o, s, 56, 40, 8, 5, k)
+			_box(ci, o, s, 56, 41.5, 8, 1.5, win)
+			_box(ci, o, s, 33, 6, 1.2, 8, k)
+			_circle(ci, o, s, 44, 11, 3, k)
+			_box(ci, o, s, 43.4, 11, 1.2, 3, k)
+			_circle(ci, o, s, 33.6, 5.5, 1.2, red)
+			_box(ci, o, s, 30, 60, 18, 10, win)
+			_box(ci, o, s, 38.4, 60, 1.2, 10, k)
+			_box(ci, o, s, 28, 58.6, 22, 1.4, k)
+			_mark(ci, o, s, 68, 26, 26, 5, red, k)
+			_tree(ci, o, s, 108, 18, k)
+			_tree(ci, o, s, 12, 14, k)
+			_person(ci, o, s, 58, k)
+		"hotel":
+			# Entrance canopy, flags on the podium, a tall sign and roof light.
+			_poly(ci, o, s, [[44, 54], [76, 54], [78, 57], [42, 57]], k)
+			_box(ci, o, s, 44, 57, 1.2, 13, k)
+			_box(ci, o, s, 74.8, 57, 1.2, 13, k)
+			for fx in [26, 92]:
+				_box(ci, o, s, fx, 38, 1.0, 12, k)
+				_poly(ci, o, s, [[fx + 1, 38], [fx + 7, 39.5], [fx + 1, 41]], red if fx == 26 else Color(UI.FLASH, 0.7))
+			_box(ci, o, s, 86, 10, 4, 26, k)
+			for sy in range(12, 34, 5):
+				_box(ci, o, s, 87, sy, 2, 3, Color(UI.FLASH, 0.7) if sy % 2 == 0 else red)
+			_circle(ci, o, s, 60, -7, 1.4, red)
+			_box(ci, o, s, 22, 50, 76, 0.8, haze)
+		"mast":
+			# Guy wires to the ground, a red light halfway, the studio's on-air sign.
+			_line(ci, o, s, 60, 8, 40, 70, Color(ink, 0.8), 0.5)
+			_line(ci, o, s, 60, 8, 80, 42, Color(ink, 0.8), 0.5)
+			_line(ci, o, s, 60, 30, 46, 70, Color(ink, 0.8), 0.5)
+			for my in range(8, 66, 6):
+				_line(ci, o, s, 60 - (70 - my) * 0.09, my, 60 + (70 - my - 6) * 0.09, my + 6, haze, 0.4)
+			_circle(ci, o, s, 60, 34, 1.4, red)
+			_box(ci, o, s, 95, 37, 1.4, 5, k)   # the dish's stand
+			_box(ci, o, s, 82, 61, 10, 9, win)
+			_box(ci, o, s, 96, 61, 8, 2.4, red)
+			_box(ci, o, s, 74, 42, 34, 1.0, haze)
+		"bank":
+			# Entablature on the columns, a dark hall behind, a great door,
+			# steps, and a flag on the apex.
+			_box(ci, o, s, 12, 30, 96, 4, k)
+			_box(ci, o, s, 12, 31.6, 96, 0.7, haze)
+			_box(ci, o, s, 16, 34, 88, 30, Color(UI.HAZE.lerp(UI.INK, 0.45), 1.0))
+			_box(ci, o, s, 47, 44, 10, 20, Color(UI.INK, 0.9))
+			_box(ci, o, s, 47.6, 44.6, 4, 19.4, Color(UI.HAZE, 0.9))
+			_box(ci, o, s, 52.4, 44.6, 4, 19.4, Color(UI.HAZE, 0.9))
+			_box(ci, o, s, 50.6, 53, 0.8, 2, glow)
+			for wx in [28, 68, 88]:
+				_box(ci, o, s, wx, 42, 6, 9, Color(UI.INK, 0.85))
+				_box(ci, o, s, wx, 42, 6, 2.4, Color(red, 0.35) if wx == 68 and lit > 1 else Color(UI.HAZE, 0.6))
+			# The columns again, over the hall, with capitals.
+			for cx in [18, 38, 58, 78, 96]:
+				_box(ci, o, s, cx, 34, 8, 30, k)
+				_box(ci, o, s, cx - 1, 34, 10, 1.6, k)
+				_box(ci, o, s, cx + 1.2, 36, 0.8, 27, Color(UI.HAZE, 1.0))
+			for st in 3:
+				_box(ci, o, s, 10 - st * 2, 64 + st * 2, 100 + st * 4, 0.6, haze)
+			_box(ci, o, s, 59.4, 0, 1.2, 10, k)
+			_poly(ci, o, s, [[60.6, 0], [67, 1.8], [60.6, 3.6]], red)
+		"stadium":
+			# Floodlight beams on the pitch, crowd in the stand, arches below.
+			for lx in [16, 100]:
+				_poly(ci, o, s, [[lx - 4, 12], [lx + 6, 12], [60 + (lx - 58) * 0.2 + 20, 46], [60 + (lx - 58) * 0.2 - 20, 46]], Color(UI.FLASH, 0.07))
+				for bx in range(lx - 4, lx + 7, 3):
+					_box(ci, o, s, bx, 7.5, 1.6, 3, glow)
+			for cx in range(22, 98, 3):
+				_circle(ci, o, s, cx, 49 + (cx % 2), 0.9, Color(red, 0.55) if cx % 7 == 0 else Color(ink, 0.9))
+			for ax in range(18, 104, 12):
+				_box(ci, o, s, ax, 60, 6, 10, win)
+				_circle(ci, o, s, ax + 3, 60, 3, win)
+			_box(ci, o, s, 12, 40, 96, 1.2, haze)
+			for fx in [30, 60, 90]:
+				_box(ci, o, s, fx, 33, 0.8, 7, k)
+				_poly(ci, o, s, [[fx + 0.8, 33], [fx + 5, 34.2], [fx + 0.8, 35.4]], red if fx == 60 else Color(UI.FLASH, 0.6))
+		"mine":
+			# The winding wheel's spokes and rope, a conveyor, a cart on rails.
+			_circle(ci, o, s, 53, 9, 6.4, k)
+			for a in 6:
+				var an := TAU * float(a) / 6.0
+				_line(ci, o, s, 53, 9, 53 + cos(an) * 5.6, 9 + sin(an) * 5.6, haze, 0.6)
+			_line(ci, o, s, 58, 12, 78, 40, Color(ink, 0.9), 0.6)
+			_line(ci, o, s, 36, 62, 66, 44, k, 2.0)
+			for cx in range(40, 66, 5):
+				_box(ci, o, s, cx, 59 - (cx - 36) * 0.6, 0.8, 70 - (59 - (cx - 36) * 0.6), Color(ink, 0.9))
+			_box(ci, o, s, 2, 69, 34, 1.2, k)
+			_poly(ci, o, s, [[10, 60], [24, 60], [22, 66], [12, 66]], k)
+			_wheel_hub(ci, o, s, 14, 67.5)
+			_wheel_hub(ci, o, s, 21, 67.5)
+			_box(ci, o, s, 70, 52, 8, 18, win)
+			_lamp(ci, o, s, 112, k, -1.0)
+		"rig":
+			# Lattice on the derrick, a flare boom, a helipad, rails.
+			for ry in range(10, 44, 6):
+				var hw := 2.0 + (ry - 6) * 0.42
+				_line(ci, o, s, 54 - hw, ry, 54 + hw, ry + 6, haze, 0.5)
+				_line(ci, o, s, 54 + hw, ry, 54 - hw, ry + 6, haze, 0.5)
+			_line(ci, o, s, 12, 44, 2, 30, k, 1.4)
+			_circle(ci, o, s, 2, 28, 2.4, Color(red, 0.9))
+			_circle(ci, o, s, 2, 27, 1.2, Color(UI.FLASH, 0.9))
+			_box(ci, o, s, 74, 28, 30, 2, k)
+			_box(ci, o, s, 82, 28.6, 14, 0.8, Color(UI.FLASH, 0.6))
+			for rx in range(12, 108, 4):
+				_box(ci, o, s, rx, 40, 0.6, 4, k)
+			_box(ci, o, s, 10, 40, 100, 0.6, k)
+			_box(ci, o, s, 92, 34, 6, 5, win)
+			_poly(ci, o, s, [[18, 52], [32, 52], [30, 56], [20, 56]], Color(red, 0.85))   # a lifeboat under the deck
+		"plane":
+			# Landing gear on the runway, cockpit, engine, a made-up tail mark.
+			for gx in [44.0, 70.0]:
+				_box(ci, o, s, gx, 46, 1.4, 18, k)
+				_circle(ci, o, s, gx + 0.7, 66, 3.2, k)
+				_circle(ci, o, s, gx + 0.7, 66, 1.2, Color(UI.SUB, 0.7))
+			_box(ci, o, s, 92, 46, 1.2, 18, k)
+			_circle(ci, o, s, 92.6, 66.5, 2.6, k)
+			_poly(ci, o, s, [[102, 38], [108, 39], [106, 40.5], [102, 40.5]], win)
+			_poly(ci, o, s, [[50, 47], [64, 47], [66, 50], [64, 53], [50, 53]], k)
+			_circle(ci, o, s, 51, 50, 2.4, Color(UI.SIDE, 1.0))
+			_circle(ci, o, s, 16, 26, 3, red)
+			_box(ci, o, s, 22, 42, 76, 0.8, Color(UI.HAZE, 0.9))
+			_box(ci, o, s, 26, 38, 2.6, 6, Color(UI.HAZE, 0.9))
+			for lx in range(4, 118, 10):
+				_box(ci, o, s, lx, 69, 2, 1, glow if lx % 20 == 4 else red)
+		"rocket":
+			# Bands and panel lines, a launch deck, the tower's arm and light.
+			for by in [22, 34, 46]:
+				_box(ci, o, s, 52, by, 14, 0.8, haze)
+			_box(ci, o, s, 58.6, 16, 0.8, 40, Color(UI.HAZE, 0.6))
+			_box(ci, o, s, 54, 40, 10, 4, Color(red, 0.85))
+			_box(ci, o, s, 40, 66, 60, 4, k)
+			_box(ci, o, s, 40, 66, 60, 0.8, haze)
+			_box(ci, o, s, 66, 26, 14, 2.4, k)
+			_box(ci, o, s, 86, 20, 6, 2, k)
+			_box(ci, o, s, 90, 18, 2.4, 2.4, glow)
+			_poly(ci, o, s, [[92, 19], [104, 15], [104, 25]], Color(UI.FLASH, 0.08))
+			for wy in range(10, 66, 10):
+				_line(ci, o, s, 80, wy, 86, wy + 10, haze, 0.5)
+			_box(ci, o, s, 104, 52, 10, 18, k)   # a water tower
+			_circle(ci, o, s, 109, 50, 6, k)
+		"fusion":
+			# Steam, ribs on the dome, pipes between the towers, a lit ring.
+			for tx in [22, 94]:
+				_circle(ci, o, s, tx, 18, 4, Color(UI.HAZE, 0.7))
+				_circle(ci, o, s, tx + 3, 13, 5, Color(UI.HAZE, 0.45))
+				_circle(ci, o, s, tx + 7, 8, 6, Color(UI.HAZE, 0.25))
+				_box(ci, o, s, tx - 10, 23, 20, 1.0, haze)
+			for a in [-0.9, -0.45, 0.0, 0.45, 0.9]:
+				_line(ci, o, s, 58, 24.5, 58 + sin(a) * 21.5, 46 - cos(a) * 0.5, haze, 0.5)
+			ci.draw_arc(o + Vector2(58, 46) * s, 15.0 * s, PI + 0.3, TAU - 0.3, 24, Color(red, 0.8), maxf(1.0, s * 1.2), true)
+			_box(ci, o, s, 34, 58, 48, 0.8, haze)
+			_box(ci, o, s, 30, 60, 6, 3, k)
+			_box(ci, o, s, 80, 60, 6, 3, k)
+			_box(ci, o, s, 40, 62, 8, 8, win)
+			for fx in range(2, 12, 3):
+				_box(ci, o, s, fx, 62, 0.8, 8, k)
+			_box(ci, o, s, 2, 63, 10, 0.8, k)
+		"orbital":
+			# Lights up the tether, a ship at the dock, a dish on the base.
+			for ty in range(22, 58, 8):
+				_box(ci, o, s, 56.5, ty, 2, 1.4, red if ty % 16 == 6 else glow)
+			_poly(ci, o, s, [[82, 12], [96, 12], [101, 14], [96, 16], [82, 16]], k)
+			_box(ci, o, s, 88, 13.4, 5, 1, glow)
+			_box(ci, o, s, 40, 4, 36, 0.8, haze)
+			_box(ci, o, s, 35.4, 52, 1.2, 6, k)
+			var dish: Array = []
+			for i in 9:
+				var an := PI * float(i) / 8.0 - 0.45   # a bowl tipped towards the sky
+				dish.append([36.0 + cos(an) * 6.0, 47.0 + sin(an) * 3.6])
+			_poly(ci, o, s, dish, k)
+			_line(ci, o, s, 36, 48, 33, 42, k, 0.6)
+			_circle(ci, o, s, 33, 42, 0.9, red)
+			_box(ci, o, s, 30, 58, 56, 0.8, haze)
+			for lx in range(20, 100, 8):
+				_box(ci, o, s, lx, 69, 2, 1, glow if lx % 16 == 4 else red)
 
 
 static func _fill(ci: CanvasItem, poly: PackedVector2Array, clip: PackedVector2Array, c: Color) -> void:
