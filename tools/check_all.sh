@@ -64,7 +64,8 @@ fi
 run_lane() {
 	local name="$1" touch="$2" suites="$3"
 	local dir="$WORK/$name"
-	mkdir -p "$dir" && cp -r "$ROOT/game/." "$dir/"
+	# Copy the game, but not the Android build folder (up to 1 GB after an APK export).
+	mkdir -p "$dir" && tar -C "$ROOT/game" --exclude=./android/build -cf - . | tar -C "$dir" -xf -
 	{
 		printf '[application]\n\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="sol-check-%s-%s"\n' "$RUN_ID" "$name"
 		[ "$touch" = 1 ] && printf '\n[input_devices]\n\npointing/emulate_touch_from_mouse=true\n'

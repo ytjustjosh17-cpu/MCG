@@ -65,6 +65,14 @@ Pages never change state directly.
 - Backup codes (`backup_code()`, `restore_code()`) are the save, gzipped and base64, minus price history and news. A code can't rewind the game it came from (`user://restore_guard.json`).
 - Rebirth (`do_rebirth()`) keeps every key in `REBIRTH_KEEP` and clears every key in `REBIRTH_RESET`; a test fails if a saved key is in neither. The save stores RBP earned and owned node ids; RBP left is worked out from those.
 - Time away is applied on load and on resume (`apply_offline()`), capped at 8 hours of income.
+- Each save also writes `user://widget.json` (`write_widget()`): income an hour as ready-made text for the home screen widget. It is not a save field and nothing loads it.
+
+## Home screen widget
+
+- Java and Android resources live in `game/android_src/` (`SolWidget.java`, four layouts for 1 to 4 cells wide, the widget info and a `<receiver>` snippet).
+- `tools/android_overlay.sh` unpacks Godot's Android build template into `game/android/build` (git-ignored) and adds them. The export preset uses the gradle build (`gradle_build/use_gradle_build=true`), which needs JDK 17 and the Android SDK.
+- The widget reads `files/widget.json` (Godot's `user://` on Android). It redraws every 30 minutes, and when the game asks (`_ping_widget()` calls `SolWidget.refresh()` through `JavaClassWrapper`, at most once a minute and on pause). With no file it shows "Open Sol". Tapping it opens the game.
+- Package name, signing key and saves are unchanged, so Update in Profile works as before.
 
 ## Adding a feature (checklist)
 
@@ -79,7 +87,7 @@ Pages never change state directly.
 
 `.github/workflows/android.yml`:
 1. `rules` job: `python3 tools/check_rules.py`.
-2. `tests` job: the four `tools/check_all.sh` lanes side by side (`--lane a` to `d`, Godot 4.4.1 container, fonts downloaded). 3. `build` job: export and sign `Sol.apk`, write its SHA-256 and build number, upload them as the `Sol-apk` artifact. 4. On a by-hand run only (never on a push): `find` looks for a passing push run of the same commit; if there is one, tests and build are skipped and `publish` takes that run's app. `publish` checks the SHA-256, stamps build provenance (`actions/attest-build-provenance`) and publishes release `v1.2.<run>` with grouped notes for every version, the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
+2. `tests` job: the four `tools/check_all.sh` lanes side by side (`--lane a` to `d`, Godot 4.4.1 container, fonts downloaded). 3. `build` job: set up the Android build template with the widget (`tools/android_overlay.sh`), gradle-export and sign `Sol.apk` (retried if Maven is busy), check with `aapt` that the package name is unchanged and the widget is in the manifest, write its SHA-256 and build number, upload them as the `Sol-apk` artifact. 4. On a by-hand run only (never on a push): `find` looks for a passing push run of the same commit; if there is one, tests and build are skipped and `publish` takes that run's app. `publish` checks the SHA-256, stamps build provenance (`actions/attest-build-provenance`) and publishes release `v1.2.<run>` with grouped notes for every version, the checksum, build log, attestation and VirusTotal link in the notes (retries once if GitHub errors).
 
 `.github/workflows/tidy-releases.yml` (by hand only) deletes every release but the newest, so the Releases page shows one release.
 

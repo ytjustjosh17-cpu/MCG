@@ -6,3 +6,4 @@ build/
 export_credentials.cfg
 override.cfg
 assets/fonts/ext/
+android/.build_version

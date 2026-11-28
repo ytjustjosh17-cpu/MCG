@@ -1238,6 +1238,12 @@ func _run() -> void:
 	_check(is_finite(game.cash) and is_finite(game.chips()) and game.loan().is_empty(), "NaN bets, pays, loans and buys do nothing")
 	game.sim_time = -1.0
 
+	# Home screen widget: every save leaves it income an hour as text.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(game.WIDGET_PATH))
+	game.save_game()
+	var wj = JSON.parse_string(FileAccess.get_file_as_string(game.WIDGET_PATH))
+	_check(typeof(wj) == TYPE_DICTIONARY and String(wj.get("rate", "")) == game.money_short(game.base_income()) and String(wj.get("rate_short", "")).begins_with("£") and String(wj.get("rate_short", "")).length() <= String(wj["rate"]).length(), "save writes the widget's income an hour (%s)" % str(wj))
+
 	# Exploit regressions (1.2 play-test).
 	_check(not TowerMath.is_safe([[1.0, 2.0]], 0, 1) and TowerMath.is_safe([[1.0, 2.0]], 0, 0), "tower: a saved (float) layout still knows its bad boxes")
 	game.reset_game(true)

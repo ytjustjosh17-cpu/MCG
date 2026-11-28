@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One row tall; stretch it from 1 to 4 cells wide. Redrawn when the game
+     saves, and every 30 minutes otherwise. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="360dp"
+    android:maxResizeHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/sol_widget_2"
+    android:previewLayout="@layout/sol_widget_2"
+    android:description="@string/sol_widget_desc"
+    android:widgetCategory="home_screen" />

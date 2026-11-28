@@ -8,6 +8,7 @@ Run them yourself first. A release with a failing test is never pushed.
 - Godot 4.4.1 editor for Linux: `Godot_v4.4.1-stable_linux.x86_64` from the Godot releases page. In these docs it's `$G`.
 - The Godot project is `game/`. Import it once: `cd game && $G --headless --import --path .`
 - Optional, for the real fonts in screenshots: download Switzer and Tanker from Fontshare into `game/assets/fonts/ext/` (the CI step in `.github/workflows/android.yml` shows how). Never commit them.
+- Optional, to build the APK yourself (the home screen widget needs a gradle build): the 4.4.1 export templates, JDK 17 and the Android SDK (platform 34, build-tools 34) set in Godot's editor settings, then `tools/android_overlay.sh` and `$G --headless --export-release "Android" build/Sol.apk` in `game/`. Sign with a throwaway key through `GODOT_ANDROID_KEYSTORE_RELEASE_PATH`, `_USER` and `_PASSWORD`, never the real one. Check with `aapt dump xmltree build/Sol.apk AndroidManifest.xml | grep SolWidget`.
 
 ## Fit test
 

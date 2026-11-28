@@ -2634,6 +2634,8 @@ func _notification(what: int) -> void:
 		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST:
 			_paused_at = now()
 			save_game()
+			if sim_time < 0.0:
+				write_widget(true)   # the home screen shows the latest figure
 		NOTIFICATION_APPLICATION_FOCUS_OUT:
 			# Notification shade, a call, another app on top: save, and draw
 			# only a few frames a second to spare the battery.
@@ -2981,6 +2983,46 @@ func save_game() -> void:
 		GameLog.error("save", "Save file missing after write")
 	_dirty = false
 	_guard_note()
+	write_widget()
+
+
+# ---- home screen widget ------------------------------------------------------
+# The Android widget (game/android_src/) can't run the game, so each save leaves
+# it a tiny file of ready-made text: income an hour, short and full. Not a save
+# field: nothing loads it back, and a missing file just shows "Open Sol".
+
+const WIDGET_PATH := "user://widget.json"
+var _widget_ping_s := -1.0e9
+
+
+func widget_data() -> Dictionary:
+	var inc := base_income()
+	var short := CUR + "%d" % int(round(inc)) if inc < 999.5 else _short(inc, 2)
+	return {"rate": money_short(inc), "rate_short": short, "worth": money_short(net_worth()), "at": int(now())}
+
+
+func write_widget(ping_now := false) -> void:
+	var f := FileAccess.open(WIDGET_PATH, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(JSON.stringify(widget_data()))
+	f.close()
+	# Ask the widget to redraw (Android only), at most once a minute or when
+	# the app goes to the background.
+	var t := Time.get_ticks_msec() / 1000.0
+	if ping_now or t - _widget_ping_s >= 60.0:
+		_widget_ping_s = t
+		_ping_widget()
+
+
+func _ping_widget() -> void:
+	if not OS.has_feature("android"):
+		return
+	var cls = JavaClassWrapper.wrap("com.redsunholdings.game.widget.SolWidget")
+	if cls == null:
+		GameLog.info("widget", "Widget class not found")
+		return
+	cls.refresh()
 
 
 func _guard_load() -> void:

@@ -98,7 +98,7 @@ jobs:
   build:
     needs: tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30   # the gradle build (for the home screen widget) adds a few minutes
     container:
       image: barichello/godot-ci:4.4.1
     env:
@@ -161,17 +161,42 @@ jobs:
             cp assets/fonts/ext/$n.ttf assets/fonts/ext/$n.bin   # raw copy, packed as-is
           done
 
+      - name: Android build template and the home screen widget
+        shell: bash
+        run: |
+          command -v unzip >/dev/null || (apt-get update -qq && apt-get install -y -qq unzip)
+          tools/android_overlay.sh
+
       - name: Import project
         working-directory: game
         run: godot --headless --import || true
 
       - name: Export APK
         working-directory: game
+        shell: bash
         run: |
           mkdir -p build
-          godot --headless --verbose --export-release "Android" build/Sol.apk
+          # Gradle fetches its libraries from Maven, which now and then says
+          # "too many requests": try again rather than fail the build.
+          for i in 1 2 3; do
+            godot --headless --verbose --export-release "Android" build/Sol.apk && test -s build/Sol.apk && break
+            echo "Export try $i failed"; sleep $((i * 20))
+          done
           test -s build/Sol.apk
           ls -la build
+
+      - name: Check the APK has the widget and the same package
+        working-directory: game
+        shell: bash
+        run: |
+          AAPT="$(ls -d ${ANDROID_HOME:-/usr/lib/android-sdk}/build-tools/*/ 2>/dev/null | tail -1)aapt"
+          if [ -x "$AAPT" ]; then
+            "$AAPT" dump badging build/Sol.apk | grep -q "package: name='com.redsunholdings.game'" || { echo "::error::Package name changed"; exit 1; }
+            "$AAPT" dump xmltree build/Sol.apk AndroidManifest.xml | grep -q "SolWidget" || { echo "::error::Widget missing from the manifest"; exit 1; }
+            echo "Widget and package OK"
+          else
+            echo "aapt not found; skipped the widget check"
+          fi
 
       - name: Check the APK has the fonts
         working-directory: game

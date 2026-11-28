@@ -1,7 +1,10 @@
 # Changelog
 
-## Fixed terms worth it, cleaner pictures
+## Widget, fixed terms worth it, cleaner pictures
 
+- A Sol widget for your home screen shows your income an hour. Stretch it
+  from 1 to 4 cells wide. It updates when you leave the game and every 30
+  minutes, and tapping it opens Sol.
 - Fixed terms pay far more: 20% for 1 day, 66% for 3 days, 170% for 7
   days, so locking money beats dividends. Not while a loan is running.
 - Picture fixes everywhere: no stray bars across the sun, companies stand

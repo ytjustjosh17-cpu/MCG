@@ -1,0 +1,12 @@
+        <!-- Sol home screen widget (added by tools/android_overlay.sh). -->
+        <receiver
+            android:name="com.redsunholdings.game.widget.SolWidget"
+            android:label="Sol"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sol_widget_info" />
+        </receiver>
