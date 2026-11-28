@@ -395,7 +395,7 @@ class TableView extends Control:
 	const SHOE := Vector2(36, 49)
 
 	func shoe_pos() -> Vector2:
-		return Vector2(size.x - SHOE.x - 16.0, 14.0)
+		return Vector2(size.x - SHOE.x - 26.0, 22.0)   # clear of the rail and its rounded corner
 
 	func clear_cards() -> void:
 		for c in _cards:

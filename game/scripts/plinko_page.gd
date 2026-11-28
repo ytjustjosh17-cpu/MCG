@@ -181,8 +181,9 @@ class Board extends Control:
 		## so it may be wider than tall (up to 1.8x), which keeps every bucket
 		## label at a readable 13 px.
 		var slots := PlinkoMath.ROWS + 1
-		var gy := minf((size.x - 16.0) / float(slots), (size.y - 70.0) / float(PlinkoMath.ROWS + 1))
-		var gx := minf((size.x - 16.0) / float(slots), gy * 1.8)
+		# 18 px each side: the outer pegs and buckets clear the cabinet frame.
+		var gy := minf((size.x - 36.0) / float(slots), (size.y - 70.0) / float(PlinkoMath.ROWS + 1))
+		var gx := minf((size.x - 36.0) / float(slots), gy * 1.8)
 		var top := 22.0 + maxf(0.0, (size.y - 70.0 - gy * float(PlinkoMath.ROWS + 1)) * 0.5)
 		return {"gap": gx, "gy": gy, "top": top, "cx": size.x * 0.5}
 

@@ -12,7 +12,7 @@ extends CasinoGame
 ## saved at once and closing the app mid-spin can't undo a loss. The chips
 ## shown on screen lag behind until the ball settles.
 
-const MAT_W := 358.0
+const MAT_W := 348.0   # leaves room for the slim scroll bar, so it never covers the 3, 6, 9 cells
 const ROW_H := 48.0
 const GAP := 3.0
 const STRIP_W := 48.0

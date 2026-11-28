@@ -597,11 +597,17 @@ class StatusRow extends HBoxContainer:
 		var pad := Control.new()   # inner padding: the row sits on its own panel
 		pad.custom_minimum_size = Vector2(2, 0)   # (12 px with the separation)
 		add_child(pad)
+		# Room above and below the three lines, so the jackpot line never
+		# sits on the panel's bottom edge.
+		var lm := MarginContainer.new()
+		lm.add_theme_constant_override("margin_top", 4)
+		lm.add_theme_constant_override("margin_bottom", 5)
+		lm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		add_child(lm)
 		var lv := VBoxContainer.new()
 		lv.add_theme_constant_override("separation", -2)
-		lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		add_child(lv)
+		lm.add_child(lv)
 		chips_l = UI.display("", 22)
 		lv.add_child(chips_l)
 		max_l = UI.label("", 13, UI.SUB)
@@ -614,7 +620,7 @@ class StatusRow extends HBoxContainer:
 		rv.add_theme_constant_override("separation", -2)
 		rv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		add_child(rv)
-		win_l = UI.display("-", 22, UI.SUB)
+		win_l = UI.display("£0", 22, UI.SUB)   # a lone dash read as a stray mark
 		win_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		rv.add_child(win_l)
 		var wc := UI.label("Win", 13, UI.SUB)
@@ -676,7 +682,7 @@ class StatusRow extends HBoxContainer:
 		if _tw and _tw.is_valid():
 			_tw.kill()
 		if v <= 0.0:
-			win_l.text = "-"
+			win_l.text = "£0"
 			win_l.add_theme_color_override("font_color", UI.SUB)
 			return
 		win_l.add_theme_color_override("font_color", UI.GOLD if gold else UI.TEXT)

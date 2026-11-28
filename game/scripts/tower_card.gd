@@ -311,7 +311,7 @@ func celebrate() -> void:
 	if not Game.reduce_motion:
 		_wave = 0.0
 	if not Motion.reduced():
-		add_child(Confetti.new(Vector2(size.x * 0.5, size.y * 0.3), 60))
+		add_child(Confetti.new(Vector2(size.x * 0.5, size.y * 0.3), 60, true))
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -397,7 +397,7 @@ func _combo_tick(pos: Vector2) -> void:
 		Kit.haptic("medium")
 		Motion.pop(_combo_l, 1.25)
 		if not Motion.reduced():
-			add_child(Confetti.new(pos, 40))
+			add_child(Confetti.new(pos, 40, true))
 
 
 func _combo_fade() -> void:
@@ -425,7 +425,7 @@ func _spawn_crit(pos: Vector2, v: float) -> void:
 	l.pivot_offset = Vector2(50, 16)
 	l.scale = Vector2(0.6, 0.6)
 	_float_count += 1
-	add_child(Confetti.new(pos, 18))
+	add_child(Confetti.new(pos, 18, true))
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(l, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)  # reduced-checked
 	tw.tween_property(l, "position:y", l.position.y - 90.0, 1.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)  # reduced-checked

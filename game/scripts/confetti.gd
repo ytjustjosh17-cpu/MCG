@@ -9,8 +9,9 @@ var _parts: Array = []
 var _t := 0.0
 
 
-func _init(origin: Vector2, count := 90) -> void:
+func _init(origin: Vector2, count := 90, keep_inside := false) -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	clip_contents = keep_inside   # e.g. stay inside the tower card
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var cols := [UI.RED, UI.TEXT, UI.UP, UI.SECTOR_COL["Energy"], UI.SECTOR_COL["Tech"], UI.SECTOR_COL["Finance"]]
 	for i in count:

@@ -133,9 +133,13 @@ class WheelView extends Control:
 			var lp := c + Vector2(cos(mid), sin(mid)) * rad * 0.66
 			var mins := int(seg[1])
 			var txt := ("%d h" % (mins / 60)) if mins >= 60 else ("%d m" % mins)
-			draw_string(f, lp + Vector2(-30, 5), txt, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 15, UI.INK if top else UI.TEXT)
+			# A chip prize gets a small chip just after its label (out on the
+			# rim it ran into the labels of the sideways segments).
+			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+			var shift := -6.0 if chips else 0.0
+			draw_string(f, lp + Vector2(-30 + shift, 5), txt, HORIZONTAL_ALIGNMENT_CENTER, 60.0, 15, UI.INK if top else UI.TEXT)
 			if chips:
-				draw_circle(c + Vector2(cos(mid), sin(mid)) * rad * 0.88, 5.0, UI.INK if top else UI.GOLD)
+				draw_circle(lp + Vector2(shift + tw * 0.5 + 8.0, 0.0), 4.0, UI.INK if top else UI.GOLD)
 		draw_arc(c, rad, 0.0, TAU, 64, UI.GOLD, 2.0, true)
 		# A soft sheen across the top left of the face.
 		draw_arc(c, rad * 0.8, PI * 1.08, PI * 1.45, 24, Color(UI.TEXT, 0.06), rad * 0.3, true)
