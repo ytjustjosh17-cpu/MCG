@@ -500,11 +500,14 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 	var hero := w >= 220.0   # small thumbnails stay simple; big pictures get the detail
 	if hero:
 		# Thin cloud bands drifting across the sun, low in the sky.
-		for k in 2:
+		for k in (2 if opt.get("clouds", true) else 0):
 			var cy := sun_c.y + sun_r * (0.25 + 0.32 * k)
 			var cw := sun_r * (2.6 - k * 0.7)
 			var cx := sun_c.x - cw * (0.55 + 0.1 * k)
-			_fill(ci, UI.rounded_rect_poly(Rect2(cx, cy, cw, maxf(2.0, h * 0.012)), 2.0), clip, Color(UI.SKY, 0.85))
+			# Only across the sun's face: past its edge a band read as a stray bar.
+			var band := UI.rounded_rect_poly(Rect2(cx, cy, cw, maxf(2.0, h * 0.012)), 2.0)
+			for piece in Geometry2D.intersect_polygons(band, UI.circle_poly(sun_c, sun_r - 1.0, 96)):
+				_fill(ci, piece, clip, Color(UI.SKY, 0.85))
 		# A few birds far off.
 		for k in 3:
 			var bp := o + Vector2(w * rng.randf_range(0.1, 0.6), h * rng.randf_range(0.1, 0.32))

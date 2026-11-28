@@ -162,13 +162,13 @@ func _draw() -> void:
 	# columns that catch a little light.
 	var seam := Color(UI.HAZE, 0.35)
 	for k in [0.5]:
-		draw_rect(Rect2(tx + tw * k - 0.5, top + 8.0, 1.0, h), seam, true)
+		draw_rect(Rect2(tx + tw * k - 0.5, top + 8.0, 1.0, h - 10.0 - top - 8.0), seam, true)
 	for c2 in range(1, COLS):
 		var px: float = tx + g["pad"] + c2 * g["pitch_x"] - (g["pitch_x"] - g["win_w"]) * 0.5
-		draw_rect(Rect2(px - 1.0, top + 10.0, 2.0, h), Color(UI.HAZE, 0.22), true)
+		draw_rect(Rect2(px - 1.0, top + 10.0, 2.0, h - 10.0 - top - 10.0), Color(UI.HAZE, 0.22), true)
 	# The sun catches the roof ledge and the corner facing it.
 	draw_rect(Rect2(tx - 4.0, top, tw + 8.0, 1.5), Color(UI.RED, 0.55), true)
-	draw_rect(Rect2(tx + tw + tw * 0.1 - 1.5, top + 8.0, 1.5, h), Color(UI.RED, 0.35), true)
+	draw_rect(Rect2(tx + tw + tw * 0.1 - 1.5, top + 8.0, 1.5, h - 10.0 - top - 8.0), Color(UI.RED, 0.35), true)
 	# Ground floor: a lit glass lobby under a canopy.
 	var lob := Rect2(tx + tw * 0.18, h - 10.0 - 26.0, tw * 0.64, 26.0)
 	_fill_clipped(UI.rect_poly(lob), clip, Color(UI.FLASH, 0.22))
@@ -184,7 +184,7 @@ func _draw() -> void:
 		draw_arc(Vector2(tx + tw * 0.5, top - 2.0), tw * 0.16, PI, TAU, 24, Color(UI.TEXT, 0.35), 1.5, true)
 	var py: float = g["pitch_y"]
 	var fy: float = top + 18.0 - py * 0.25
-	while fy < h:
+	while fy < h - 10.0:
 		draw_rect(Rect2(tx + 2.0, fy, tw - 4.0, 1.0), seam, true)
 		fy += py
 	# Air-con boxes hanging off a few floors on the shaded side.
@@ -199,7 +199,7 @@ func _draw() -> void:
 		Art._wire(self, a, b, h * (0.015 + k * 0.01), clip, UI.INK, 1.3)
 	# Street: ground strip and a lamp on the right (one at the far left read
 	# as a stray dash against the pylon, so it went).
-	_fill_clipped(UI.rect_poly(Rect2(0, h - 10.0, w, 10.0)), clip, UI.INK)
+	_fill_clipped(UI.rect_poly(Rect2(0, h - 10.0, w, 10.0)), clip, UI.SIDE)   # lighter than the page, so the card's rounded foot shows
 	for lx in [w * 0.95]:
 		_fill_clipped(UI.rect_poly(Rect2(lx, h - 46.0, 2.0, 36.0)), clip, UI.INK)
 		_fill_clipped(UI.rect_poly(Rect2(lx - 6.0, h - 48.0, 10.0, 3.0)), clip, UI.INK)
@@ -223,7 +223,7 @@ func _draw() -> void:
 			if absf((1.0 - row_pos) - _wave) < 0.12:
 				c = UI.FLASH
 		_window(r, c)
-	var nb := Rect2(w * 0.86, h * 0.46, w * 0.2, h * 0.6)
+	var nb := Rect2(w * 0.86, h * 0.46, w * 0.2, h * 0.54 - 10.0)   # stands on the street
 	_fill_clipped(UI.rect_poly(nb), clip, UI.WINDOW)
 	_fill_clipped(UI.rect_poly(Rect2(nb.position + Vector2(10, 14), Vector2(8, 7))), clip, UI.RED)
 	# A tall red sign on the neighbour block, made-up marks.
@@ -465,7 +465,7 @@ class TowerSky extends Control:
 		if Game.boost_active():
 			sun_col = sun_col.lightened(0.12)
 		var sun_c := SkyTime.sun_center(w, h, Vector2(w * 0.78, h * 0.24))
-		Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, sun_c, minf(w * 0.42, h * 0.34), sun_col, 4401)
+		Art.backdrop(self, Rect2(Vector2.ZERO, size), clip, sun_c, minf(w * 0.42, h * 0.34), sun_col, 4401, {"clouds": false})   # bars behind the tower read as stray lines
 		_skyline(w, h)
 		SkyTime.shade(self, Rect2(Vector2.ZERO, size), clip)
 
@@ -480,7 +480,7 @@ class TowerSky extends Control:
 		if kinds.is_empty():
 			return
 		var lit := 2 if SkyTime.night() > 0.5 else 1
-		var base := h - 126.0
+		var base := h - 10.0   # on the street, not floating mid-air
 		var area := w * 0.36
 		var front: Array = kinds.slice(0, 5)
 		var back: Array = kinds.slice(5, 11)

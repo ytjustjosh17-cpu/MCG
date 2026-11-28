@@ -152,8 +152,12 @@ func _run() -> void:
 	main._pages[4].scroll.scroll_vertical = 900
 	await _shot("13b_profile_end")
 	main._pages[4].scroll.scroll_vertical = 0
+	for ak in ["Studio flat", "Worth £1M", "3 companies"]:
+		g.add_reward("shot:" + ak, "ach", ak, 5970.0)
 	main.push(AchievementsPage.new())
 	await _shot("14_achievements")
+	for ak in ["Studio flat", "Worth £1M", "3 companies"]:
+		g.rewards.erase(g.reward_for("shot:" + ak))
 	main.pop()
 	await create_timer(0.4).timeout
 	g.daily_tasks()[0]["progress"] = 150

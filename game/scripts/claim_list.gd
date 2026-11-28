@@ -119,7 +119,9 @@ func _row(r: Dictionary) -> Control:
 		val = "x2 income 10 min"
 	elif boost == "frenzy":
 		val = "x5 taps 20 s"
-	row.set_texts(String(r.get("title", "")), "", val)
+	# The amount sits under the title and the Claim pill on its own at the
+	# right, so the edge isn't crammed with a stacked amount and button.
+	row.set_texts(String(r.get("title", "")), val)
 	# A visible "Claim" pill; the whole row is still the button.
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override("panel", UI.box(UI.RAISED, 16))
@@ -135,7 +137,7 @@ func _row(r: Dictionary) -> Control:
 	pm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pm.add_child(pl)
 	pill.add_child(pm)
-	row.value_l.get_parent().get_parent().add_child(pill)
+	row._h.add_child(pill)
 	var key := String(r["key"])
 	row.pressed.connect(func(): _celebrate(Game.claim(key), row.get_global_rect().get_center(), boost != ""))
 	Kit.press_fx(row)
