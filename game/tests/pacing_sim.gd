@@ -155,11 +155,18 @@ func _session(active_s: float) -> void:
 			elif g.last_sun == "rush":
 				g.rush_until = 0.0
 				g._earn(g.income_per_hour * Data.RUSH_S / 3600.0)
-	var taps := int(active_s * float(OS.get_environment("SIM_TAPS") if OS.get_environment("SIM_TAPS") != "" else "3"))
+	var rate := float(OS.get_environment("SIM_TAPS") if OS.get_environment("SIM_TAPS") != "" else "3")
+	var taps := int(active_s * rate)
+	# Tired hands, as in the game: heat rises one a tap, cools one a second
+	# (and fully between visits); past TAP_HEAT_MAX taps pay a tenth.
+	var heat := 0.0
 	for i in taps:
 		# Taps come in bursts of about 40 s (120 taps), so combos build up and
 		# drop like a real thumb's would (1.2 combo pay).
-		g.tap(g.combo_mult(i % 120 + 1))
+		heat = maxf(0.0, heat - Data.TAP_HEAT_COOL / rate) + 1.0
+		var v: float = g.tap(g.combo_mult(i % 120 + 1))
+		if heat > Data.TAP_HEAT_MAX:
+			g._earn(-v * (1.0 - Data.TAP_TIRED_MULT))
 	for k in int(active_s):
 		g.auto_tick(1.0)   # the auto clicker runs while the robot plays
 	# Buy the next auto clicker level when it costs under a tenth of cash.
