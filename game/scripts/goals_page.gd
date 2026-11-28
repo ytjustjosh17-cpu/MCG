@@ -194,7 +194,7 @@ class GoalRow extends Button:
 			cnt.position = Vector2(right - cw, 17 if done else 14)
 			l.size = Vector2(maxf(0.0, right - cw - 12 - 52), 22)
 			if chev:
-				chev.position = Vector2(size.x - 14 - 16, (size.y - 16.0) * 0.5)
+				chev.position = Vector2(size.x - 14 - 16, 16.0)   # level with the count, not between the title and the bar
 			queue_redraw())
 
 	static func _n(v: float, money: bool) -> String:

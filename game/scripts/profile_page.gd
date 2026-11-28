@@ -302,7 +302,7 @@ static func _show_whats_new() -> void:
 
 class MoneyBar extends Control:
 	## One bar split by where your money is.
-	const COLS := [UI.TEXT, UI.SUB, UI.HAZE, UI.DIM, UI.FLASH, UI.TRACK]
+	const COLS := [UI.TEXT, UI.SUB, UI.GOLD, UI.FLASH, UI.DIM, UI.TRACK]   # six that stand apart on a card (shares were near-invisible teal)
 	var parts: Array = []
 
 	func _init() -> void:

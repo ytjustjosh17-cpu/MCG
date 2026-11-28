@@ -52,7 +52,7 @@ func refresh() -> void:
 		var item: Dictionary = shown[i]
 		var target := String(item.get("sym", ""))
 		var opens := not Game._stock(target).is_empty() or not Game._coin(target).is_empty()
-		var r := news_row(item, opens)
+		var r := news_row(item, opens, true)
 		r.pressed.connect(func():
 			var k := "share" if not Game._stock(target).is_empty() else ("coin" if not Game._coin(target).is_empty() else "")
 			if k != "":
@@ -72,7 +72,7 @@ static func ago(t: float) -> String:
 	return "%dd" % int(s / 86400.0)
 
 
-static func news_row(item: Dictionary, chevron: bool) -> Row:
+static func news_row(item: Dictionary, chevron: bool, keep_gap := false) -> Row:
 	## Headline (wraps), ticker and age under it; the move on the right, level
 	## with the headline's first line, with an arrow so colour isn't the only signal.
 	var pct := float(item.get("pct", 0.0))
@@ -92,4 +92,10 @@ static func news_row(item: Dictionary, chevron: bool) -> Row:
 		# Read-only row: no press highlight.
 		r.disabled = true
 		r.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())
+		if keep_gap:
+			# Where other rows have a chevron, leave its room so the moves line up.
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(16, 0)
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			r._h.add_child(gap)
 	return r

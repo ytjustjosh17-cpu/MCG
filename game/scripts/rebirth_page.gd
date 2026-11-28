@@ -12,6 +12,7 @@ var _top_panel: Control
 var _key: Control
 var _split: HBoxContainer   # landscape: hero on the left, the map on the right
 var _left: VBoxContainer
+var _side: VBoxContainer     # landscape: the zoom buttons in a column beside the map
 
 
 func _init() -> void:
@@ -47,13 +48,18 @@ func build() -> void:
 	_go.pressed.connect(_confirm)
 	Kit.press_fx(_go)
 	v.add_child(_go)
+	# Legend on the left, and (upright) the zoom buttons on the right of the
+	# same line, so they never sit on top of the map's nodes.
+	var key_row := HBoxContainer.new()
 	var key := Legend.new()
-	body.add_child(key)
+	key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	key_row.add_child(key)
+	body.add_child(key_row)
 	_view = TreeView.new()
 	_view.node_tapped.connect(_on_node)
 	body.add_child(_view)
 	_top_panel = top.get_parent()
-	_key = key
+	_key = key_row
 	_split = HBoxContainer.new()
 	_split.add_theme_constant_override("separation", 16)
 	_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -61,6 +67,8 @@ func build() -> void:
 	_left.add_theme_constant_override("separation", 12)
 	_left.custom_minimum_size.x = 280.0
 	_split.add_child(_left)
+	_side = VBoxContainer.new()
+	_side.alignment = BoxContainer.ALIGNMENT_CENTER
 	Kit.layout_changed.connect(func(_l: bool): _arrange())
 
 
@@ -85,6 +93,7 @@ func _arrange() -> void:
 		_view.get_parent().remove_child(_view)
 		_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_split.add_child(_view)
+		_split.add_child(_side)
 		body.add_child(_split)
 	elif not land and _split.get_parent() != null:
 		body.remove_child(_split)
@@ -93,7 +102,9 @@ func _arrange() -> void:
 				_left.remove_child(n)
 				body.add_child(n)
 		_split.remove_child(_view)
+		_split.remove_child(_side)
 		body.add_child(_view)
+	_view.dock_buttons(_side if land else _key)   # never on top of the map
 	_fit_map.call_deferred()
 
 
@@ -203,6 +214,7 @@ class TreeView extends Control:
 	const ZMIN := 0.35
 	const ZMAX := 1.6
 	var zoom := 0.62
+	var home_zoom := 0.62   # the starting zoom: smaller on a short (sideways) map so names have room
 	var pan := Vector2.ZERO          # screen offset of the centre from the view middle
 	var _press := false
 	var _press_pos := Vector2.ZERO
@@ -211,35 +223,30 @@ class TreeView extends Control:
 	var _pinch_d := 0.0
 	var _flash_id := ""
 	var _flash_t := 0.0
-	var _btns: HBoxContainer         # +, - and re-centre: taps there never reach the map
+	var _btns: BoxContainer          # +, - and re-centre: taps there never reach the map
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(0, 420)
 		clip_contents = true
 		mouse_filter = Control.MOUSE_FILTER_STOP
-		# Zoom and centre buttons, 48 px, in a low row at the bottom right
-		# (thumb side), see-through so nodes behind them still show.
-		var col := HBoxContainer.new()
+		# Zoom and centre buttons, 40 px: upright they sit on the legend's
+		# line, sideways in a column beside the map (dock_buttons). Never on
+		# the map, where they hid nodes.
+		var col := BoxContainer.new()
 		_btns = col
-		col.add_theme_constant_override("separation", 8)
-		col.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-		col.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		col.grow_vertical = Control.GROW_DIRECTION_BEGIN
-		col.offset_right = -8
-		col.offset_bottom = -8
-		add_child(col)
+		col.add_theme_constant_override("separation", 6)
 		for spec in [["+", 1.25], ["-", 0.8], ["o", 0.0]]:
-			var b := UI.pill("" if spec[0] == "o" else String(spec[0]), Color(UI.RAISED, 0.72), UI.TEXT, 20, 0)
-			b.custom_minimum_size = Vector2(48, 48)
+			var b := UI.pill("" if spec[0] == "o" else String(spec[0]), UI.RAISED, UI.TEXT, 20, 14)
+			b.custom_minimum_size = Vector2(40, 40)
 			var f: float = spec[1]
 			if spec[0] == "o":
 				var ic := Icon.new("home", UI.TEXT, 22.0)
-				ic.position = Vector2(13, 13)
+				ic.position = Vector2(9, 9)
 				b.add_child(ic)
 			b.pressed.connect(func():
 				Kit.haptic("selection")
 				if f == 0.0:
-					_glide_to(Vector2.ZERO, 0.62)
+					_glide_to(Vector2.ZERO, home_zoom)
 				else:
 					_glide_to(pan * (clampf(zoom * f, ZMIN, ZMAX) / zoom), clampf(zoom * f, ZMIN, ZMAX)))
 			col.add_child(b)
@@ -250,9 +257,33 @@ class TreeView extends Control:
 		for b in _btns.get_children():
 			(b as Control).mouse_filter = Control.MOUSE_FILTER_STOP
 
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED and size.y > 0.0:
+			var hz := clampf(minf(size.x, size.y) / 365.0 * 0.62, 0.45, 0.62)
+			if is_equal_approx(zoom, home_zoom):
+				zoom = hz   # still at the start view: follow the new size
+			home_zoom = hz
+			queue_redraw()
+
 	func _on_buttons(p: Vector2) -> bool:
 		## True for a point on the zoom and centre buttons (with a few pixels spare).
-		return _btns != null and _btns.get_rect().grow(4.0).has_point(p)
+		return _btns != null and _btns.get_parent() == self and _btns.get_rect().grow(4.0).has_point(p)
+
+	func dock_buttons(row: Control) -> void:
+		## Moves the buttons onto `row`: the legend's line upright, the column beside the map sideways.
+		if _btns == null:
+			return
+		if row == null or _btns.get_parent() == row:
+			return
+		if _btns.get_parent() != null:
+			_btns.get_parent().remove_child(_btns)
+		row.add_child(_btns)
+		_place_btns()
+		queue_redraw()
+
+	func _place_btns() -> void:
+		_btns.vertical = _btns.get_parent() is VBoxContainer
+		_btns.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 	func flash(id: String) -> void:
 		_flash_id = id
@@ -446,13 +477,29 @@ class TreeView extends Control:
 			if id == _flash_id and _flash_t > 0.0:
 				draw_arc(p, r + 4.0 + (1.0 - _flash_t) * 18.0, 0.0, TAU, 40, Color(UI.RED, _flash_t), 3.0, true)
 		_draw_labels(ns)
+		_round_corners(16.0)
+
+	func _round_corners(r: float) -> void:
+		## Masks the four corners with the page colour, so the map reads as a
+		## rounded card like every other one (nodes slide under the curve).
+		for k in 4:
+			var corner := Vector2(0.0 if k % 3 == 0 else size.x, 0.0 if k < 2 else size.y)
+			var inward := Vector2(1.0 if corner.x == 0.0 else -1.0, 1.0 if corner.y == 0.0 else -1.0)
+			var c := corner + inward * r
+			var pts := PackedVector2Array([corner])
+			var a0 := atan2(-inward.y, 0.0)
+			var steps := 8
+			for i in steps + 1:
+				var ang := a0 + (PI / 2.0) * float(i) / float(steps) * (1.0 if inward.x * inward.y < 0.0 else -1.0)
+				pts.append(c + Vector2(cos(ang), sin(ang)) * r)
+			draw_colored_polygon(pts, UI.BG)
 
 	func _draw_labels(ns: Array) -> void:
 		## Each branch name sits right beside its own trunk (never between two
 		## branches), on whichever side has more room.
 		var f: Font = UI.SEMI
 		var fs := 12
-		var keep_out := _btns.get_rect().grow(8.0) if _btns else Rect2()
+		var keep_out := _btns.get_rect().grow(8.0) if _btns and _btns.get_parent() == self else Rect2()
 		for br in RebirthTree.BRANCHES:
 			var txt := String(br[1]).to_upper()
 			var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -516,10 +563,17 @@ class TreeView extends Control:
 class Legend extends Control:
 	## One line above the map: what the three node looks mean.
 	const ITEMS := [["Owned", 2], ["Can buy", 1], ["Locked", -1]]
+	const GAP := 14.0
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(0, 28)
+		custom_minimum_size = Vector2(_width(), 28)   # so the zoom buttons beside it never cover "Locked"
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	static func _width() -> float:
+		var x := 10.0
+		for it in ITEMS:
+			x += 13.0 + UI.REG.get_string_size(String(it[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x + GAP
+		return x - GAP
 
 	func _draw() -> void:
 		var f: Font = UI.REG
@@ -534,4 +588,4 @@ class Legend extends Control:
 			draw_circle(c, 6.0, UI.TEXT if st == 2 else (UI.RAISED if st == 1 else UI.WINDOW))
 			draw_arc(c, 6.0, 0.0, TAU, 24, UI.TEXT if st >= 1 else UI.TRACK, 1.5, true)
 			draw_string(f, Vector2(cx + 13.0, cy + 5.0), String(it[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UI.SUB)
-			cx += 13.0 + f.get_string_size(String(it[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 22.0
+			cx += 13.0 + f.get_string_size(String(it[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + GAP

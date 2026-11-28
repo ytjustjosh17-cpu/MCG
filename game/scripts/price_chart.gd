@@ -33,7 +33,7 @@ func set_range(r: String) -> void:
 
 
 func values() -> Array:
-	var h: Array = Game.series(sym, range_name).duplicate()
+	var h: Array = Game.series(sym, range_name).filter(func(v): return float(v) > 0.0)   # a missing (0) sample would draw a spike from the floor
 	if range_name == "1H" and h.size() > 61:
 		h = h.slice(h.size() - 61)
 	if Game.price(sym) > 0.0:

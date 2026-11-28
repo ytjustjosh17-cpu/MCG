@@ -183,7 +183,7 @@ func _toggle(text: String, open: bool) -> Row:
 	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(chev)
-	t.value_l.get_parent().get_parent().add_child(holder)
+	t._h.add_child(holder)   # in the row itself, so it centres on the text (not under an empty value line)
 	return t
 
 

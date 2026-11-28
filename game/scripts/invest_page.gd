@@ -702,6 +702,7 @@ func _mining_section() -> Control:
 	_mine_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	tv.add_child(_mine_title)
 	_mine_sub = UI.label("", 13, UI.SUB)
+	_mine_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # wraps rather than widening the whole page
 	tv.add_child(_mine_sub)
 	var chg := Kit.drop_pill("Change")
 	chg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
