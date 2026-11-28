@@ -223,7 +223,7 @@ class Board extends Control:
 		# A soft wash of light behind the peg triangle.
 		var apex := _peg(0, 1, g) + Vector2(0, -gy * 0.8)
 		var base_y := float(g["top"]) + float(PlinkoMath.ROWS - 1) * gy + gy * 0.6
-		var half := (float(PlinkoMath.ROWS + 2) * 0.5 + 0.6) * gap
+		var half := minf((float(PlinkoMath.ROWS + 2) * 0.5 + 0.6) * gap, face.size.x * 0.5 - 6.0)   # stays inside the frame
 		draw_colored_polygon(PackedVector2Array([apex + Vector2(-gap, 0), apex + Vector2(gap, 0),
 			Vector2(float(g["cx"]) + half, base_y), Vector2(float(g["cx"]) - half, base_y)]), Color(UI.HAZE, 0.22))
 		for row in PlinkoMath.ROWS:

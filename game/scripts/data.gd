@@ -491,9 +491,9 @@ static func business(id: String) -> Dictionary:
 # ---- what's new (shown from Profile) -------------------------------------
 const RELEASE := "1.2"
 const WHATS_NEW := [
-	"Tap combos pay up to x2; companies earn more.",
-	"Miner upgrades: faster chips, better cooling.",
-	"Turn your phone: every screen works in landscape.",
-	"Records, 30 rivals and a bigger rebirth tree.",
-	"Items show what they give you in £ an hour.",
+	"A weekly season bar with cash and boosts.",
+	"Company upgrades and fixed-term savings.",
+	"Tower: a new casino game. Rare jackpots in most games.",
+	"Medals, days played, rank and showcase on Profile.",
+	"Tap combos pay up to x2; miner upgrades.",
 ]

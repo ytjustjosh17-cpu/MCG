@@ -146,6 +146,7 @@ func _run() -> void:
 	var up = root.get_node("Updater")
 	up.latest_version = "1.0.7"
 	up._set_state(up.State.AVAILABLE)
+	g.set_showcase(["watches:0", "watches:1"])
 	main.show_page(4)
 	await _shot("13_profile")
 	main._pages[4].scroll.scroll_vertical = 900

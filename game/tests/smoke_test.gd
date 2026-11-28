@@ -1216,6 +1216,23 @@ func _run() -> void:
 	_check(RecordsPage.value_text(3.0, "days") == "3 days" and RivalsPage.worth_text(1353325.0) == "£1,353,325", "records and rivals text")
 	game.sim_time = -1.0
 	game.reset_game(true)
+	# Money stress test (1.2): a long frame pays at most 1 s; bad numbers do nothing.
+	game.reset_game(true)
+	game.cash = 1.0e6
+	game.open_business("shop", "Shop")
+	game.recalc()
+	var lf_before: float = game.cash
+	game._process(3600.0)
+	_check(game.cash - lf_before < game.income_per_hour * 0.01, "a one-hour frame (freeze or resume) pays no more than a second")
+	game.grant_node("u_casino")
+	game.buy_chips(1000.0)
+	game.casino_stake(NAN)
+	game.casino_pay(NAN)
+	game.take_loan(NAN)
+	game.buy_asset("share", "NRV", NAN)
+	_check(is_finite(game.cash) and is_finite(game.chips()) and game.loan().is_empty(), "NaN bets, pays, loans and buys do nothing")
+	game.sim_time = -1.0
+
 	# Exploit regressions (1.2 play-test).
 	_check(not TowerMath.is_safe([[1.0, 2.0]], 0, 1) and TowerMath.is_safe([[1.0, 2.0]], 0, 0), "tower: a saved (float) layout still knows its bad boxes")
 	game.reset_game(true)

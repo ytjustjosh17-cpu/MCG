@@ -962,8 +962,8 @@ func stake(sym: String, fraction: float) -> bool:
 	## Locks coins for 24 hours; they earn more coins while locked.
 	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var free := holding(coins, sym)
-	var q := free * clampf(fraction, 0.0, 1.0)
-	if q <= 0.0:
+	var q := free * clampf(fraction, 0.0, 1.0) if is_finite(fraction) else 0.0
+	if not (q > 0.0) or not coins.has(sym):
 		return false
 	coins[sym]["qty"] = free - q
 	coins[sym]["staked"] = staked(sym) + q
@@ -1228,7 +1228,7 @@ func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
 	## Buys `amount_cash` worth of a share or coin.
 	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var p := price(sym)
-	if p <= 0.0 or amount_cash <= 0.0 or cash < amount_cash - 0.001:
+	if p <= 0.0 or not (amount_cash > 0.0) or cash < amount_cash - 0.001:
 		return false
 	amount_cash = minf(amount_cash, cash)
 	var book: Dictionary = shares if kind == "share" else coins
@@ -1246,7 +1246,7 @@ func buy_asset(kind: String, sym: String, amount_cash: float) -> bool:
 func sell_asset(kind: String, sym: String, fraction: float) -> float:
 	_save_soon = true   # a money action: save within a second (closing the app can't undo it)
 	var book: Dictionary = shares if kind == "share" else coins
-	if not book.has(sym):
+	if not book.has(sym) or not is_finite(fraction):
 		return 0.0
 	fraction = clampf(fraction, 0.0, 1.0)
 	var qty := float(book[sym]["qty"]) * fraction
@@ -2582,6 +2582,9 @@ func advance(dt: float, earn_income := true) -> void:
 func _process(delta: float) -> void:
 	if sim_time >= 0.0:
 		return
+	# A long frame (a freeze, or the first frame back from the background,
+	# which apply_offline has already paid) counts as at most 1 s.
+	delta = minf(delta, 1.0)
 	_change_timer += delta
 	if _change_pending and _change_timer >= CHANGE_EVERY_S:
 		flush_changes()
@@ -2769,7 +2772,7 @@ func loan_owed() -> float:
 
 func take_loan(amount: float) -> bool:
 	## One loan at a time; paid back in set payments, the first after 4 h.
-	if not loan().is_empty() or amount < 1.0 or amount > loan_limit() + 0.01:
+	if not is_finite(amount) or not loan().is_empty() or amount < 1.0 or amount > loan_limit() + 0.01:
 		return false
 	var total := amount * (1.0 + Data.LOAN_FEE)
 	bank["loan"] = {"amount": amount, "payment": total / float(Data.LOAN_PAYMENTS),
@@ -3574,7 +3577,7 @@ func casino_stake(amount: float, limit_mult := 1.0, jackpot := true) -> bool:
 	## Takes a bet from chips. limit_mult lets a bonus buy or a blackjack
 	## double or split go past one normal bet. jackpot is false for the games
 	## outside the jackpot (blackjack, video poker).
-	if not casino_open() or amount <= 0.0 or amount > chips() + 0.001:
+	if not casino_open() or not (amount > 0.0) or amount > chips() + 0.001:
 		return false
 	if amount > casino_max_bet() * limit_mult + 0.001:
 		return false
@@ -3593,7 +3596,7 @@ func casino_pay(amount: float, jackpot := true) -> float:
 	## Pays a win into chips, capped. Returns what was really paid. In a
 	## jackpot game a win pays JP_TRIM less, which funds the jackpot.
 	amount = clampf(amount * ((1.0 - Data.JP_TRIM) if jackpot else 1.0), 0.0, casino_max_win())
-	if amount <= 0.0:
+	if not (amount > 0.0):
 		return 0.0
 	casino["chips"] = chips() + amount
 	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + amount

@@ -1,5 +1,27 @@
 # Changelog
 
+## Seasons, medals, Tower and a sharper casino
+
+- **Weekly season** on Goals: goals, suns and your first tap each day fill
+  a bar. Five rewards a week: cash, a Rush and a Frenzy. Nothing paid.
+- **Medals**: achievements are shown as medals in groups.
+- **Days played** on Profile and Records. It never resets. Days 7, 14, 30,
+  60, 100 and 200 pay about an hour of income.
+- **Profile**: a rank title and a showcase of four things you're proud of.
+- **Company upgrades**: five named steps per company, +6% income each,
+  opening at stages 2, 4, 6, 8 and 10. The company page shows the next one.
+- **Fixed terms** in the Bank: lock cash for 1, 3 or 7 days for 2.5%, 8%
+  or 20%. Break early and get 95% back.
+- **Tower**, a new casino game: climb row by row and cash out any time.
+- Bet bar has ½ and ×2. Each game shows your last five results. Crash can
+  skip to the result.
+- Claimed money flies to your cash.
+- More detail in every picture: casino tables, slots, Sun Forge, scenes,
+  the tower, items, miners and your home.
+- Fixes from a money stress test: a long freeze or coming back to the app
+  can't pay twice; bad numbers can't break a bet, loan or trade. Many
+  play-test exploits closed too.
+
 ## Casino jackpot
 
 - A shared jackpot in every casino game except blackjack and video poker
