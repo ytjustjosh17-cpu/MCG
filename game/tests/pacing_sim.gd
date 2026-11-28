@@ -155,7 +155,7 @@ func _session(active_s: float) -> void:
 			elif g.last_sun == "rush":
 				g.rush_until = 0.0
 				g._earn(g.income_per_hour * Data.RUSH_S / 3600.0)
-	var taps := int(active_s * 3.0)
+	var taps := int(active_s * float(OS.get_environment("SIM_TAPS") if OS.get_environment("SIM_TAPS") != "" else "3"))
 	for i in taps:
 		# Taps come in bursts of about 40 s (120 taps), so combos build up and
 		# drop like a real thumb's would (1.2 combo pay).
@@ -388,6 +388,17 @@ func _run() -> void:
 	g.recalc()
 	# Session start times (hours) and active seconds each.
 	var sessions := [[8.0, 240.0], [12.5, 180.0], [18.0, 300.0], [22.5, 180.0]]
+	# SIM_SCHED: other play patterns, to compare how fast each gets to £10B.
+	match OS.get_environment("SIM_SCHED"):
+		"once":    # one 15-minute visit in the evening
+			sessions = [[19.0, 900.0]]
+		"six":     # six 10-minute visits, 7am to 10pm (sleep stays under the 8 h cap... nearly)
+			sessions = [[7.0, 600.0], [10.0, 600.0], [13.0, 600.0], [16.0, 600.0], [19.0, 600.0], [22.0, 600.0]]
+		"heavy":   # six 30-minute visits: lots of tapping
+			sessions = [[7.0, 1800.0], [10.0, 1800.0], [13.0, 1800.0], [16.0, 1800.0], [19.0, 1800.0], [22.0, 1800.0]]
+		"alarm":   # every 4 hours round the clock, 10 minutes each (an alarm at night)
+			sessions = [[2.0, 600.0], [6.0, 600.0], [10.0, 600.0], [14.0, 600.0], [18.0, 600.0], [22.0, 600.0]]
+	var ten_b := false
 	var t_prev: float = g.sim_time
 	print("Robot player: 4 sessions a day, about 15 minutes of play")
 	for day in range(days):
@@ -403,6 +414,12 @@ func _run() -> void:
 			g.advance(float(s[1]))
 			t_prev = g.sim_time
 			_milestones()
+			if not ten_b and g.net_worth() >= 1.0e10:
+				ten_b = true
+				print("TEN_B day %.2f (net worth £10B)" % ((g.sim_time - 1.7e9) / 86400.0))
+				if OS.get_environment("SIM_STOP10") == "1":
+					quit()
+					return
 			_maybe_rebirth()
 		print("day %2d  worth %10s  income/h %10s  companies %2d  stages %3d  props %2d  items %2d  mergers %d  done %4.1f%%  rigs %2d mine %4.1f%%" % [
 			day + 1, g.money_short(g.net_worth()), g.money_short(g.income_per_hour), g.biz.size(),
