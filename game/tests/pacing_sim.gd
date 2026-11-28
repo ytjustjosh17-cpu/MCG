@@ -127,6 +127,8 @@ func _gamble() -> void:
 
 
 func _session(active_s: float) -> void:
+	var d0: Dictionary = _snap() if diary else {}
+	var earned0: float = g.total_earned
 	if OS.get_environment("SIM_GAMBLE") == "1":
 		_gamble()
 	if OS.get_environment("SIM_LOAN") == "1" and g.loan().is_empty() and g.cash >= 0.0:
@@ -155,18 +157,25 @@ func _session(active_s: float) -> void:
 			elif g.last_sun == "rush":
 				g.rush_until = 0.0
 				g._earn(g.income_per_hour * Data.RUSH_S / 3600.0)
+	var tap_start: float = g.total_earned
 	var rate := float(OS.get_environment("SIM_TAPS") if OS.get_environment("SIM_TAPS") != "" else "3")
 	var taps := int(active_s * rate)
 	# Tired hands, as in the game: heat rises one a tap, cools one a second
 	# (and fully between visits); past TAP_HEAT_MAX taps pay a tenth.
 	var heat := 0.0
+	# The tap boost lasts BOOST_LEN_S of real time, so only that many seconds
+	# of taps get it (the robot's taps are instant, so end it by count).
+	var boosted := int(g.BOOST_LEN_S * rate) if g.boost_active() else 0
 	for i in taps:
+		if i == boosted and g.boost_active():
+			g.boost_until = g.now()
 		# Taps come in bursts of about 40 s (120 taps), so combos build up and
 		# drop like a real thumb's would (1.2 combo pay).
 		heat = maxf(0.0, heat - Data.TAP_HEAT_COOL / rate) + 1.0
 		var v: float = g.tap(g.combo_mult(i % 120 + 1))
 		if heat > Data.TAP_HEAT_MAX:
 			g._earn(-v * (1.0 - Data.TAP_TIRED_MULT))
+	var tapped: float = g.total_earned - tap_start
 	for k in int(active_s):
 		g.auto_tick(1.0)   # the auto clicker runs while the robot plays
 	# Buy the next auto clicker level when it costs under a tenth of cash.
@@ -174,7 +183,9 @@ func _session(active_s: float) -> void:
 		g.buy_auto()
 	g.ibost_ready() and g.start_ibost()
 	g._check_achievements()
+	var claim_start: float = g.total_earned
 	g.claim_all()   # claims every waiting reward before spending, like a player would
+	var claimed: float = g.total_earned - claim_start
 	# Season boosts start on claim; the robot's taps are instant, so pay what
 	# they'd give over their real length (as for the golden sun's buffs).
 	if g.rush_active():
@@ -183,10 +194,20 @@ func _session(active_s: float) -> void:
 	if g.frenzy_active():
 		g._earn(g.tap_value() * (Data.FRENZY_MULT - 1.0) * maxf(0.0, g.frenzy_until - g.now()) * 3.0)
 		g.frenzy_until = 0.0
+	var cash_pre: float = g.cash
+	var d1: Dictionary = _snap() if diary else {}
 	_spend()
 	g.claim_all()
 	g._check_achievements()
 	g.daily_tasks()
+	if diary:
+		var t: float = g.sim_time - 1.7e9
+		var day: int = int(t / 86400.0) + 1
+		var hh: float = fmod(t, 86400.0) / 3600.0
+		print("DIARY Day %d %02d:%02d | worth %s, %s/h | had %s; tapped %d times for %s, claimed %s, cash now %s | spent %s on: %s" % [
+			day, int(hh), int(fmod(hh, 1.0) * 60.0), g.money_short(g.net_worth()), g.money_short(g.income_per_hour),
+			g.money_short(float(d0["cash"])), int(active_s * rate), g.money_short(tapped), g.money_short(claimed), g.money_short(cash_pre),
+			g.money_short(maxf(0.0, cash_pre - g.cash)), ", ".join(_diff(d1, _snap())) if not _diff(d1, _snap()).is_empty() else "nothing"])
 
 
 func _spend() -> void:
@@ -447,3 +468,81 @@ func _stages() -> int:
 	for id in g.biz.keys():
 		n += int(g.biz[id]["stage"])
 	return n
+
+
+# ---- diary (SIM_DIARY=1): what the robot did each visit, in plain words ----
+var diary := OS.get_environment("SIM_DIARY") == "1"
+
+
+func _snap() -> Dictionary:
+	var b := {}
+	for id in g.biz.keys():
+		b[id] = {"units": int(g.biz[id]["units"]), "stage": int(g.biz[id]["stage"]), "inv": float(g.biz[id]["invested"]),
+			"mgr": g.has_manager(id), "up": g.biz_up_level(id)}
+	var sh := {}
+	for k in g.shares.keys():
+		sh[k] = float(g.shares[k]["qty"])
+	var co := {}
+	for k in g.coins.keys():
+		co[k] = float(g.coins[k]["qty"]) + float(g.coins[k].get("staked", 0.0))
+	return {"cash": g.cash, "biz": b, "ups": g.upgrades.duplicate(), "props": g.props.keys(), "items": g.items.size(),
+		"rigs": g.rigs_total(), "speed": g.miner_up_level("speed"), "cool": g.miner_up_level("cool"), "auto": g.auto_level,
+		"level": g.level, "home": g.home, "terms": g.terms_total(), "mergers": g.mergers.size(), "syn": g.synergies.size(),
+		"shares": sh, "coins": co}
+
+
+func _biz_name(id: String) -> String:
+	return String(Data.business(id).get("name", id))
+
+
+func _diff(a: Dictionary, z: Dictionary) -> Array:
+	var out: Array = []
+	if int(z["level"]) > int(a["level"]):
+		out.append("levelled up to %d" % int(z["level"]))
+	if int(z["auto"]) > int(a["auto"]):
+		out.append("auto clicker level %d" % int(z["auto"]))
+	for id in z["biz"].keys():
+		var zb: Dictionary = z["biz"][id]
+		if not a["biz"].has(id):
+			out.append("opened %s" % _biz_name(id))
+			if int(zb["units"]) > 1:
+				out.append("%d %s units (%s)" % [int(zb["units"]) - 1, _biz_name(id), g.money_short(float(zb["inv"]))])
+			continue
+		var ab: Dictionary = a["biz"][id]
+		if int(zb["units"]) > int(ab["units"]):
+			out.append("+%d %s units (%s)" % [int(zb["units"]) - int(ab["units"]), _biz_name(id), g.money_short(float(zb["inv"]) - float(ab["inv"]))])
+		if int(zb["stage"]) > int(ab["stage"]):
+			out.append("%s to stage %d" % [_biz_name(id), int(zb["stage"])])
+		if bool(zb["mgr"]) and not bool(ab["mgr"]):
+			out.append("manager for %s" % _biz_name(id))
+		if int(zb["up"]) > int(ab["up"]):
+			out.append("%s upgrade step %d" % [_biz_name(id), int(zb["up"])])
+	for u in z["ups"]:
+		if not a["ups"].has(u):
+			out.append("head office: %s" % str(u))
+	var np: int = z["props"].size() - a["props"].size()
+	if np > 0:
+		out.append("%d propert%s" % [np, "y" if np == 1 else "ies"])
+	if int(z["items"]) > int(a["items"]):
+		out.append("%d collection item%s" % [int(z["items"]) - int(a["items"]), "" if int(z["items"]) - int(a["items"]) == 1 else "s"])
+	if int(z["rigs"]) > int(a["rigs"]):
+		out.append("%d crypto miner%s" % [int(z["rigs"]) - int(a["rigs"]), "" if int(z["rigs"]) - int(a["rigs"]) == 1 else "s"])
+	if int(z["speed"]) > int(a["speed"]) or int(z["cool"]) > int(a["cool"]):
+		out.append("miner upgrades (speed %d, cooling %d)" % [int(z["speed"]), int(z["cool"])])
+	if int(z["home"]) > int(a["home"]):
+		out.append("moved home to %s" % String(Data.HOMES[int(z["home"])][0]))
+	if float(z["terms"]) > float(a["terms"]) + 1.0:
+		out.append("locked %s in a 7-day fixed term" % g.money_short(float(z["terms"]) - float(a["terms"])))
+	if int(z["mergers"]) > int(a["mergers"]):
+		out.append("a merger")
+	if int(z["syn"]) > int(a["syn"]):
+		out.append("%d synerg%s" % [int(z["syn"]) - int(a["syn"]), "y" if int(z["syn"]) - int(a["syn"]) == 1 else "ies"])
+	for k in z["shares"].keys():
+		var dq: float = float(z["shares"][k]) - float(a["shares"].get(k, 0.0))
+		if dq > 0.0:
+			out.append("%s shares worth %s at £%.2f" % [k, g.money_short(dq * g.price(k)), g.price(k)])
+	for k in z["coins"].keys():
+		var dq2: float = float(z["coins"][k]) - float(a["coins"].get(k, 0.0))
+		if dq2 * g.price(k) > 1.0:
+			out.append("%s coins worth %s at £%s" % [k, g.money_short(dq2 * g.price(k)), str(snappedf(g.price(k), 0.01))])
+	return out
