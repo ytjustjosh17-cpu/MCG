@@ -835,7 +835,7 @@ func _run() -> void:
 	_check(absf(game.jackpot_hours() - Data.JP_SEED_H) < 0.001 and absf(jp_seed - game._jackpot_money(Data.JP_SEED_H)) < 0.01, "an old save shows the seed pot (%d h of income)" % int(Data.JP_SEED_H))
 	var jp0: float = game.jackpot_hours()
 	game.casino_stake(jm)
-	_check(absf(game.jackpot_hours() - minf(jp0 + jm / game.base_income() * Data.JP_SHARE, Data.JP_CAP_H)) < 0.0001, "every bet adds its share to the pot (%.3f h to %.3f h)" % [jp0, game.jackpot_hours()])
+	_check(absf(game.jackpot_hours() - (jp0 + Data.CASINO_MAX_BET_H * Data.JP_SHARE)) < 0.0001, "every bet adds its share to the pot (%.3f h to %.3f h)" % [jp0, game.jackpot_hours()])
 	var jp_win_small: float = game.jackpot_win_for(jm * 0.5)
 	_check(absf(jp_win_small - game.jackpot_pot() * 0.5) < 0.01, "half the max bet wins half the pot")
 	_check(absf(game.casino_pay(1000.0) - 1000.0 * (1.0 - Data.JP_TRIM)) < 0.01 and absf(game.casino_net(1000.0) - 1000.0 * (1.0 - Data.JP_TRIM)) < 0.01, "a win in a jackpot game pays what its label says, less the jackpot cut")
@@ -860,12 +860,27 @@ func _run() -> void:
 			jp_ev_short = jp_ev / jp_staked
 	game.casino["jp_due"] = 0.0
 	var jp_ev_long: float = jp_ev / jp_staked
-	for jbase in [0.955, 0.967, 0.983]:
+	for jbase in [0.955, 0.967, 0.983, 0.99]:
 		var r_short: float = jbase * (1.0 - Data.JP_TRIM) + jp_ev_short
 		var r_long: float = jbase * (1.0 - Data.JP_TRIM) + jp_ev_long
 		print("  jackpot: a %.1f%% game returns %.2f%% (2,320 bets) to %.2f%% (24,000 bets)" % [jbase * 100.0, r_short * 100.0, r_long * 100.0])
 		_check(absf(r_short - jbase) < 0.006 and r_long < jbase + 0.012 and r_long < 1.0, "jackpot: a %.1f%% game stays about the same (%.2f%% to %.2f%%)" % [jbase * 100.0, r_short * 100.0, r_long * 100.0])
 	print("  jackpot: average pot %.1f h of income over 24,000 max bets" % (jp_h_sum / 24000.0))
+	# A new empire (income below the bet floor) can't pump the pot with
+	# small bets and keep it for later.
+	var jp_inc_keep: float = game.income_per_hour
+	game.income_per_hour = 0.0
+	game.casino["pot_h"] = Data.JP_SEED_H
+	for jb in 20:
+		game._jackpot_bet(game.casino_max_bet())
+	game.casino["jp_due"] = 0.0
+	_check(game.jackpot_hours() < Data.JP_SEED_H + 0.02, "20 floor bets on a new empire barely move the pot (%.3f h)" % game.jackpot_hours())
+	game.income_per_hour = jp_inc_keep
+	game.casino["pot_h"] = 40.0
+	game.save_game()
+	game.load_game()
+	game.income_per_hour = jp_inc_keep
+	_check(absf(game.jackpot_hours() - 40.0) < 0.0001, "the pot survives save and load")
 	game.casino["pot_h"] = jp_keep_pot
 	game.casino["pot_h"] = Data.JP_CAP_H * 50.0
 	_check(absf(game.jackpot_pot() - game.jackpot_cap()) < 0.01, "the pot never shows more than %d h of income" % int(Data.JP_CAP_H))
@@ -896,6 +911,7 @@ func _run() -> void:
 	game.cash = 2.0e10
 	game.do_rebirth()
 	_check(game.casino_open() and game.chips() == 0.0, "rebirth keeps the casino open (tree) and clears the chips")
+	_check(absf(game.jackpot_hours() - Data.JP_SEED_H) < 0.0001, "rebirth puts the pot back to the seed")
 	var cs_old: Dictionary = game.to_dict()
 	cs_old["version"] = 13
 	cs_old.erase("casino")

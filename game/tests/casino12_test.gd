@@ -326,7 +326,10 @@ func _pages() -> void:
 			break
 	g.reduce_motion = keep_rm
 	_ok(g.jackpot_pending() == 0.0 and g.chips() >= jc0 - g.casino_max_bet() + jwin - 1.0, "jackpot: the plinko round pays the pot into chips, even in a losing bucket (%s)" % g.money_short(jwin))
-	_ok(kit._cele_open, "jackpot: a gold celebration shows (it never blocks taps)")
+	_ok(kit._cele_open, "jackpot: a gold celebration shows")
+	var jr0 := int(g.counters.get("casino_rounds", 0))
+	await _tap(jpp._go)
+	_ok(int(g.counters.get("casino_rounds", 0)) == jr0 + 1, "jackpot: a real tap on Drop plays while the celebration shows (it never blocks taps)")
 	while kit.close_top():
 		await create_timer(0.2).timeout
 	main.pop()

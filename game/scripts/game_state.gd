@@ -3649,7 +3649,9 @@ func _jackpot_frac(stake: float) -> float:
 
 
 func _jackpot_bet(amount: float) -> void:
-	var h := jackpot_hours() + amount / maxf(base_income(), 1.0) * Data.JP_SHARE
+	# Counted against the max bet, not income: at the £500 floor a small
+	# empire can't pump the pot, and a grown one adds the same hours.
+	var h := jackpot_hours() + amount / maxf(casino_max_bet(), 0.01) * Data.CASINO_MAX_BET_H * Data.JP_SHARE
 	casino["pot_h"] = minf(h, Data.JP_CAP_H)
 	# The bet count lives in counters, so it carries on through a rebirth and a
 	# new run never replays the same rolls.

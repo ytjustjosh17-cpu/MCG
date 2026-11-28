@@ -79,6 +79,8 @@ var gamble_net := 0.0
 var gamble_jackpots := 0
 var gamble_sessions := 0
 var gamble_staked := 0.0
+var gamble_gross := 0.0
+var gamble_got := 0.0
 var gamble_paid := 0.0
 var gamble_jp_total := 0.0
 var _slot: SlotMath
@@ -105,12 +107,14 @@ func _gamble() -> void:
 		if not g.casino_stake(line * SlotMath.LINES):
 			break
 		var r: Dictionary = _slot.spin(line)
-		g.casino_pay(float(r["total"]))
+		gamble_gross += float(r["total"])
+		gamble_got += g.casino_pay(float(r["total"]))
 		free += int(r["free_spins_awarded"])
 		while free > 0:
 			free -= 1
 			var fr: Dictionary = _slot.spin(line, true)
-			g.casino_pay(float(fr["total"]))
+			gamble_gross += float(fr["total"])
+			gamble_got += g.casino_pay(float(fr["total"]))
 			free += int(fr["free_spins_awarded"])
 		var jp: float = g.settle_jackpot()   # the game pays a won jackpot when the round ends
 		if jp > 0.0:
@@ -407,6 +411,7 @@ func _run() -> void:
 	if OS.get_environment("SIM_GAMBLE") == "1":
 		print("Gambler net from the casino: %s" % g.money_short(gamble_net))
 		print("Gambler jackpots: %d, worth %s, %d bets counted" % [gamble_jackpots, g.money_short(gamble_jp_total), int(g.counters.get("jp_n", 0))])
+		print("Gambler slot wins before caps and cut %s, paid %s (%.1f%% after the jackpot cut and the round cap)" % [g.money_short(gamble_gross), g.money_short(gamble_got), 100.0 * gamble_got / maxf(gamble_gross, 1.0)])
 		print("Gambler return: %.2f%% (staked %s, paid %s); pot now %.1f h of income" % [100.0 * gamble_paid / maxf(gamble_staked, 1.0), g.money_short(gamble_staked), g.money_short(gamble_paid), g.jackpot_hours()])
 	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
