@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The one red sun. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#FF1A0F" />
-</shape>
+<!-- The one red sun: a soft glow, the disc warmer at the top, and a faint
+     highlight on its upper left. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:pathData="M24,0 A24,24 0 1,1 23.99,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="24"
+                android:centerY="24"
+                android:gradientRadius="24"
+                android:type="radial">
+                <item android:color="#70FF2A14" android:offset="0.45" />
+                <item android:color="#22FF2A14" android:offset="0.75" />
+                <item android:color="#00FF2A14" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M24,10 A14,14 0 1,1 23.99,10 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="24"
+                android:endY="38"
+                android:startX="24"
+                android:startY="10"
+                android:type="linear">
+                <item android:color="#FFFF5232" android:offset="0" />
+                <item android:color="#FFE3110A" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#33FFB199"
+        android:pathData="M19,14 A6,6 0 1,1 18.99,14 Z" />
+</vector>

@@ -10,9 +10,9 @@
     android:padding="6dp">
 
     <ImageView
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:layout_marginBottom="2dp"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginBottom="0dp"
         android:importantForAccessibility="no"
         android:src="@drawable/sol_widget_sun" />
 
@@ -23,7 +23,8 @@
         android:gravity="center"
         android:maxLines="1"
         android:text="£0"
-        android:textColor="#D8E6E3"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="#EEF6F3"
         android:textSize="15sp"
         android:textStyle="bold" />
 
@@ -33,6 +34,6 @@
         android:layout_height="wrap_content"
         android:maxLines="1"
         android:text="/h"
-        android:textColor="#8FAAA6"
+        android:textColor="#8FB0AB"
         android:textSize="11sp" />
 </LinearLayout>

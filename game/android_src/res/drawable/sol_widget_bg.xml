@@ -1,7 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sol widget card: the game's panel teal with a faint lighter edge. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#092225" />
-    <stroke android:width="1dp" android:color="#1C3A3B" />
-    <corners android:radius="22dp" />
-</shape>
+<!-- Sol widget card: deep teal fading darker towards the bottom, a faint red
+     glow behind the sun on the left, and a soft lighter rim. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#0F3236"
+                android:centerColor="#0A2427"
+                android:endColor="#06191B" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.12"
+                android:centerY="0.5"
+                android:gradientRadius="72dp"
+                android:startColor="#2CFF1A0F"
+                android:endColor="#00FF1A0F" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <stroke android:width="1dp" android:color="#24484A" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</layer-list>

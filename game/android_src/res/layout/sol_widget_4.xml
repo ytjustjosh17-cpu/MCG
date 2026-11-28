@@ -4,16 +4,17 @@
     android:id="@+id/sol_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/sol_widget_bg"
+    android:background="@drawable/sol_widget_bg_wide"
+    android:paddingBottom="8dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="20dp"
     android:paddingEnd="20dp">
 
     <ImageView
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:layout_marginEnd="14dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginEnd="10dp"
         android:importantForAccessibility="no"
         android:src="@drawable/sol_widget_sun" />
 
@@ -29,7 +30,8 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:text="£0"
-            android:textColor="#D8E6E3"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="#EEF6F3"
             android:textSize="23sp"
             android:textStyle="bold" />
 
@@ -39,16 +41,17 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:text="income an hour"
-            android:textColor="#8FAAA6"
+            android:textColor="#8FB0AB"
             android:textSize="13sp" />
     </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:letterSpacing="0.15"
+        android:letterSpacing="0.22"
+        android:fontFamily="sans-serif-medium"
         android:text="SOL"
-        android:textColor="#4F6E6C"
+        android:textColor="#5E8481"
         android:textSize="12sp"
         android:textStyle="bold" />
 </LinearLayout>

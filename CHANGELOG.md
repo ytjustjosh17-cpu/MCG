@@ -1,10 +1,15 @@
 # Changelog
 
-## Company logos
+## More detailed logos, icon, widget and pictures
 
 - Every company you can buy shares in has its own logo: a wind turbine
   for Norvale Energy, a bank front for Ostrava Bank, a crown for Hearth &
   Crown, a tern for Black Tern and so on. All 22 are made up.
+- A richer app icon: the tower with lit red windows, a glowing sun, a city
+  skyline and a starry teal sky. It also has a one-colour version for
+  Android's themed icons.
+- The widget has a deeper card, a glowing sun, clearer text and, at 3 and 4
+  cells wide, a thin skyline along the bottom.
 
 ## Widget, casino stats, fixed terms worth it, cleaner pictures
 

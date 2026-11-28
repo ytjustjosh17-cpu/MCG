@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A low skyline: a far row in soft teal, a near row darker, a few lit red
+     windows. Stretched across the bottom of the wide widget. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="16dp"
+    android:viewportWidth="320"
+    android:viewportHeight="16">
+    <path
+        android:fillColor="#123C3E"
+        android:pathData="M0,16 L0,9 L14,9 L14,5 L26,5 L26,8 L40,8 L40,3 L50,3 L50,7 L66,7 L66,4 L80,4 L80,9 L96,9 L96,2 L106,2 L106,6 L122,6 L122,8 L136,8 L136,4 L150,4 L150,7 L166,7 L166,3 L176,3 L176,8 L192,8 L192,5 L206,5 L206,9 L220,9 L220,2 L230,2 L230,6 L246,6 L246,8 L262,8 L262,4 L276,4 L276,7 L292,7 L292,3 L304,3 L304,9 L320,9 L320,16 Z" />
+    <path
+        android:fillColor="#0A2A2C"
+        android:pathData="M0,16 L0,12 L20,12 L20,10 L34,10 L34,13 L58,13 L58,9 L72,9 L72,12 L92,12 L92,10 L110,10 L110,13 L130,13 L130,11 L148,11 L148,13 L170,13 L170,9 L186,9 L186,12 L208,12 L208,10 L228,10 L228,13 L250,13 L250,11 L268,11 L268,12 L290,12 L290,10 L308,10 L308,13 L320,13 L320,16 Z" />
+    <path
+        android:fillColor="#CCFF3A1F"
+        android:pathData="M62,10.5 h2 v1.5 h-2 Z M114,11.5 h2 v1.5 h-2 Z M174,10.5 h2 v1.5 h-2 Z M232,11.5 h2 v1.5 h-2 Z M294,11 h2 v1.5 h-2 Z" />
+</vector>

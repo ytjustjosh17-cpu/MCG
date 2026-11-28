@@ -11,9 +11,9 @@
     android:paddingEnd="12dp">
 
     <ImageView
-        android:layout_width="12dp"
-        android:layout_height="12dp"
-        android:layout_marginEnd="10dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="6dp"
         android:importantForAccessibility="no"
         android:src="@drawable/sol_widget_sun" />
 
@@ -29,7 +29,8 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:text="£0"
-            android:textColor="#D8E6E3"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="#EEF6F3"
             android:textSize="19sp"
             android:textStyle="bold" />
 
@@ -39,7 +40,7 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:text="an hour"
-            android:textColor="#8FAAA6"
+            android:textColor="#8FB0AB"
             android:textSize="12sp" />
     </LinearLayout>
 </LinearLayout>
