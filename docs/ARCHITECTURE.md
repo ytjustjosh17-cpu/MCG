@@ -92,3 +92,4 @@ Pages never change state directly.
 `.github/workflows/tidy-releases.yml` (by hand only) deletes every release but the newest, so the Releases page shows one release.
 
 The in-game updater checks the latest release every 30 minutes and on resume, downloads `Sol.apk` and opens the Android installer.
+- `casino_stats_page.gd`: Casino stats, pushed from the lobby. Per-game numbers live in `counters["cg"][game id]` (rounds, bet, won, wins, best, top_bet, jackpots); `Game.casino_game` is set by the lobby when a game opens, `casino_stake(..., extra=true)` marks a blackjack double or split as part of the same hand.

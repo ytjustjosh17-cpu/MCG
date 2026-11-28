@@ -321,6 +321,18 @@ func _run() -> void:
 	g.flush_changes()
 	await create_timer(0.4).timeout
 	await _shot("36_casino")
+	for cg_id in ["forge", "plinko", "roulette", "crash"]:
+		g.casino_game = cg_id
+		for k in 12 if cg_id != "forge" else 30:
+			g.casino_stake(500.0)
+			if k % 3 == 0:
+				g.casino_pay(1400.0)
+	g.casino_game = ""
+	main.push(CasinoStatsPage.new())
+	await create_timer(0.4).timeout
+	await _shot("36b_casino_stats")
+	main.pop()
+	await create_timer(0.5).timeout
 	main.push(load("res://scripts/forge_page.gd").new())
 	await create_timer(1.6).timeout
 	await _shot("37b_sun_forge")

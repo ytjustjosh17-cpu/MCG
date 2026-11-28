@@ -3568,6 +3568,7 @@ func buy_chips(amount: float) -> bool:
 		return false
 	cash -= amount
 	casino["chips"] = chips() + amount
+	_bump("chips_in", amount)
 	recalc()
 	save_game()
 	return true
@@ -3579,6 +3580,7 @@ func cash_out(amount: float) -> bool:
 		return false
 	casino["chips"] = chips() - amount
 	cash += amount
+	_bump("chips_out", amount)
 	recalc()
 	save_game()
 	return true
@@ -3618,7 +3620,7 @@ func spin_wheel() -> Dictionary:
 	return {"index": idx, "kind": String(seg[0]), "amount": amount}
 
 
-func casino_stake(amount: float, limit_mult := 1.0, jackpot := true) -> bool:
+func casino_stake(amount: float, limit_mult := 1.0, jackpot := true, extra := false) -> bool:
 	## Takes a bet from chips. limit_mult lets a bonus buy or a blackjack
 	## double or split go past one normal bet. jackpot is false for the games
 	## outside the jackpot (blackjack, video poker).
@@ -3629,6 +3631,7 @@ func casino_stake(amount: float, limit_mult := 1.0, jackpot := true) -> bool:
 	casino["chips"] = chips() - amount
 	counters["casino_bet"] = float(counters.get("casino_bet", 0.0)) + amount
 	counters["casino_rounds"] = int(counters.get("casino_rounds", 0)) + 1
+	_cg_stake(amount, extra)
 	if jackpot:
 		_jackpot_bet(amount)
 	_guard_strict()
@@ -3645,12 +3648,63 @@ func casino_pay(amount: float, jackpot := true) -> float:
 		return 0.0
 	casino["chips"] = chips() + amount
 	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + amount
+	_cg_win(amount)
 	if amount > float(counters.get("casino_best", 0.0)):
 		counters["casino_best"] = amount
 		counters["casino_best_at"] = now()
 	save_game()
 	flush_changes()
 	return amount
+
+
+# ---- casino stats per game (counters["cg"][game id]) ----------------------
+# casino_game is set by the lobby when a game opens (not saved). Each game
+# keeps rounds, bet, won, rounds that paid, its biggest win and bet, and
+# jackpots. Kept in counters, so they last through rebirths.
+var casino_game := ""
+var _cg_paid := false   # this round has already counted as a win
+
+
+func _cg() -> Variant:
+	## This game's stats (null outside a game). A new game's are empty, so
+	## callers test for null, not is_empty().
+	if casino_game == "":
+		return null
+	if typeof(counters.get("cg")) != TYPE_DICTIONARY:
+		counters["cg"] = {}
+	var all: Dictionary = counters["cg"]
+	if typeof(all.get(casino_game)) != TYPE_DICTIONARY:
+		all[casino_game] = {}
+	return all[casino_game]
+
+
+func _cg_stake(amount: float, extra: bool) -> void:
+	var g = _cg()
+	if g == null:
+		return
+	g["bet"] = float(g.get("bet", 0.0)) + amount
+	if not extra:   # a double or split is part of the same hand
+		g["rounds"] = float(g.get("rounds", 0.0)) + 1.0
+		_cg_paid = false
+	g["top_bet"] = maxf(float(g.get("top_bet", 0.0)), amount)
+	g["last"] = now()
+
+
+func _cg_win(amount: float) -> void:
+	var g = _cg()
+	if g == null or amount <= 0.0:
+		return
+	g["won"] = float(g.get("won", 0.0)) + amount
+	if not _cg_paid:
+		g["wins"] = float(g.get("wins", 0.0)) + 1.0
+		_cg_paid = true
+	if amount > float(g.get("best", 0.0)):
+		g["best"] = amount
+
+
+func casino_game_stats(id: String) -> Dictionary:
+	var all = counters.get("cg", {})
+	return all.get(id, {}) if typeof(all) == TYPE_DICTIONARY and typeof(all.get(id)) == TYPE_DICTIONARY else {}
 
 
 # ---- jackpot ------------------------------------------------------------------
@@ -3740,6 +3794,10 @@ func settle_jackpot() -> float:
 	casino["jp_due"] = 0.0
 	casino["chips"] = chips() + due
 	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + due
+	_cg_win(due)
+	var gj = _cg()
+	if gj != null:
+		gj["jackpots"] = float(gj.get("jackpots", 0.0)) + 1.0
 	_bump("jackpots")
 	_record("best_jackpot", due)
 	if due > float(counters.get("casino_best", 0.0)):

@@ -25,7 +25,7 @@ var _open: VBoxContainer
 var _chips: Label
 var _jp: Label
 var _limits: Label
-var _stats: Label
+var _stats: Row
 var _table_rows: Array = []
 var _wheel_row: Row
 
@@ -142,12 +142,19 @@ func build() -> void:
 					{"text": "Open the tree", "style": "primary", "call": func(): push_page.emit(RebirthPage.new())},
 					{"text": "Close", "style": "plain"}])
 				return
+			Game.casino_game = String(gm[0])   # per-game stats
 			var pg = load(path).new(arg) if arg != "" else load(path).new()
 			push_page.emit(pg))
 		lv.add_child(r)
-	_stats = UI.label("", 13, UI.SUB)
-	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_open.add_child(_stats)
+	# Your stats: the all-time result here, every game's numbers one tap away.
+	var stc := PanelContainer.new()
+	stc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16))
+	_open.add_child(stc)
+	_stats = Row.new("stats", "", true)
+	_stats.pressed.connect(func():
+		Kit.tick()
+		push_page.emit(CasinoStatsPage.new()))
+	stc.add_child(_stats)
 	var fine := UI.label("The house keeps a small edge: slots ~95%, crash 97%, plinko ~98%, roulette 97.3%, races 95%, tower 97%, blackjack and poker ~99%.", 13, UI.SUB)
 	fine.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_open.add_child(fine)
@@ -176,8 +183,8 @@ func refresh() -> void:
 	_limits.text = "Max bet %s · max win %s a round" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]
 	var bet := float(Game.counters.get("casino_bet", 0.0))
 	var won := float(Game.counters.get("casino_won", 0.0))
-	_stats.visible = bet > 0.0
-	_stats.text = "All time: bet %s, won %s" % [Game.money_short(bet), Game.money_short(won)]
+	var net := won - bet
+	_stats.set_texts("Your stats", ("Bet %s · won %s" % [Game.money_short(bet), Game.money_short(won)]) if bet > 0.0 else "Every game, round by round", (("+" if net >= 0.0 else "-") + Game.money_short(absf(net))) if bet > 0.0 else "")
 
 
 func _on_unlock() -> void:

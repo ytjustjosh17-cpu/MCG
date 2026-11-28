@@ -210,7 +210,7 @@ func _on_double() -> void:
 		Kit.toast("Not enough chips to double")
 		Motion.shake(_double_b)
 		return
-	if not Game.casino_stake(extra, 2.0, false):
+	if not Game.casino_stake(extra, 2.0, false, true):
 		Motion.shake(_double_b)
 		return
 	Kit.haptic("medium")
@@ -227,7 +227,7 @@ func _on_split() -> void:
 		Kit.toast("Not enough chips to split")
 		Motion.shake(_split_b)
 		return
-	if not Game.casino_stake(extra, 2.0, false):
+	if not Game.casino_stake(extra, 2.0, false, true):
 		Motion.shake(_split_b)
 		return
 	Kit.haptic("medium")

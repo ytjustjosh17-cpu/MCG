@@ -1,6 +1,6 @@
 # Changelog
 
-## Widget, fixed terms worth it, cleaner pictures
+## Widget, casino stats, fixed terms worth it, cleaner pictures
 
 - A Sol widget for your home screen shows your income an hour. Stretch it
   from 1 to 4 cells wide. It updates when you leave the game and every 30
@@ -11,6 +11,9 @@
   on the street, a tidier home room, a smaller taxi, rounded casino banner.
 - Casino tidy-up: roulette, chip bar, blackjack shoe, Plinko edges, wheel
   labels, and confetti stays inside the tower card.
+- Casino stats (Casino > Your stats): your all-time result, how much the
+  casino paid back, biggest win, jackpots, chips in and out, and each
+  game's rounds, how often it paid, its best win and its result.
 - The auto clicker is much cheaper: £5K, £40K, £500K, £10M and £300M.
 - Claim rows show the amount under the name, with Claim on the right.
 - The "tired, rest a bit" note is gone from Earn (taps still tire after a

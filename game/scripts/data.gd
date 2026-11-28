@@ -493,8 +493,8 @@ static func business(id: String) -> Dictionary:
 const RELEASE := "1.2"
 const WHATS_NEW := [
 	"Home screen widget: your income an hour.",
-	"A weekly season bar with cash and boosts.",
-	"Company upgrades and fixed-term savings.",
+	"Casino stats for every game; a cheaper auto clicker.",
+	"Fixed terms pay 20% a day; a weekly season bar.",
 	"Tower: a new casino game. Rare jackpots in most games.",
 	"Medals, days played, rank and showcase on Profile.",
 ]

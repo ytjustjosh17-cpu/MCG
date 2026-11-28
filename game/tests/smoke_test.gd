@@ -827,6 +827,17 @@ func _run() -> void:
 	_check(absf(game.chips() - cs_after) < 0.01, "a bet is saved at once (closing the app can't undo it)")
 	var cs_paid: float = game.casino_pay(game.casino_max_win() * 10.0)
 	_check(absf(cs_paid - game.casino_max_win()) < 0.01, "one payout is capped at %s" % game.money_short(game.casino_max_win()))
+	# Casino stats per game: rounds, bet, won, rounds that paid, best win;
+	# a blackjack double is part of the same hand.
+	game.casino_game = "blackjack"
+	var cg_n: float = float(game.casino_game_stats("blackjack").get("rounds", 0.0))
+	game.casino_stake(100.0, 1.0, false)
+	game.casino_stake(100.0, 2.0, false, true)
+	game.casino_pay(400.0, false)
+	game.casino_pay(10.0, false)
+	var cg: Dictionary = game.casino_game_stats("blackjack")
+	_check(float(cg["rounds"]) == cg_n + 1.0 and float(cg["bet"]) >= 200.0 and float(cg["wins"]) >= 1.0 and float(cg["best"]) >= 400.0, "casino stats: a hand with a double is one round, its wins and best are kept (%s)" % str(cg))
+	game.casino_game = ""
 	# Jackpot: a shared pot in hours of income, won by a rare seeded roll.
 	game.income_per_hour = 1.0e9   # a grown empire, so the pot is above its floor
 	game.casino["chips"] = 1.0e12
