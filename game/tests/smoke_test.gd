@@ -826,6 +826,37 @@ func _run() -> void:
 	_check(absf(game.chips() - cs_after) < 0.01, "a bet is saved at once (closing the app can't undo it)")
 	var cs_paid: float = game.casino_pay(game.casino_max_win() * 10.0)
 	_check(absf(cs_paid - game.casino_max_win()) < 0.01, "one payout is capped at %s" % game.money_short(game.casino_max_win()))
+	# Jackpot: a shared pot fed by every bet, won by a rare seeded roll.
+	var jp_seed: float = game.jackpot_seed()
+	game.casino.erase("pot")   # an old save has no pot
+	_check(absf(game.jackpot_pot() - jp_seed) < 0.01, "an old save shows the seed pot")
+	var jp0: float = game.jackpot_pot()
+	game.casino_stake(cs_max)
+	_check(absf(game.jackpot_pot() - (jp0 + cs_max * Data.JP_SHARE)) < 0.01, "every bet adds its share to the pot")
+	var jp_win_small: float = game.jackpot_win_for(cs_max * 0.5)
+	_check(absf(jp_win_small - game.jackpot_pot() * 0.5) < 0.01, "half the max bet wins half the pot")
+	_check(absf(game.casino_pay(1000.0) - 1000.0 * (1.0 - Data.JP_SHARE)) < 0.01, "a normal win gives the jackpot its share")
+	game.casino["pot"] = game.jackpot_cap() * 50.0
+	_check(absf(game.jackpot_pot() - game.jackpot_cap()) < 0.01, "the pot never shows more than %d h of income" % int(Data.JP_CAP_H))
+	game.casino["pot"] = game.jackpot_cap() * 0.9
+	game.jp_force = 1
+	var jpc0: float = game.chips()
+	var jp_full: float = game.jackpot_win_for(cs_max)
+	game.casino_stake(cs_max)
+	_check(game.jackpot_pending() > game.casino_max_win(), "a jackpot may pay past the normal win cap (%s)" % game.money_short(game.jackpot_pending()))
+	game.save_game()
+	game.load_game()
+	_check(game.jackpot_pending() > 0.0, "a won jackpot survives closing the app before it shows")
+	var jp_paid: float = game.settle_jackpot()
+	_check(jp_paid > 0.0 and absf(game.chips() - (jpc0 - cs_max + jp_paid)) < 1.0 and game.jackpot_pending() == 0.0, "the jackpot is paid into chips once")
+	_check(game.settle_jackpot() == 0.0 and game.jackpot_pot() >= jp_seed - 0.01, "it can't be paid twice, and the pot starts again from the seed")
+	_check(game._jackpot_roll(777) == game._jackpot_roll(777), "the same bet always rolls the same (no re-rolls by reloading)")
+	var hits := 0
+	for jn in 200000:
+		if game._jackpot_roll(1000000 + jn):
+			hits += 1
+	_check(hits > 4 and hits < 40, "about 1 in %d bets wins (%d in 200,000)" % [int(1.0 / Data.JP_CHANCE), hits])
+	_check(float(game.records()[6][1]) >= jp_paid - 0.01, "Records keep the biggest jackpot")
 	game.cash = 2.0e10
 	game.do_rebirth()
 	_check(game.casino_open() and game.chips() == 0.0, "rebirth keeps the casino open (tree) and clears the chips")

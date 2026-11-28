@@ -2518,6 +2518,7 @@ func records() -> Array:
 		["Best company", float(c.get("best_company", 0.0)), float(c.get("best_company_at", 0.0)), "rate"],
 		["Biggest tap", float(c.get("best_tap", 0.0)), float(c.get("best_tap_at", 0.0)), "money"],
 		["Biggest casino win", float(c.get("casino_best", 0.0)), float(c.get("casino_best_at", 0.0)), "money"],
+		["Biggest jackpot", float(c.get("best_jackpot", 0.0)), float(c.get("best_jackpot_at", 0.0)), "money"],
 		["Best trade", float(c.get("best_trade", 0.0)), float(c.get("best_trade_at", 0.0)), "money"],
 		["Longest streak", float(c.get("best_streak", float(streak))), float(c.get("best_streak_at", 0.0)), "days"],
 		["Rebirths", float(rebirth.get("count", 0)), 0.0, "count"],
@@ -3579,6 +3580,7 @@ func casino_stake(amount: float, limit_mult := 1.0) -> bool:
 	casino["chips"] = chips() - amount
 	counters["casino_bet"] = float(counters.get("casino_bet", 0.0)) + amount
 	counters["casino_rounds"] = int(counters.get("casino_rounds", 0)) + 1
+	_jackpot_bet(amount)
 	_guard_strict()
 	save_game()
 	flush_changes()
@@ -3586,8 +3588,9 @@ func casino_stake(amount: float, limit_mult := 1.0) -> bool:
 
 
 func casino_pay(amount: float) -> float:
-	## Pays a win into chips, capped. Returns what was really paid.
-	amount = clampf(amount, 0.0, casino_max_win())
+	## Pays a win into chips, capped. Returns what was really paid. Normal wins
+	## give JP_SHARE to the jackpot, which the bets also feed (see _jackpot_bet).
+	amount = clampf(amount * (1.0 - Data.JP_SHARE), 0.0, casino_max_win())
 	if amount <= 0.0:
 		return 0.0
 	casino["chips"] = chips() + amount
@@ -3598,6 +3601,80 @@ func casino_pay(amount: float) -> float:
 	save_game()
 	flush_changes()
 	return amount
+
+
+# ---- jackpot ------------------------------------------------------------------
+# casino["pot"]: the shared pot. counters["jp_n"]: bets so far (seeds each roll,
+# so a reload or backup gives the same roll, never a new one). casino["jp_due"]
+# a won jackpot waiting to be shown and paid when the round ends (win_fx), or
+# when the game page closes / the lobby opens if the round was left.
+
+func jackpot_seed() -> float:
+	return maxf(Data.CASINO_MIN_WIN_CAP, base_income() * Data.JP_SEED_H)
+
+
+func jackpot_cap() -> float:
+	return maxf(Data.CASINO_MIN_WIN_CAP * 10.0, base_income() * Data.JP_CAP_H)
+
+
+func jackpot_pot() -> float:
+	## What the pot shows now: at least the seed, at most the cap.
+	return clampf(float(casino.get("pot", 0.0)), jackpot_seed(), jackpot_cap())
+
+
+func jackpot_win_for(stake: float) -> float:
+	## A jackpot win for this bet: the pot x the bet's share of the max bet.
+	return jackpot_pot() * clampf(stake / maxf(casino_max_bet(), 0.01), 0.0, 1.0)
+
+
+func _jackpot_bet(amount: float) -> void:
+	casino["pot"] = minf(jackpot_pot() + amount * Data.JP_SHARE, jackpot_cap())
+	# The bet count lives in counters, so it carries on through a rebirth and a
+	# new run never replays the same rolls.
+	var n := int(counters.get("jp_n", 0)) + 1
+	counters["jp_n"] = float(n)
+	if _jackpot_roll(n) and float(casino.get("jp_due", 0.0)) <= 0.0:
+		var win := jackpot_win_for(amount)
+		casino["jp_due"] = win
+		casino["pot"] = maxf(0.0, float(casino["pot"]) - win)
+		GameLog.info("casino", "Jackpot rolled: %s" % money(win))
+
+
+func _jackpot_roll(n: int) -> bool:
+	## Seeded by the game and the bet count: the same bet always rolls the same.
+	if jp_force > 0:
+		jp_force -= 1
+		return true
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("jp:%d:%d" % [int(started_at), n])
+	return rng.randf() < Data.JP_CHANCE
+
+
+var jp_force := 0   # tests: the next N bets hit the jackpot
+
+
+func jackpot_pending() -> float:
+	return float(casino.get("jp_due", 0.0))
+
+
+func settle_jackpot() -> float:
+	## Pays a waiting jackpot into chips (past the normal win cap) and returns
+	## it, so the page can celebrate. 0 when nothing is waiting.
+	var due := float(casino.get("jp_due", 0.0))
+	if due <= 0.0:
+		return 0.0
+	casino["jp_due"] = 0.0
+	casino["chips"] = chips() + due
+	counters["casino_won"] = float(counters.get("casino_won", 0.0)) + due
+	_bump("jackpots")
+	_record("best_jackpot", due)
+	if due > float(counters.get("casino_best", 0.0)):
+		counters["casino_best"] = due
+		counters["casino_best_at"] = now()
+	GameLog.info("casino", "Jackpot paid: %s" % money(due))
+	save_game()
+	flush_changes()
+	return due
 
 
 # ==== rebirth and the RBP tree ===========================================

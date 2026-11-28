@@ -183,7 +183,7 @@ func _run() -> void:
 	_ok(bought and bool(br.get("bought", false)), "buy free spins goes through")
 	var bpaid := float(br.get("paid", 0.0))
 	_ok(absf(g.chips() - (c0 - bb * 100.0 + bpaid)) < 0.01, "it costs 100x the bet (%s) and pays the worked-out feature (%s) at once" % [g.money_short(bb * 100.0), g.money_short(bpaid)])
-	_ok(absf(bpaid - minf(float(br["total"]), g.casino_max_win())) < 0.01 and (br["feature"]["spins"] as Array).size() >= ForgeMath.FREE_SPINS, "the feature has its %d+ spins and pays its total" % ForgeMath.FREE_SPINS)
+	_ok(absf(bpaid - minf(float(br["total"]) * (1.0 - Data.JP_SHARE), g.casino_max_win())) < 0.01 and (br["feature"]["spins"] as Array).size() >= ForgeMath.FREE_SPINS, "the feature has its %d+ spins and pays its total (less the jackpot share)" % ForgeMath.FREE_SPINS)
 	_ok(absf(_disk_chips() - g.chips()) < 0.01, "the feature's pay is on disk before it plays")
 	if out != "":
 		await create_timer(2.6).timeout   # into the free spins

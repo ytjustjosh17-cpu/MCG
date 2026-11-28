@@ -245,6 +245,14 @@ const CASINO_MAX_BET_H := 0.1         # a bet is at most 6 minutes of income
 const CASINO_MAX_WIN_H := 24.0        # one payout is at most a day of income
 const CASINO_MIN_BET_CAP := 500.0     # early on you can still bet a little
 const CASINO_MIN_WIN_CAP := 1.0e5
+# Jackpot (1.2): one shared, growing pot. Every bet adds JP_SHARE of itself;
+# every normal win is trimmed by the same share, so the overall return stays
+# about 97%. Each bet has a tiny seeded chance to win it: the pot x your bet's
+# share of the max bet. It is the one payout allowed past the 24 h win cap.
+const JP_SHARE := 0.02            # of every bet into the pot (and off every normal win)
+const JP_CHANCE := 1.0 / 12000.0  # per bet: super rare, but there
+const JP_SEED_H := 1.0            # the pot never shows less than this much income
+const JP_CAP_H := 72.0            # ...nor pays more than this (about 3 days)
 # Auto clicker (Earn): [cost, seconds between taps]. Each auto tap is worth
 # half a normal tap, and it only runs while you play (pauses after
 # AUTO_IDLE_S without a touch), so leaving the phone on can't farm money.

@@ -91,7 +91,7 @@ func _on_drop() -> void:
 		_on_landed(int(d["slot"]), paid, bet)
 		return
 	_hidden_win += paid
-	_board.add_ball(d["path"], int(d["slot"]), paid, bet)
+	_board.add_ball(d["path"], int(d["slot"]), paid, bet, Game.jackpot_pending() > 0.0)
 	refresh()
 
 
@@ -109,7 +109,8 @@ func _win_feedback(slot: int, paid: float, bet: float) -> void:
 	_board.flash(slot, m >= 10.0)
 	# Balls land quickly one after another: only a real win gets a buzz.
 	status.set_win(paid, paid > bet * 1.001)
-	if paid > bet * 1.01:
+	# A jackpot is paid even on a losing bucket.
+	if paid > bet * 1.01 or Game.jackpot_pending() > 0.0:
 		win_fx(paid, bet, 10.0, _board.slot_center(slot))
 
 
@@ -126,8 +127,8 @@ class Board extends Control:
 	func _init() -> void:
 		set_process(false)
 
-	func add_ball(path: Array, slot: int, paid: float, bet: float) -> void:
-		balls.append({"path": path, "slot": slot, "paid": paid, "bet": bet, "t": 0.0})
+	func add_ball(path: Array, slot: int, paid: float, bet: float, gold := false) -> void:
+		balls.append({"path": path, "slot": slot, "paid": paid, "bet": bet, "t": 0.0, "gold": gold})
 		set_process(true)
 
 	func flash(slot: int, big := false) -> void:
@@ -141,7 +142,7 @@ class Board extends Control:
 		var g := _geo()
 		var slots := PlinkoMath.ROWS + 1
 		var x := float(g["cx"]) + (float(slot) - float(slots - 1) * 0.5) * float(g["gap"])
-		return global_position + Vector2(x, float(g["top"]) + float(PlinkoMath.ROWS) * float(g["gap"]) + 20.0)
+		return global_position + Vector2(x, float(g["top"]) + float(PlinkoMath.ROWS) * float(g["gy"]) + 20.0)
 
 	func _process(delta: float) -> void:
 		var done: Array = []
@@ -176,15 +177,19 @@ class Board extends Control:
 		queue_redraw()
 
 	func _geo() -> Dictionary:
+		## gap: horizontal spacing, gy: vertical. In landscape the board is short,
+		## so it may be wider than tall (up to 1.8x), which keeps every bucket
+		## label at a readable 13 px.
 		var slots := PlinkoMath.ROWS + 1
-		var gap := minf((size.x - 16.0) / float(slots), (size.y - 70.0) / float(PlinkoMath.ROWS + 1))
-		var top := 22.0 + maxf(0.0, (size.y - 70.0 - gap * float(PlinkoMath.ROWS + 1)) * 0.5)
-		return {"gap": gap, "top": top, "cx": size.x * 0.5}
+		var gy := minf((size.x - 16.0) / float(slots), (size.y - 70.0) / float(PlinkoMath.ROWS + 1))
+		var gx := minf((size.x - 16.0) / float(slots), gy * 1.8)
+		var top := 22.0 + maxf(0.0, (size.y - 70.0 - gy * float(PlinkoMath.ROWS + 1)) * 0.5)
+		return {"gap": gx, "gy": gy, "top": top, "cx": size.x * 0.5}
 
 	func _peg(row: int, k: int, g: Dictionary) -> Vector2:
 		## Row `row` has row + 3 pegs, centred.
 		var n := row + 3
-		return Vector2(float(g["cx"]) + (float(k) - float(n - 1) * 0.5) * float(g["gap"]), float(g["top"]) + float(row) * float(g["gap"]))
+		return Vector2(float(g["cx"]) + (float(k) - float(n - 1) * 0.5) * float(g["gap"]), float(g["top"]) + float(row) * float(g["gy"]))
 
 	func _ball_pos(b: Dictionary, g: Dictionary) -> Vector2:
 		var t := float(b["t"]) / STEP_S
@@ -200,8 +205,8 @@ class Board extends Control:
 		if step < path.size():
 			dir = 0.5 if int(path[step]) == 1 else -0.5
 		var x := x0 + dir * float(g["gap"]) * frac
-		var y := float(g["top"]) - float(g["gap"]) * 0.6 + float(g["gap"]) * (float(step) + frac)
-		y -= sin(frac * PI) * float(g["gap"]) * 0.35   # a small hop off each peg
+		var y := float(g["top"]) - float(g["gy"]) * 0.6 + float(g["gy"]) * (float(step) + frac)
+		y -= sin(frac * PI) * float(g["gy"]) * 0.35   # a small hop off each peg
 		return Vector2(x, y)
 
 	func _draw() -> void:
@@ -213,10 +218,11 @@ class Board extends Control:
 			draw_colored_polygon(UI.rounded_rect_poly(band, 11.0), Color(UI.HAZE, 0.05))
 		var g := _geo()
 		var gap := float(g["gap"])
-		var pr := clampf(gap * 0.13, 2.5, 4.5)
+		var gy := float(g["gy"])
+		var pr := clampf(minf(gap, gy) * 0.13, 2.5, 4.5)
 		# A soft wash of light behind the peg triangle.
-		var apex := _peg(0, 1, g) + Vector2(0, -gap * 0.8)
-		var base_y := float(g["top"]) + float(PlinkoMath.ROWS - 1) * gap + gap * 0.6
+		var apex := _peg(0, 1, g) + Vector2(0, -gy * 0.8)
+		var base_y := float(g["top"]) + float(PlinkoMath.ROWS - 1) * gy + gy * 0.6
 		var half := (float(PlinkoMath.ROWS + 2) * 0.5 + 0.6) * gap
 		draw_colored_polygon(PackedVector2Array([apex + Vector2(-gap, 0), apex + Vector2(gap, 0),
 			Vector2(float(g["cx"]) + half, base_y), Vector2(float(g["cx"]) - half, base_y)]), Color(UI.HAZE, 0.22))
@@ -235,7 +241,7 @@ class Board extends Control:
 				draw_circle(p + Vector2(-pr * 0.35, -pr * 0.35), pr * 0.3, Color(UI.TEXT, 0.9))
 		# Buckets: raised boxes; the big multipliers at the edges are gold and lit.
 		var slots := PlinkoMath.ROWS + 1
-		var sy := float(g["top"]) + float(PlinkoMath.ROWS) * gap + 8.0
+		var sy := float(g["top"]) + float(PlinkoMath.ROWS) * gy + 8.0
 		var f: Font = UI.SEMI
 		for k in slots:
 			var x := float(g["cx"]) + (float(k) - float(slots - 1) * 0.5) * gap - gap * 0.5 + 1.0
@@ -262,9 +268,7 @@ class Board extends Control:
 			var t := PlinkoPage._num(m)
 			# The label keeps to its own slot; on a narrow board (landscape) it
 			# steps down a size or two instead of being cut to "1.".
-			var lfs := 13
-			while lfs > 10 and f.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, lfs).x > gap - 1.0:
-				lfs -= 1
+			var lfs := 13   # the board widens in landscape instead of shrinking this
 			draw_string(f, Vector2(br.position.x - 1.0, br.position.y + 15.0 + lfs * 0.38), t, HORIZONTAL_ALIGNMENT_CENTER, gap, lfs, fg)
 			if fl > 0.0:
 				# A ring of light rising out of the bucket that was hit; wider for a big one.
@@ -273,7 +277,7 @@ class Board extends Control:
 				var rad := (gap * 0.6) + life * gap * (2.2 if _big.has(k) else 1.2)
 				draw_arc(rc, rad, 0.0, TAU, 32, Color(UI.GOLD if m >= 2.0 else UI.TEXT, 0.5 * (1.0 - life)), 2.0, true)
 		# Balls with a fading trail and a little squash as they strike each peg.
-		var br_r := gap * 0.24
+		var br_r := minf(gap, gy) * 0.24
 		for b in balls:
 			for i in range(4, 0, -1):
 				var tb: Dictionary = b.duplicate()
@@ -283,5 +287,10 @@ class Board extends Control:
 			var frac := fmod(float(b["t"]) / STEP_S, 1.0)
 			var sq := maxf(0.0, 0.18 - frac) * 1.2   # squashed right after a strike, round again in a blink
 			draw_set_transform(bp, 0.0, Vector2(1.0 + sq, 1.0 - sq))
-			CasinoGame.draw_ball(self, Vector2.ZERO, br_r)
+			if bool(b.get("gold", false)):   # the jackpot ball: gold with a halo
+				draw_circle(Vector2.ZERO, br_r * 2.2, Color(UI.GOLD, 0.25))
+				draw_circle(Vector2.ZERO, br_r, UI.GOLD)
+				draw_circle(Vector2(-br_r * 0.3, -br_r * 0.3), br_r * 0.35, Color(UI.TEXT, 0.9))
+			else:
+				CasinoGame.draw_ball(self, Vector2.ZERO, br_r)
 			draw_set_transform(Vector2.ZERO, 0.0)

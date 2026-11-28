@@ -263,6 +263,13 @@ func dock_row(buttons: Array) -> HBoxContainer:
 func win_fx(paid: float, stake: float, big_x := CONFETTI_X, at := Vector2.INF) -> void:
 	## The same answer on every game: the win counts up in gold, a win buzzes,
 	## a big one throws confetti, a loss gives a soft tap. Never blocks a tap.
+	## A jackpot won on this round is paid here and gets its own celebration.
+	var jp := Game.settle_jackpot()
+	if jp > 0.0:
+		jackpot_fx(jp, at)
+		status.set_chips(Game.chips())
+		status.set_win(paid + jp, true)
+		return
 	status.set_win(paid, paid > stake + 0.001)
 	if paid > stake + 0.001:
 		Kit.haptic("success")
@@ -275,6 +282,62 @@ func win_fx(paid: float, stake: float, big_x := CONFETTI_X, at := Vector2.INF) -
 		Kit.haptic("selection")
 	else:
 		Kit.haptic("light")
+
+
+func jackpot_fx(amount: float, at := Vector2.INF) -> void:
+	## Gold "JACKPOT" over the game, confetti and the centred celebration card.
+	## Nothing here blocks a tap; the money is already in chips.
+	Kit.haptic("success")
+	Kit.celebrate("Jackpot", title, "+" + Game.money_short(amount))
+	var p := at if at != Vector2.INF else area.get_global_rect().get_center()
+	if not Motion.reduced():
+		get_tree().root.get_node("Kit").add_child(Confetti.new(p, 140))
+	var f := JackpotFlash.new()
+	area.add_child(f)
+	f.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	refresh_jackpot()
+
+
+func refresh_jackpot() -> void:
+	if status != null:
+		status.set_jackpot(Game.jackpot_pot())
+
+
+class JackpotFlash extends Control:
+	## Rays and a big gold JACKPOT across the game for a moment.
+	var _t := 0.0
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_process(true)
+
+	func _process(d: float) -> void:
+		_t += d
+		if _t > 2.6 or Motion.reduced() and _t > 1.6:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var a := clampf(minf(_t / 0.25, (2.6 - _t) / 0.6), 0.0, 1.0)
+		draw_rect(Rect2(Vector2.ZERO, size), Color(UI.INK, 0.45 * a))
+		var rays := 18
+		var r := maxf(size.x, size.y)
+		for i in rays:
+			var ang := TAU * float(i) / float(rays) + _t * 0.6
+			var p1 := c + Vector2(cos(ang - 0.06), sin(ang - 0.06)) * r
+			var p2 := c + Vector2(cos(ang + 0.06), sin(ang + 0.06)) * r
+			draw_colored_polygon(PackedVector2Array([c, p1, p2]), Color(UI.GOLD, 0.10 * a))
+		var f: Font = UI.DISPLAY
+		var fs := int(clampf(size.x / 6.0, 30.0, 64.0))
+		var w := f.get_string_size("JACKPOT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var pos := Vector2(c.x - w * 0.5, c.y + fs * 0.35)
+		var pulse := 1.0 + 0.04 * sin(_t * 9.0)
+		draw_set_transform(c, 0.0, Vector2(pulse, pulse))
+		draw_string_outline(f, pos - c + Vector2(0, 3), "JACKPOT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 8, Color(UI.INK, 0.8 * a))
+		draw_string(f, pos - c, "JACKPOT", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UI.GOLD, a))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ---- the last results strip ---------------------------------------------------------
@@ -335,6 +398,7 @@ func is_auto() -> bool:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
 		stop_auto()
+
 
 
 # ---- chips and bets (shared maths for the tables) ----------------------------------
@@ -508,6 +572,7 @@ class StatusRow extends HBoxContainer:
 	## Pages pass the chips to show: they lag while a result plays out.
 	var chips_l: Label
 	var max_l: Label
+	var jp_l: Label
 	var win_l: Label
 	var buy_b: Button
 	var _tw: Tween
@@ -528,6 +593,10 @@ class StatusRow extends HBoxContainer:
 		lv.add_child(chips_l)
 		max_l = UI.label("", 13, UI.SUB)
 		lv.add_child(max_l)
+		jp_l = UI.label("", 13, UI.GOLD)
+		jp_l.clip_text = true
+		jp_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		lv.add_child(jp_l)
 		var rv := VBoxContainer.new()
 		rv.add_theme_constant_override("separation", -2)
 		rv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -567,6 +636,11 @@ class StatusRow extends HBoxContainer:
 			_ctw.kill()
 		chips_l.text = Game.money(v)
 		max_l.text = "Chips · max bet " + Game.money_short(Game.casino_max_bet())
+		set_jackpot(Game.jackpot_pot())
+
+	func set_jackpot(v: float) -> void:
+		if jp_l != null:
+			jp_l.text = "Jackpot " + Game.money_short(v)
 
 	func tween_chips(from: float, to: float) -> void:
 		## The chips glide to their new value (slots, after the reels stop).

@@ -1,5 +1,17 @@
 # Changelog
 
+## Casino jackpot
+
+- Every casino game now has a shared jackpot, shown in the casino and on each
+  game. It is super rare (about 1 in 12,000 bets) and can grow to about
+  3 days of income. A max bet wins all of it; a smaller bet wins its share.
+- Each bet adds 2% to the pot and normal wins pay 2% less, so the overall
+  return stays about 97%.
+- A jackpot gets a gold celebration that never blocks taps. It shows in
+  Records as your biggest jackpot.
+- Plinko's bucket numbers are bigger and easier to read sideways. Crash's
+  "Climbing" label sits on a dark backing so the curve can't hide it.
+
 ## More money, combos that pay, miner upgrades
 
 - Tapping in a row pays more: from a 10 combo each tap is worth more, up to

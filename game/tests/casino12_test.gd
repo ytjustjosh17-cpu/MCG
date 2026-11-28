@@ -305,6 +305,32 @@ func _pages() -> void:
 	_ok(bb.value <= g.casino_max_bet() + 0.01, "bet bar: ×2 stops at the table limit")
 	main.pop()
 	await create_timer(0.6).timeout
+	# Jackpot on a real game: forced, it pays the pot into chips once and celebrates.
+	var kit = root.get_node("Kit")
+	var jpp = load("res://scripts/plinko_page.gd").new()
+	g.settle_jackpot()
+	g.casino["chips"] = maxf(g.chips(), g.casino_max_bet() * 3.0)   # earlier suites may have spent them
+	main.push(jpp)
+	await create_timer(0.8).timeout
+	jpp._bet.value = g.casino_max_bet()
+	var jc0: float = g.chips()
+	var jwin: float = g.jackpot_win_for(g.casino_max_bet())
+	g.jp_force = 1
+	var keep_rm: bool = g.reduce_motion
+	g.reduce_motion = true   # the ball lands at once
+	jpp._on_drop()
+	## Wait for the ball to land (slow when the lanes run side by side).
+	for _w in range(50):
+		await create_timer(0.2).timeout
+		if g.jackpot_pending() == 0.0 and kit._cele_open:
+			break
+	g.reduce_motion = keep_rm
+	_ok(g.jackpot_pending() == 0.0 and g.chips() >= jc0 - g.casino_max_bet() + jwin - 1.0, "jackpot: the plinko round pays the pot into chips, even in a losing bucket (%s)" % g.money_short(jwin))
+	_ok(kit._cele_open, "jackpot: a gold celebration shows (it never blocks taps)")
+	while kit.close_top():
+		await create_timer(0.2).timeout
+	main.pop()
+	await create_timer(0.6).timeout
 	# The daily wheel: once a day.
 	g.casino["wheel_day"] = -1
 	_ok(g.wheel_ready(), "wheel: a free spin is ready")

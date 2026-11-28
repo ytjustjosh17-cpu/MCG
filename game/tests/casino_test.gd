@@ -34,12 +34,30 @@ func _run() -> void:
 	print("  (slots %.1f s)" % ((Time.get_ticks_msec() - t0) / 1000.0))
 	_roulette()
 	_tower()
+	_jackpot()
 	var t1 := Time.get_ticks_msec()
 	_blackjack(bj_hands)
 	print("  (blackjack %.1f s)" % ((Time.get_ticks_msec() - t1) / 1000.0))
 	print("Casino test took %.1f s" % ((Time.get_ticks_msec() - t0) / 1000.0))
 	print("Failures: %d" % fails)
 	quit(1 if fails > 0 else 0)
+
+
+func _jackpot() -> void:
+	## Every bet adds JP_SHARE to the shared pot and normal wins are trimmed
+	## by the same share, so on average the pot hands the share back. The
+	## overall return must stay close to the game's own (about 97%).
+	var share := Data.JP_SHARE
+	for base in [0.94, 0.967, 0.99]:
+		var eff: float = base * (1.0 - share) + share
+		_ok(absf(eff - base) < 0.002, "jackpot: return %.1f%% stays %.2f%% with the pot share" % [base * 100.0, eff * 100.0])
+	var hits := 1.0 / Data.JP_CHANCE
+	_ok(hits >= 5000.0 and hits <= 20000.0, "jackpot: 1 in %d rounds (5,000 to 20,000)" % int(hits))
+	## Average pot when hit at max bet (bet is 0.1 h of income): seed plus the
+	## share of every bet since the last hit, capped.
+	var avg_h := minf(Data.JP_SEED_H + hits * 0.1 * share, Data.JP_CAP_H)
+	print("  Jackpot          1 in %d, share %.0f%%, average max-bet pot %.0f h of income, cap %.0f h" % [int(hits), share * 100.0, avg_h, Data.JP_CAP_H])
+	_ok(avg_h > 6.0 and avg_h <= 72.0, "jackpot: an average max-bet pot is a big win but capped (%.0f h)" % avg_h)
 
 
 func _session(m: SlotMath, bet: float) -> float:

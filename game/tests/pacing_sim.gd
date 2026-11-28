@@ -76,6 +76,9 @@ func _hold_trade() -> void:
 
 
 var gamble_net := 0.0
+var gamble_jackpots := 0
+var gamble_sessions := 0
+var gamble_jp_total := 0.0
 var _slot: SlotMath
 
 
@@ -91,6 +94,9 @@ func _gamble() -> void:
 	if g.cash < need * 2.0:
 		return
 	var c0: float = g.cash
+	gamble_sessions += 1
+	if OS.get_environment("SIM_JP") == "1" and gamble_sessions % 10 == 1:
+		g.jp_force = 1   # luckiest-ever persona: a jackpot every 10th session
 	g.buy_chips(need)
 	var free := 0
 	for i in 40:
@@ -104,6 +110,10 @@ func _gamble() -> void:
 			var fr: Dictionary = _slot.spin(line, true)
 			g.casino_pay(float(fr["total"]))
 			free += int(fr["free_spins_awarded"])
+		var jp: float = g.settle_jackpot()   # the game pays a won jackpot when the round ends
+		if jp > 0.0:
+			gamble_jackpots += 1
+			gamble_jp_total += jp
 	g.cash_out(g.chips())
 	gamble_net += g.cash - c0
 
@@ -392,6 +402,7 @@ func _run() -> void:
 			g.rigs_total(), g.mining_value_per_hour() / maxf(1.0, g.income_per_hour) * 100.0])
 	if OS.get_environment("SIM_GAMBLE") == "1":
 		print("Gambler net from the casino: %s" % g.money_short(gamble_net))
+		print("Gambler jackpots: %d, worth %s, %d bets counted" % [gamble_jackpots, g.money_short(gamble_jp_total), int(g.counters.get("jp_n", 0))])
 	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()

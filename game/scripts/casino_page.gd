@@ -23,6 +23,7 @@ var _locked: VBoxContainer
 var _unlock: Button
 var _open: VBoxContainer
 var _chips: Label
+var _jp: Label
 var _limits: Label
 var _stats: Label
 var _table_rows: Array = []
@@ -55,6 +56,19 @@ func build() -> void:
 	_open = VBoxContainer.new()
 	_open.add_theme_constant_override("separation", 12)
 	body.add_child(_open)
+	# The shared jackpot: one gold line of hope, not a flashing sign.
+	var jc := PanelContainer.new()
+	jc.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16, 16, 14))
+	_open.add_child(jc)
+	var jv := VBoxContainer.new()
+	jv.add_theme_constant_override("separation", 2)
+	jc.add_child(jv)
+	jv.add_child(UI.label("Jackpot", 13, UI.GOLD, true))
+	_jp = UI.display("", 36, UI.GOLD)
+	jv.add_child(_jp)
+	var jl := UI.label("Super rare on any bet. A max bet wins it all.", 13, UI.SUB)
+	jl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	jv.add_child(jl)
 	var cage := PanelContainer.new()
 	cage.add_theme_stylebox_override("panel", UI.box(UI.PANEL, 16, 16, 14))
 	_open.add_child(cage)
@@ -152,6 +166,11 @@ func refresh() -> void:
 		return
 	for tr in _table_rows:
 		(tr as Row).modulate.a = 1.0 if Game.tables_open() else 0.55
+	# A jackpot won on a round that was walked away from is paid and shown here.
+	var left := Game.settle_jackpot()
+	if left > 0.0:
+		Kit.celebrate("Jackpot", "Won on your last round", "+" + Game.money_short(left))
+	_jp.text = Game.money_short(Game.jackpot_pot())
 	_chips.text = Game.money(Game.chips())
 	_wheel_row.set_texts("Daily wheel", "Free spin ready" if Game.wheel_ready() else "Next spin tomorrow", "Spin" if Game.wheel_ready() else "")
 	_limits.text = "Max bet %s · max win %s a round" % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]

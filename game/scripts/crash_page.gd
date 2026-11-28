@@ -332,6 +332,10 @@ class Graph extends Control:
 			sub = "You cashed out"
 		elif crash > 0.0:
 			sub = "Climbing"
+		# A soft backing so the line reads cleanly even where the curve passes behind it.
+		var sw := f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 24.0
+		var sb := Rect2(Vector2((size.x - sw) * 0.5, pad.y + h * 0.45 + 13.0), Vector2(sw, 24.0))
+		draw_colored_polygon(UI.rounded_rect_poly(sb, 12.0), Color(UI.INK, 0.72))
 		draw_string(f, Vector2(0, pad.y + h * 0.45 + 30), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 15, UI.GOLD if cashed > 0.0 else UI.SUB)
 		# Last crash points along the bottom.
 		var x := 16.0

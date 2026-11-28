@@ -316,7 +316,7 @@ func _blackjack(kit) -> void:
 		var w0 := _won()
 		main.pop()
 		await create_timer(0.8).timeout
-		var expect: float = minf(float(bj_obj.result()["payout_total"]), g.casino_max_win())
+		var expect: float = minf(float(bj_obj.result()["payout_total"]) * (1.0 - Data.JP_SHARE), g.casino_max_win())   # wins give the jackpot its share
 		_ok(bj_obj.is_over() and absf(_won() - w0 - expect) < 0.01 and absf(g.chips() - (after_deal + expect)) < 0.01 and after_deal < bl, "leaving mid-hand stands and pays it out (%s)" % g.money(expect))
 		left = true
 		break
