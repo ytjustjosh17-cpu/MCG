@@ -19,7 +19,8 @@
 - More detail in every picture: casino tables, slots, Sun Forge, scenes,
   the tower, items, miners and your home.
 - Fixes from a money stress test: a long freeze or coming back to the app
-  can't pay twice; bad numbers can't break a bet, loan or trade. Many
+  can't pay twice; bad numbers can't break a bet, loan or trade; a restored
+  backup gets fresh jackpot luck. Many
   play-test exploits closed too.
 
 ## Casino jackpot

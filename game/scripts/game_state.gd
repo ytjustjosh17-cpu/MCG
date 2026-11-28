@@ -3105,6 +3105,9 @@ func restore_code(text: String) -> bool:
 		else:
 			dui.erase(rk)
 	d["ui"] = dui
+	# Fresh jackpot luck: a restored backup can't replay a known run of rolls.
+	if typeof(d.get("casino")) == TYPE_DICTIONARY:
+		d["casino"]["jp_salt"] = float(randi())
 	f.store_string(JSON.stringify(d))
 	f.close()
 	if FileAccess.file_exists(SAVE_PATH):
@@ -3674,7 +3677,8 @@ func _jackpot_roll(n: int) -> bool:
 		jp_force -= 1
 		return true
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("jp:%d:%d" % [int(started_at), n])
+	var salt := int(casino.get("jp_salt", 0.0))
+	rng.seed = hash("jp:%d:%d" % [int(started_at), n]) if salt == 0 else hash("jp:%d:%d:%d" % [int(started_at), n, salt])
 	return rng.randf() < Data.JP_CHANCE
 
 

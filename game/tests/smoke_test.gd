@@ -465,6 +465,7 @@ func _run() -> void:
 	_check(game.restore_code(code), "backup restores")
 	_check(absf(game.cash - keep_cash) <= maxf(1.0, keep_cash * 1e-6) and game.props_owned() == keep_props and absf(game.staked("XRP") - keep_staked) <= keep_staked * 1e-6, "restore brings back cash, property and staking (%.2f/%.2f %d/%d %.6f/%.6f)" % [game.cash, keep_cash, game.props_owned(), keep_props, game.staked("XRP"), keep_staked])
 	_check(game.hist_h["NRV"].size() >= 160, "charts rebuilt after restore")
+	_check(int(game.casino.get("jp_salt", 0.0)) != 0 or game.restore_code(code) and int(game.casino.get("jp_salt", 0.0)) != 0, "a restore gives fresh jackpot luck")
 
 	# Offline earnings are capped at 8 hours (goals off, so a goal reward
 	# landing at the same moment isn't counted).
