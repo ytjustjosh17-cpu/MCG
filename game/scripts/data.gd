@@ -262,7 +262,7 @@ const JP_CAP_H := 72.0            # ...nor pays more than this (about 3 days)
 # Auto clicker (Earn): [cost, seconds between taps]. Each auto tap is worth
 # half a normal tap, and it only runs while you play (pauses after
 # AUTO_IDLE_S without a touch), so leaving the phone on can't farm money.
-const AUTO_LEVELS := [[2.5e4, 2.0], [4.0e5, 1.5], [8.0e6, 1.0], [2.5e8, 0.75], [1.0e10, 0.5]]
+const AUTO_LEVELS := [[5.0e3, 2.0], [4.0e4, 1.5], [5.0e5, 1.0], [1.0e7, 0.75], [3.0e8, 0.5]]   # cheap: it only taps while you play
 const AUTO_TAP_SHARE := 0.5
 const TAP_INCOME_SHARE := 0.0012  # each tap also pays this many hours of income
 const COMBO_START := 10           # taps in a row before the combo pays

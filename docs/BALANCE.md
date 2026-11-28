@@ -62,7 +62,7 @@ Before 1.2 an expansion's price grew ×3.3 a stage while the company's income gr
 | Converting coins | sell at the usual 0.5% spread, then buy the other coin; nothing gained, so no loop | `convert_coin()` |
 | Mining | one pool of miners mining one coin you choose (switch free, any time); a miner earns 4% of its price an hour in £ for any coin (pays back in about a day), capped at a quarter of company income (never under £2K/h, 1.2) because a buy-by-payback player let mining outrun companies; each miner costs ×1.7 more, 40 max, which keeps mining to roughly 10 to 25% of income | `RIG_*`, `MINE_*` |
 | Head office | ten one-off upgrades: taps ×1.5, deals 25% sooner, away cap 10 h then 12 h, expansions 15% quicker (twice), +1 golden sun a day, locked coins +25%, miners +25%, managers take 6% | `UPGRADES` |
-| Auto clicker | 5 levels (£25K, £400K, £8M, £250M, £10B): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
+| Auto clicker | 5 levels (£5K, £40K, £500K, £10M, £300M; cut hard in 1.2 as it only taps while you play: robot 90% day 28.9 / 29.3, greedy 28.8, unchanged): a tap every 2, 1.5, 1, 0.75, 0.5 s, each worth half a tap (no big taps or Frenzy); only while playing, pauses 2 min after the last touch; reset by rebirth | `AUTO_LEVELS`, `auto_tick()` |
 | Selling a company | half its value (value = 60% of what was spent), so always a loss; not while expanding | `sell_business()` |
 | Managers | can be switched off (no expanding, no cut) and on again | `set_manager_on()` |
 | Bank savings | 0.2% an hour, capped at 5% of base income (floor £100/h); reset by rebirth | `BANK_*`, `savings_per_hour()` |

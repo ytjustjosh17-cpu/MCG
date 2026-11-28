@@ -11,6 +11,7 @@
   on the street, a tidier home room, a smaller taxi, rounded casino banner.
 - Casino tidy-up: roulette, chip bar, blackjack shoe, Plinko edges, wheel
   labels, and confetti stays inside the tower card.
+- The auto clicker is much cheaper: £5K, £40K, £500K, £10M and £300M.
 - Claim rows show the amount under the name, with Claim on the right.
 - The "tired, rest a bit" note is gone from Earn (taps still tire after a
   long non-stop run).

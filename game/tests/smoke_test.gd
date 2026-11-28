@@ -984,7 +984,7 @@ func _run() -> void:
 	game.reset_game(true)
 	game.cash = 1.0e5
 	_check(game.auto_tick(10.0) == 0, "no auto clicker, no auto taps")
-	_check(game.buy_auto() and game.auto_level == 1 and absf(game.cash - 7.5e4) < 0.01, "auto clicker level 1 costs %s" % game.money_short(Data.AUTO_LEVELS[0][0]))
+	_check(game.buy_auto() and game.auto_level == 1 and absf(game.cash - (1.0e5 - float(Data.AUTO_LEVELS[0][0]))) < 0.01, "auto clicker level 1 costs %s" % game.money_short(Data.AUTO_LEVELS[0][0]))
 	game.tap()
 	var ac_cash: float = game.cash
 	var ac_n := 0
