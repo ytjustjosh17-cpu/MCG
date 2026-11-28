@@ -1147,17 +1147,21 @@ func _run() -> void:
 	_check(game.terms().is_empty() and game.unclaimed("term") == 1, "terms: an ended term waits in the claim list")
 	var c_t: float = game.cash
 	var paid_t: float = game.claim_all("term")
-	_check(is_equal_approx(paid_t, cap * 1.20) and is_equal_approx(game.cash, c_t + cap * 1.20), "terms: 7 days pays 20%")
+	_check(is_equal_approx(paid_t, cap * 2.70) and is_equal_approx(game.cash, c_t + cap * 2.70), "terms: 7 days pays 170%")
 	game.open_term(1, 1000.0)
 	game.restore_guard = false
 	var code_t: String = game.backup_code()
 	_check(game.restore_code(code_t) and game.terms().size() == 1 and is_equal_approx(float(game.terms()[0]["amount"]), 1000.0), "terms: a backup restore keeps an open term as it was")
 	var c_b: float = game.cash
 	_check(is_equal_approx(game.break_term(0), 950.0) and is_equal_approx(game.cash, c_b + 950.0) and game.terms().is_empty(), "terms: breaking early returns 95%, no interest")
-	var best_rate: float = 0.0
+	var one_day: float = 0.0
 	for tr in game.term_rates():
-		best_rate = maxf(best_rate, float(tr["rate"]))
-	_check(best_rate < Data.LOAN_FEE, "terms: borrowing to lock can't pay (best rate under the loan fee)")
+		if int(tr["days"]) == 1:
+			one_day = float(tr["rate"])
+	_check(one_day / 24.0 > Data.div_yield_day(1.0) / 24.0 * 3.0, "terms: a day's lock beats the best dividend over the same day")
+	game.take_loan(game.loan_limit())
+	_check(not game.open_term(1, 1000.0), "terms: no lock while a loan runs (borrowing to lock can't pay)")
+	game.repay_loan()
 	var t17: Dictionary = game.to_dict()
 	t17["bank"] = {"saved": 0.0, "loan": {}}
 	_check(game._migrate(t17).has("bank"), "saves without terms still load")

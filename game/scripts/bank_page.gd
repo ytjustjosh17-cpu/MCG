@@ -195,6 +195,9 @@ static func _pct(rate: float) -> String:
 
 func _open_term_sheet(days: int, rate: float) -> void:
 	Kit.tick()
+	if not Game.loan().is_empty():
+		Kit.toast("Pay off your loan first")
+		return
 	var most := minf(Game.cash, Game.term_cap_left())
 	if most < 1.0:
 		Kit.toast("No room left" if Game.term_cap_left() < 1.0 else "No cash to lock")

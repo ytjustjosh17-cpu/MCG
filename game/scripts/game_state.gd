@@ -2866,7 +2866,7 @@ func open_term(days: int, amount: float) -> bool:
 		if int(r[0]) == days:
 			rate = float(r[1])
 	amount = minf(amount, minf(cash, term_cap_left()))
-	if rate < 0.0 or amount < 1.0:
+	if rate < 0.0 or amount < 1.0 or not loan().is_empty():   # no borrowing to lock
 		return false
 	_save_soon = true
 	cash -= amount

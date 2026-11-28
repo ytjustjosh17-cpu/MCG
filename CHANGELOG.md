@@ -1,5 +1,15 @@
 # Changelog
 
+## Fixed terms worth it, cleaner pictures
+
+- Fixed terms pay far more: 20% for 1 day, 66% for 3 days, 170% for 7
+  days, so locking money beats dividends. Not while a loan is running.
+- Picture fixes everywhere: no stray bars across the sun, companies stand
+  on the street, a tidier home room, a smaller taxi, rounded casino banner.
+- Casino tidy-up: roulette, chip bar, blackjack shoe, Plinko edges, wheel
+  labels, and confetti stays inside the tower card.
+- Claim rows show the amount under the name, with Claim on the right.
+
 ## Seasons, medals, Tower and a sharper casino
 
 - **Weekly season** on Goals: goals, suns and your first tap each day fill
@@ -10,8 +20,8 @@
 - **Profile**: a rank title and a showcase of four things you're proud of.
 - **Company upgrades**: five named steps per company, +6% income each,
   opening at stages 2, 4, 6, 8 and 10. The company page shows the next one.
-- **Fixed terms** in the Bank: lock cash for 1, 3 or 7 days for 2.5%, 8%
-  or 20%. Break early and get 95% back.
+- **Fixed terms** in the Bank: lock cash for 1, 3 or 7 days. Break early
+  and get 95% back.
 - **Tower**, a new casino game: climb row by row and cash out any time.
 - Bet bar has ½ and ×2. Each game shows your last five results. Crash can
   skip to the result.
