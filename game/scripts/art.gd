@@ -116,7 +116,7 @@ static func _draw_kind(ci: CanvasItem, kind: String, o: Vector2, s: float, lit: 
 		"dealer":
 			_rect(ci, o, s, 8, 30, 104, 40, ink)
 			_rect(ci, o, s, 14, 36, 92, 22, win)
-			_car(ci, o, s * 0.55, 38 / 0.55 - 6, ink, red if lit > 0 else win)
+			_car(ci, o + Vector2(0, 19.0) * s, s * 0.55, 38 / 0.55 - 6, ink, red if lit > 0 else win)   # in the showroom, not on its roof
 		"screen":
 			_rect(ci, o, s, 22, 14, 34, 56, ink)
 			_rect(ci, o, s, 64, 24, 34, 46, ink)
@@ -500,14 +500,16 @@ static func backdrop(ci: CanvasItem, rect: Rect2, clip: PackedVector2Array, sun_
 	var hero := w >= 220.0   # small thumbnails stay simple; big pictures get the detail
 	if hero:
 		# Thin cloud bands drifting across the sun, low in the sky.
-		for k in (2 if opt.get("clouds", true) else 0):
+		for k in (2 if opt.get("clouds", false) else 0):   # off by default: thin bands read as stray bars
 			var cy := sun_c.y + sun_r * (0.25 + 0.32 * k)
-			var cw := sun_r * (2.6 - k * 0.7)
-			var cx := sun_c.x - cw * (0.55 + 0.1 * k)
-			# Only across the sun's face: past its edge a band read as a stray bar.
-			var band := UI.rounded_rect_poly(Rect2(cx, cy, cw, maxf(2.0, h * 0.012)), 2.0)
-			for piece in Geometry2D.intersect_polygons(band, UI.circle_poly(sun_c, sun_r - 1.0, 96)):
-				_fill(ci, piece, clip, Color(UI.SKY, 0.85))
+			# Short, soft wisps well inside the sun's face: long full-width
+			# bands read as stray bars running to the edge of the picture.
+			var cw := sun_r * (1.0 - k * 0.35)
+			var cx := sun_c.x - cw * (0.62 - 0.2 * k)
+			var ch := maxf(2.0, h * 0.012)
+			var band := UI.rounded_rect_poly(Rect2(cx, cy, cw, ch), ch * 0.5)
+			for piece in Geometry2D.intersect_polygons(band, UI.circle_poly(sun_c, sun_r * 0.92, 96)):
+				_fill(ci, piece, clip, Color(UI.SKY, 0.6))
 		# A few birds far off.
 		for k in 3:
 			var bp := o + Vector2(w * rng.randf_range(0.1, 0.6), h * rng.randf_range(0.1, 0.32))
@@ -634,6 +636,8 @@ static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0
 	o2["pylon_x"] = 0.13   # left: the building always stands on the right
 	backdrop(ci, rect, clip, sc, r, red, sd, o2, red)
 	var s := minf(rect.size.x / 150.0, (rect.size.y - 10.0) / 78.0)
+	if kind == "taxi":
+		s *= 0.72   # a car is small next to buildings: full size it filled the sky and hit the cables
 	var o := rect.position + Vector2(rect.size.x - 124.0 * s - 6.0, rect.size.y - 74.0 * s)
 	if String(opt.get("ground", "")) == "water":
 		o.y -= rect.size.y * 0.06
@@ -641,7 +645,7 @@ static func draw_scene(ci: CanvasItem, rect: Rect2, kind: String, radius := 16.0
 		# Rim light: the silhouette once more, nudged towards the sun in a warm
 		# tint, so the edges facing the sun catch its light.
 		var bc := o + Vector2(60.0, 40.0) * s
-		var toward := (sc - bc).normalized() * maxf(1.0, s * 1.6)
+		var toward := (sc - bc).normalized() * clampf(s * 0.5, 1.0, 2.0)   # a thin edge, never a second outline
 		draw(ci, kind, o + toward, s, lit, red, Color(red.lerp(UI.FLASH, 0.2), 0.62))
 	draw(ci, kind, o, s, lit, red)
 	if String(opt.get("ground", "")) != "water":
@@ -758,6 +762,11 @@ class Life extends Control:
 				var a := clampf(minf(x - rad, w - rad - x) / 20.0, 0.0, 1.0)
 				if a > 0.0:
 					draw_colored_polygon(PackedVector2Array([Vector2(x, y), Vector2(x, y - ch * 0.6), Vector2(x + cw * 0.25, y - ch), Vector2(x + cw * 0.7, y - ch), Vector2(x + cw, y - ch * 0.5), Vector2(x + cw, y)]), Color(UI.INK, a))
+					# A lit roof line and wheels, so it reads as a car and not a stray blob.
+					draw_line(Vector2(x + cw * 0.25, y - ch), Vector2(x + cw * 0.7, y - ch), Color(UI.SUB, 0.55 * a), 1.0)
+					for wx in [x + cw * 0.22, x + cw * 0.78]:
+						draw_circle(Vector2(wx, y), ch * 0.22, Color(UI.INK, a))
+						draw_circle(Vector2(wx, y), ch * 0.09, Color(UI.SUB, 0.6 * a))
 					draw_rect(Rect2(x + cw - 2.0, y - ch * 0.45, 2.0, 2.0), Color(UI.FLASH, a), true)
 					draw_rect(Rect2(x + cw, y - ch * 0.45, 10.0, 2.0), Color(UI.FLASH, 0.25 * a), true)
 		elif ground == "water":

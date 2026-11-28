@@ -123,11 +123,11 @@ class Room extends Control:
 		queue_redraw()
 
 	const SHELF_X := 0.35   # the display shelf: left edge and width, as shares of the room
-	const SHELF_W := 0.36
-	const SHELF_Y := 0.47
+	const SHELF_W := 0.3
+	const SHELF_Y := 0.6   # a low sideboard standing on the floor, below the window's middle
 
 	func _floor_y() -> float:
-		return size.y * 0.8
+		return size.y * 0.86
 
 	func _place_items() -> void:
 		for ch in get_children():
@@ -139,18 +139,20 @@ class Room extends Control:
 		# A painting on the wall, left of the window.
 		var art := HomePage.best_item("art")
 		if art >= 0:
-			_add(ItemArt.new("art", art, 64.0), Vector2(w * 0.06, size.y * 0.16))
+			# Smaller in a short (sideways) room, so it never touches the mantel below.
+			var asz := clampf(size.y * 0.46 - 44.0 - size.y * 0.08, 36.0, 64.0) if tier >= 6 else 64.0
+			_add(ItemArt.new("art", art, asz), Vector2(w * 0.06, minf(size.y * 0.16, size.y * 0.08 if tier >= 6 else size.y * 0.16)))
 		# A watch on the side table (on the mantel once there is a fireplace).
 		var watch := HomePage.best_item("watches")
 		if watch >= 0:
 			var wp := Vector2(w * 0.09, fy - 48.0)
 			if tier >= 6:
-				wp = Vector2(w * 0.05 + w * 0.11 - 15.0, size.y * 0.46 - 30.0)
+				wp = Vector2(w * 0.05 + w * 0.11 - 15.0, size.y * 0.46 - 36.0)   # on the mantel
 			_add(ItemArt.new("watches", watch, 30.0), wp)
 		# A car in the garage bay on the right (from the town house up).
 		var car := HomePage.best_item("cars")
 		if car >= 0:
-			_add(ItemArt.new("cars", car, 78.0), Vector2(w * 0.76, fy - 42.0))
+			_add(ItemArt.new("cars", car, 78.0), Vector2(w * 0.76, fy - 64.0))   # wheels on the floor, not past it
 		# Models and relics on the display shelf.
 		var x := w * SHELF_X + 6.0
 		_shelf = false
@@ -219,12 +221,15 @@ class Room extends Control:
 		# A display shelf for models and relics: a back panel and two posts,
 		# so the pieces stand on furniture, not in the window.
 		if _shelf:
-			var shelf := Rect2(w * SHELF_X, h * SHELF_Y - 36.0, w * SHELF_W, 36.0)
-			draw_rect(shelf, UI.SIDE, true)
-			draw_rect(Rect2(shelf.position.x, h * SHELF_Y, shelf.size.x, 4.0), UI.INK, true)
-			draw_rect(Rect2(shelf.position.x, shelf.position.y, 3.0, 40.0), UI.INK, true)
-			draw_rect(Rect2(shelf.end.x - 3.0, shelf.position.y, 3.0, 40.0), UI.INK, true)
-			draw_rect(Rect2(shelf.position.x, shelf.position.y, shelf.size.x, 3.0), UI.INK, true)
+			# A sideboard: the pieces stand on its top, and it stands on the floor.
+			var top_y := h * SHELF_Y
+			var board := Rect2(w * SHELF_X, top_y, w * SHELF_W, fy - top_y)
+			draw_rect(board, UI.TRACK, true)
+			draw_rect(Rect2(board.position.x - 4.0, top_y - 4.0, board.size.x + 8.0, 5.0), UI.INK, true)   # the top
+			draw_rect(Rect2(board.position.x - 4.0, top_y - 4.0, board.size.x + 8.0, 1.5), Color(UI.TEXT, 0.12), true)
+			for d in 3:   # three doors
+				var dx := board.position.x + board.size.x * float(d) / 3.0
+				draw_rect(Rect2(dx + 3.0, top_y + 6.0, board.size.x / 3.0 - 6.0, board.size.y - 10.0), UI.RAISED, true)
 		# Furniture, richer as you move up.
 		if tier == 0:
 			draw_rect(Rect2(w * 0.08, fy - 16.0, w * 0.34, 16.0), UI.TRACK, true)   # a mattress on the floor
@@ -273,6 +278,10 @@ class Room extends Control:
 			var fx := w * 0.05
 			draw_rect(Rect2(fx, h * 0.46, w * 0.22, fy - h * 0.46), UI.TRACK, true)
 			draw_rect(Rect2(fx + w * 0.04, h * 0.56, w * 0.14, fy - h * 0.56), UI.INK, true)
+			draw_rect(Rect2(fx - 6.0, h * 0.46 - 6.0, w * 0.22 + 12.0, 6.0), UI.INK, true)   # the mantel shelf
+			draw_rect(Rect2(fx - 6.0, h * 0.46 - 6.0, w * 0.22 + 12.0, 1.5), Color(UI.TEXT, 0.12), true)
+			for k3 in 4:   # the fire's warm glow on the hearth
+				draw_circle(Vector2(fx + w * 0.11, fy - 8.0), 26.0 - k3 * 6.0, Color(UI.RED, 0.06))
 			draw_colored_polygon(PackedVector2Array([Vector2(fx + w * 0.07, fy), Vector2(fx + w * 0.11, fy - 22.0), Vector2(fx + w * 0.15, fy)]), UI.RED)
 		if tier >= 7:
 			# Gold trim along the ceiling.
@@ -284,6 +293,10 @@ class Room extends Control:
 			var glow := Vector2(w * 0.68, fy - 66.0) if tier >= 2 else Vector2(w * 0.3, h * 0.2 + 5.0)
 			for k2 in 5:
 				draw_circle(glow, 70.0 - k2 * 12.0, Color(UI.FLASH, 0.03 * n2))
+		# Round the corners like every other card.
+		for piece in Geometry2D.clip_polygons(UI.rect_poly(Rect2(Vector2.ZERO, size)), UI.rounded_rect_poly(Rect2(Vector2.ZERO, size), 16.0)):
+			if not Geometry2D.is_polygon_clockwise(piece):
+				draw_colored_polygon(piece, UI.BG)
 
 	func _view(r: Rect2) -> void:
 		## What you see through the window: sky, the sun at its real height,
@@ -292,7 +305,8 @@ class Room extends Control:
 		var sun := SkyTime.sun_center(r.size.x, r.size.y, Vector2(r.size.x * 0.7, r.size.y * 0.28))
 		var sr := minf(r.size.x, r.size.y) * 0.22
 		if sun.y + sr > 0.0:
-			draw_circle(r.position + sun, sr, SkyTime.sun_colour())
+			for piece in Geometry2D.intersect_polygons(UI.circle_poly(r.position + sun, sr, 48), UI.rect_poly(r)):
+				draw_colored_polygon(piece, SkyTime.sun_colour())   # never past the window frame
 		var sea := tier in [5, 8]
 		var base := r.position.y + r.size.y
 		if sea:

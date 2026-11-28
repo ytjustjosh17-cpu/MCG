@@ -271,6 +271,10 @@ class CasinoArt extends Control:
 				draw_line(Vector2(door.get_center().x, door.position.y), Vector2(door.get_center().x, door.end.y), UI.SIDE, 2.0)
 				draw_rect(Rect2(Vector2(door.position.x - 10.0, door.position.y - 5.0), Vector2(door.size.x + 20.0, 5.0)), UI.TRACK)
 				draw_rect(Rect2(Vector2(door.position.x - 6.0, s.y - 4.0), Vector2(door.size.x + 12.0, 4.0)), UI.RAISED)
+				# Round the corners like every other picture card.
+				for piece in Geometry2D.clip_polygons(UI.rect_poly(Rect2(Vector2.ZERO, s)), UI.rounded_rect_poly(Rect2(Vector2.ZERO, s), 16.0)):
+					if not Geometry2D.is_polygon_clockwise(piece):
+						draw_colored_polygon(piece, UI.BG)
 			"forge":
 				# A furnace window: an iron frame, a molten seam, gems inside.
 				var fr := Rect2(Vector2(s.x * 0.08, s.y * 0.14), Vector2(s.x * 0.84, s.y * 0.72))
