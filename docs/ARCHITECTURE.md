@@ -93,3 +93,4 @@ Pages never change state directly.
 
 The in-game updater checks the latest release every 30 minutes and on resume, downloads `Sol.apk` and opens the Android installer.
 - `casino_stats_page.gd`: Casino stats, pushed from the lobby. Per-game numbers live in `counters["cg"][game id]` (rounds, bet, won, wins, best, top_bet, jackpots); `Game.casino_game` is set by the lobby when a game opens, `casino_stake(..., extra=true)` marks a blackjack double or split as part of the same hand.
+- `assets/logos/<SYM>.svg`: each share company's made-up logo (64 x 64 view box, its own badge). `AssetTile.logo()` looks in `assets/coins` then `assets/logos`; a symbol with neither falls back to the sector shape.

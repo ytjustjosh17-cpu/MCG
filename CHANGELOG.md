@@ -1,5 +1,11 @@
 # Changelog
 
+## Company logos
+
+- Every company you can buy shares in has its own logo: a wind turbine
+  for Norvale Energy, a bank front for Ostrava Bank, a crown for Hearth &
+  Crown, a tern for Black Tern and so on. All 22 are made up.
+
 ## Widget, casino stats, fixed terms worth it, cleaner pictures
 
 - A Sol widget for your home screen shows your income an hour. Stretch it

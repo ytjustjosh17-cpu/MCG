@@ -1,7 +1,8 @@
 class_name AssetTile
 extends Control
 ## A mark for a company or coin. Coins show their real logo (assets/coins, CC0);
-## shares show a sector shape with the company initial cut in, like a logo.
+## shares show their company's own made-up logo (assets/logos); anything
+## without one falls back to a sector shape with its initial cut in.
 
 var sym := ""
 var col := UI.TEXT
@@ -23,10 +24,14 @@ static var _logos := {}
 
 
 static func logo(sym: String) -> Texture2D:
-	## The coin's real logo (CC0 set in assets/coins), or null if there isn't one.
+	## The coin's real logo (CC0 set in assets/coins), the company's own made-up
+	## logo (assets/logos), or null if there isn't one.
 	if not _logos.has(sym):
-		var path := "res://assets/coins/%s.svg" % sym
-		_logos[sym] = load(path) if ResourceLoader.exists(path) else null
+		_logos[sym] = null
+		for path in ["res://assets/coins/%s.svg" % sym, "res://assets/logos/%s.svg" % sym]:
+			if ResourceLoader.exists(path):
+				_logos[sym] = load(path)
+				break
 	return _logos[sym]
 
 
