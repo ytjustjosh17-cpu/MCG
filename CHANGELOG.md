@@ -4,7 +4,10 @@
 
 - Every company you can buy shares in has its own logo: a wind turbine
   for Norvale Energy, a bank front for Ostrava Bank, a crown for Hearth &
-  Crown, a tern for Black Tern and so on. All 22 are made up.
+  Crown, a tern for Black Tern and so on. All 22 are made up, now with
+  shading, highlights and small details.
+- Every business picture has more detail: awnings, signs, lit windows,
+  doors, lamps, people, smoke, floodlights, a crane's lattice and more.
 - A richer app icon: the tower with lit red windows, a glowing sun, a city
   skyline and a starry teal sky. It also has a one-colour version for
   Android's themed icons.
