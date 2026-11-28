@@ -44,20 +44,11 @@ func _run() -> void:
 
 
 func _jackpot() -> void:
-	## Every bet adds JP_SHARE to the shared pot and normal wins are trimmed
-	## by the same share, so on average the pot hands the share back. The
-	## overall return must stay close to the game's own (about 97%).
-	var share := Data.JP_SHARE
-	for base in [0.94, 0.967, 0.99]:
-		var eff: float = base * (1.0 - share) + share
-		_ok(absf(eff - base) < 0.002, "jackpot: return %.1f%% stays %.2f%% with the pot share" % [base * 100.0, eff * 100.0])
+	## The jackpot's chance and size (its effect on the return is measured
+	## in smoke_test with the real pot).
 	var hits := 1.0 / Data.JP_CHANCE
-	_ok(hits >= 5000.0 and hits <= 20000.0, "jackpot: 1 in %d rounds (5,000 to 20,000)" % int(hits))
-	## Average pot when hit at max bet (bet is 0.1 h of income): seed plus the
-	## share of every bet since the last hit, capped.
-	var avg_h := minf(Data.JP_SEED_H + hits * 0.1 * share, Data.JP_CAP_H)
-	print("  Jackpot          1 in %d, share %.0f%%, average max-bet pot %.0f h of income, cap %.0f h" % [int(hits), share * 100.0, avg_h, Data.JP_CAP_H])
-	_ok(avg_h > 6.0 and avg_h <= 72.0, "jackpot: an average max-bet pot is a big win but capped (%.0f h)" % avg_h)
+	_ok(hits >= 5000.0 and hits <= 20000.0, "jackpot: 1 in %d bets (5,000 to 20,000)" % int(hits))
+	_ok(Data.JP_SEED_H >= 12.0 and Data.JP_CAP_H <= 72.0, "jackpot: starts at %d h of income, stops at %d h" % [int(Data.JP_SEED_H), int(Data.JP_CAP_H)])
 
 
 func _session(m: SlotMath, bet: float) -> float:

@@ -45,6 +45,8 @@ func build() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_title_row()
 	status = StatusRow.new()
+	if not in_jackpot():
+		status.hide_jackpot()
 	body.add_child(status)
 	area = VBoxContainer.new()
 	area.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -187,11 +189,22 @@ func show_info() -> void:
 	box.add_theme_constant_override("separation", 8)
 	box.add_child(info_content())
 	box.add_child(note("Max bet %s, max win %s a round. Both grow with your income." % [Game.money_short(Game.casino_max_bet()), Game.money_short(Game.casino_max_win())]))
+	if in_jackpot():
+		box.add_child(jackpot_note())
 	Kit.sheet(title, "", [{"text": "Close", "style": "plain"}], true, box)
 
 
 func info_content() -> Control:
 	return note("")
+
+
+func in_jackpot() -> bool:
+	## Blackjack and video poker already pay back about 99%, so they stay out.
+	return true
+
+
+static func jackpot_note() -> Label:
+	return note("Jackpot: about 1 in %s bets wins it, a max bet all of it. Wins here pay %d%% of the table to fund it, so the return over time stays the same." % [Game.group(int(round(1.0 / Data.JP_CHANCE))), int(round((1.0 - Data.JP_TRIM) * 100.0))], UI.GOLD)
 
 
 static func note(text: String, color: Color = UI.SUB) -> Label:
@@ -641,6 +654,11 @@ class StatusRow extends HBoxContainer:
 	func set_jackpot(v: float) -> void:
 		if jp_l != null:
 			jp_l.text = "Jackpot " + Game.money_short(v)
+
+	func hide_jackpot() -> void:
+		## Blackjack and video poker are outside the jackpot.
+		if jp_l != null:
+			jp_l.visible = false
 
 	func tween_chips(from: float, to: float) -> void:
 		## The chips glide to their new value (slots, after the reels stop).

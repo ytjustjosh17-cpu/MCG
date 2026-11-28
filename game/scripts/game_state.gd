@@ -3570,9 +3570,10 @@ func spin_wheel() -> Dictionary:
 	return {"index": idx, "kind": String(seg[0]), "amount": amount}
 
 
-func casino_stake(amount: float, limit_mult := 1.0) -> bool:
+func casino_stake(amount: float, limit_mult := 1.0, jackpot := true) -> bool:
 	## Takes a bet from chips. limit_mult lets a bonus buy or a blackjack
-	## double or split go past one normal bet.
+	## double or split go past one normal bet. jackpot is false for the games
+	## outside the jackpot (blackjack, video poker).
 	if not casino_open() or amount <= 0.0 or amount > chips() + 0.001:
 		return false
 	if amount > casino_max_bet() * limit_mult + 0.001:
@@ -3580,17 +3581,18 @@ func casino_stake(amount: float, limit_mult := 1.0) -> bool:
 	casino["chips"] = chips() - amount
 	counters["casino_bet"] = float(counters.get("casino_bet", 0.0)) + amount
 	counters["casino_rounds"] = int(counters.get("casino_rounds", 0)) + 1
-	_jackpot_bet(amount)
+	if jackpot:
+		_jackpot_bet(amount)
 	_guard_strict()
 	save_game()
 	flush_changes()
 	return true
 
 
-func casino_pay(amount: float) -> float:
-	## Pays a win into chips, capped. Returns what was really paid. Normal wins
-	## give JP_SHARE to the jackpot, which the bets also feed (see _jackpot_bet).
-	amount = clampf(amount * (1.0 - Data.JP_SHARE), 0.0, casino_max_win())
+func casino_pay(amount: float, jackpot := true) -> float:
+	## Pays a win into chips, capped. Returns what was really paid. In a
+	## jackpot game a win pays JP_TRIM less, which funds the jackpot.
+	amount = clampf(amount * ((1.0 - Data.JP_TRIM) if jackpot else 1.0), 0.0, casino_max_win())
 	if amount <= 0.0:
 		return 0.0
 	casino["chips"] = chips() + amount
@@ -3604,31 +3606,51 @@ func casino_pay(amount: float) -> float:
 
 
 # ---- jackpot ------------------------------------------------------------------
-# casino["pot"]: the shared pot. counters["jp_n"]: bets so far (seeds each roll,
+# casino["pot_h"]: the shared pot in hours of base income. counters["jp_n"]: bets so far (seeds each roll,
 # so a reload or backup gives the same roll, never a new one). casino["jp_due"]
 # a won jackpot waiting to be shown and paid when the round ends (win_fx), or
 # when the game page closes / the lobby opens if the round was left.
 
+func casino_net(amount: float) -> float:
+	## What a jackpot game really pays for a win of this size (for labels).
+	return minf(amount * (1.0 - Data.JP_TRIM), casino_max_win())
+
+
 func jackpot_seed() -> float:
-	return maxf(Data.CASINO_MIN_WIN_CAP, base_income() * Data.JP_SEED_H)
+	return _jackpot_money(Data.JP_SEED_H)
 
 
 func jackpot_cap() -> float:
-	return maxf(Data.CASINO_MIN_WIN_CAP * 10.0, base_income() * Data.JP_CAP_H)
+	return _jackpot_money(Data.JP_CAP_H)
+
+
+func _jackpot_money(hours: float) -> float:
+	## Hours of base income in money, never under the smallest win cap.
+	return maxf(Data.CASINO_MIN_WIN_CAP, base_income() * hours)
+
+
+func jackpot_hours() -> float:
+	## The pot in hours of base income: at least the seed, at most the cap.
+	return clampf(float(casino.get("pot_h", Data.JP_SEED_H)), Data.JP_SEED_H, Data.JP_CAP_H)
 
 
 func jackpot_pot() -> float:
-	## What the pot shows now: at least the seed, at most the cap.
-	return clampf(float(casino.get("pot", 0.0)), jackpot_seed(), jackpot_cap())
+	## What the pot is worth now. Kept in hours, so it grows with the empire.
+	return _jackpot_money(jackpot_hours())
 
 
 func jackpot_win_for(stake: float) -> float:
 	## A jackpot win for this bet: the pot x the bet's share of the max bet.
-	return jackpot_pot() * clampf(stake / maxf(casino_max_bet(), 0.01), 0.0, 1.0)
+	return jackpot_pot() * _jackpot_frac(stake)
+
+
+func _jackpot_frac(stake: float) -> float:
+	return clampf(stake / maxf(casino_max_bet(), 0.01), 0.0, 1.0)
 
 
 func _jackpot_bet(amount: float) -> void:
-	casino["pot"] = minf(jackpot_pot() + amount * Data.JP_SHARE, jackpot_cap())
+	var h := jackpot_hours() + amount / maxf(base_income(), 1.0) * Data.JP_SHARE
+	casino["pot_h"] = minf(h, Data.JP_CAP_H)
 	# The bet count lives in counters, so it carries on through a rebirth and a
 	# new run never replays the same rolls.
 	var n := int(counters.get("jp_n", 0)) + 1
@@ -3636,7 +3658,8 @@ func _jackpot_bet(amount: float) -> void:
 	if _jackpot_roll(n) and float(casino.get("jp_due", 0.0)) <= 0.0:
 		var win := jackpot_win_for(amount)
 		casino["jp_due"] = win
-		casino["pot"] = maxf(0.0, float(casino["pot"]) - win)
+		# A max bet empties the pot (back to the seed); a smaller one leaves the rest.
+		casino["pot_h"] = jackpot_hours() * (1.0 - _jackpot_frac(amount))
 		GameLog.info("casino", "Jackpot rolled: %s" % money(win))
 
 

@@ -2,13 +2,18 @@
 
 ## Casino jackpot
 
-- Every casino game now has a shared jackpot, shown in the casino and on each
-  game. It is super rare (about 1 in 12,000 bets) and can grow to about
-  3 days of income. A max bet wins all of it; a smaller bet wins its share.
-- Each bet adds 2% to the pot and normal wins pay 2% less, so the overall
-  return stays about 97%.
-- A jackpot gets a gold celebration that never blocks taps. It shows in
-  Records as your biggest jackpot.
+- A shared jackpot in every casino game except blackjack and video poker
+  (they already pay back about 99%). It is shown in the casino and on each
+  game. It is super rare (about 1 in 12,000 bets). It starts at a day of
+  your income, grows with every bet and stops at 3 days. A max bet wins all
+  of it; a smaller bet wins its share.
+- The pot is counted in hours of income, so it keeps pace as your empire
+  grows.
+- To fund it, wins in those games pay 98% of the table. Cash out buttons
+  show what you really get, and each game's info sheet says so. The return
+  over time stays about the same.
+- A jackpot gets a gold celebration that never blocks taps, even in a losing
+  Plinko bucket. Records keep your biggest jackpot.
 - Plinko's bucket numbers are bigger and easier to read sideways. Crash's
   "Climbing" label sits on a dark backing so the curve can't hide it.
 

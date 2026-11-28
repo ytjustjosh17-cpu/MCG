@@ -249,9 +249,15 @@ const CASINO_MIN_WIN_CAP := 1.0e5
 # every normal win is trimmed by the same share, so the overall return stays
 # about 97%. Each bet has a tiny seeded chance to win it: the pot x your bet's
 # share of the max bet. It is the one payout allowed past the 24 h win cap.
-const JP_SHARE := 0.02            # of every bet into the pot (and off every normal win)
-const JP_CHANCE := 1.0 / 12000.0  # per bet: super rare, but there
-const JP_SEED_H := 1.0            # the pot never shows less than this much income
+## Jackpot (every game but blackjack and video poker, which already pay
+## back 99%): a pot kept in hours of base income, so it keeps pace as the
+## empire grows. It starts at JP_SEED_H, every bet adds JP_SHARE of itself,
+## and it stops at JP_CAP_H. Normal wins in jackpot games pay JP_TRIM less,
+## which funds it: return = base x (1 - JP_TRIM) + about JP_SEED_H / 1200.
+const JP_SHARE := 0.005
+const JP_TRIM := 0.02
+const JP_CHANCE := 1.0 / 12000.0
+const JP_SEED_H := 24.0
 const JP_CAP_H := 72.0            # ...nor pays more than this (about 3 days)
 # Auto clicker (Earn): [cost, seconds between taps]. Each auto tap is worth
 # half a normal tap, and it only runs while you play (pauses after

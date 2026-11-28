@@ -482,6 +482,7 @@ func _show_info() -> void:
 	box.add_child(_pay_row(ForgeMath.SIGIL, "Forge sigil  4: %s · 5: %s · 6: %s, and free spins" % [Game.money_short(3.0 * b), Game.money_short(5.0 * b), Game.money_short(100.0 * b)]))
 	box.add_child(_pay_row(ForgeMath.ORB, "Sun orb ×2 to ×100: added up, they multiply a winning spin"))
 	box.add_child(note("Winners burst and new symbols tumble in until nothing more pays. 4 or more sigils give 15 free spins; there every orb in a win adds to a total multiplier for the whole feature, and 3 sigils give 5 more spins. Ante bet: 1.25× the bet, about twice the chance of free spins. Buy free spins: 100× the bet.\n\nPays back about 96.2%% over time (ante 96.1%%, buy 95.7%%). Max win 5,000× the bet, and the casino caps a round at %s." % Game.money_short(Game.casino_max_win())))
+	box.add_child(jackpot_note())
 	Kit.sheet("Sun Forge", "", [{"text": "Close", "style": "plain"}], true, box)
 
 

@@ -125,7 +125,7 @@ func _update_go() -> void:
 	var t := "Bet · " + Game.money_short(_bet.value)
 	var state := 0
 	if _running and not bool(_round.get("paid", false)):
-		t = "Cash out · " + Game.money_short(float(_round["stake"]) * CrashMath.at(_t))
+		t = "Cash out · " + Game.money_short(Game.casino_net(float(_round["stake"]) * CrashMath.at(_t)))
 		state = 1
 	elif _running:
 		t = "Skip to result"   # you're paid: no need to watch the rest

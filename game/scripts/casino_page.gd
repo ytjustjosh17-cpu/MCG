@@ -66,7 +66,7 @@ func build() -> void:
 	jv.add_child(UI.label("Jackpot", 13, UI.GOLD, true))
 	_jp = UI.display("", 36, UI.GOLD)
 	jv.add_child(_jp)
-	var jl := UI.label("Super rare on any bet. A max bet wins it all.", 13, UI.SUB)
+	var jl := UI.label("Super rare on any bet, in every game but blackjack and video poker. A max bet wins it all.", 13, UI.SUB)
 	jl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	jv.add_child(jl)
 	var cage := PanelContainer.new()

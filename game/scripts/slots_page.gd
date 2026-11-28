@@ -400,6 +400,7 @@ func _show_paytable() -> void:
 	box.add_child(_pay_row("scatter", "Anywhere: 5 %s · 4 %s · 3 %s + free spins" % [Game.money_short(float(sp[2]) * tb), Game.money_short(float(sp[1]) * tb), Game.money_short(float(sp[0]) * tb)]))
 	var th := math.theoretical()
 	box.add_child(note("20 lines, pay left to right. Wild stands in for everything but the scatter. 3 or more scatters anywhere give 10 free spins with wins ×2, and they can come again. Pays back about %.1f%% over time. One spin pays at most %d× the bet, and the casino caps a round at %s." % [float(th["rtp"]) * 100.0, int(SlotMath.MAX_WIN_X), Game.money_short(Game.casino_max_win())]))
+	box.add_child(jackpot_note())
 	Kit.sheet("Paytable", "", [
 		{"text": "See the 20 lines", "style": "secondary", "keep_open": false, "call": _show_lines},
 		{"text": "Close", "style": "plain"}], true, box)

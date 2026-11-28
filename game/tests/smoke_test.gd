@@ -826,30 +826,66 @@ func _run() -> void:
 	_check(absf(game.chips() - cs_after) < 0.01, "a bet is saved at once (closing the app can't undo it)")
 	var cs_paid: float = game.casino_pay(game.casino_max_win() * 10.0)
 	_check(absf(cs_paid - game.casino_max_win()) < 0.01, "one payout is capped at %s" % game.money_short(game.casino_max_win()))
-	# Jackpot: a shared pot fed by every bet, won by a rare seeded roll.
+	# Jackpot: a shared pot in hours of income, won by a rare seeded roll.
+	game.income_per_hour = 1.0e9   # a grown empire, so the pot is above its floor
+	game.casino["chips"] = 1.0e12
+	var jm: float = game.casino_max_bet()
 	var jp_seed: float = game.jackpot_seed()
-	game.casino.erase("pot")   # an old save has no pot
-	_check(absf(game.jackpot_pot() - jp_seed) < 0.01, "an old save shows the seed pot")
-	var jp0: float = game.jackpot_pot()
-	game.casino_stake(cs_max)
-	_check(absf(game.jackpot_pot() - (jp0 + cs_max * Data.JP_SHARE)) < 0.01, "every bet adds its share to the pot")
-	var jp_win_small: float = game.jackpot_win_for(cs_max * 0.5)
+	game.casino.erase("pot_h")   # an old save has no pot
+	_check(absf(game.jackpot_hours() - Data.JP_SEED_H) < 0.001 and absf(jp_seed - game._jackpot_money(Data.JP_SEED_H)) < 0.01, "an old save shows the seed pot (%d h of income)" % int(Data.JP_SEED_H))
+	var jp0: float = game.jackpot_hours()
+	game.casino_stake(jm)
+	_check(absf(game.jackpot_hours() - minf(jp0 + jm / game.base_income() * Data.JP_SHARE, Data.JP_CAP_H)) < 0.0001, "every bet adds its share to the pot (%.3f h to %.3f h)" % [jp0, game.jackpot_hours()])
+	var jp_win_small: float = game.jackpot_win_for(jm * 0.5)
 	_check(absf(jp_win_small - game.jackpot_pot() * 0.5) < 0.01, "half the max bet wins half the pot")
-	_check(absf(game.casino_pay(1000.0) - 1000.0 * (1.0 - Data.JP_SHARE)) < 0.01, "a normal win gives the jackpot its share")
-	game.casino["pot"] = game.jackpot_cap() * 50.0
+	_check(absf(game.casino_pay(1000.0) - 1000.0 * (1.0 - Data.JP_TRIM)) < 0.01 and absf(game.casino_net(1000.0) - 1000.0 * (1.0 - Data.JP_TRIM)) < 0.01, "a win in a jackpot game pays what its label says, less the jackpot cut")
+	var jpc_bj: float = game.chips()
+	game.casino_stake(jm, 1.0, false)
+	_check(absf(game.casino_pay(1000.0, false) - 1000.0) < 0.01 and absf(game.chips() - (jpc_bj - jm + 1000.0)) < 0.01, "blackjack and video poker stay outside: full pay, no cut")
+	_check(absf(game.jackpot_pot() - maxf(Data.CASINO_MIN_WIN_CAP, game.base_income() * game.jackpot_hours())) < 0.01, "the pot is kept in hours of income, so it keeps pace with the empire")
+	# Measured return: the expected jackpot share of every bet over a long run
+	# of max bets (pot growing, hits emptying it), added to a game's own return.
+	var jp_keep_pot: float = game.jackpot_hours()
+	game.casino["pot_h"] = Data.JP_SEED_H
+	var jp_ev := 0.0
+	var jp_staked := 0.0
+	var jp_ev_short := 0.0
+	var jp_h_sum := 0.0
+	for jb in 24000:
+		jp_ev += Data.JP_CHANCE * game.jackpot_win_for(jm)
+		jp_h_sum += game.jackpot_hours()
+		jp_staked += jm
+		game._jackpot_bet(jm)
+		if jb == 2319:
+			jp_ev_short = jp_ev / jp_staked
+	game.casino["jp_due"] = 0.0
+	var jp_ev_long: float = jp_ev / jp_staked
+	for jbase in [0.955, 0.967, 0.983]:
+		var r_short: float = jbase * (1.0 - Data.JP_TRIM) + jp_ev_short
+		var r_long: float = jbase * (1.0 - Data.JP_TRIM) + jp_ev_long
+		print("  jackpot: a %.1f%% game returns %.2f%% (2,320 bets) to %.2f%% (24,000 bets)" % [jbase * 100.0, r_short * 100.0, r_long * 100.0])
+		_check(absf(r_short - jbase) < 0.006 and r_long < jbase + 0.012 and r_long < 1.0, "jackpot: a %.1f%% game stays about the same (%.2f%% to %.2f%%)" % [jbase * 100.0, r_short * 100.0, r_long * 100.0])
+	print("  jackpot: average pot %.1f h of income over 24,000 max bets" % (jp_h_sum / 24000.0))
+	game.casino["pot_h"] = jp_keep_pot
+	game.casino["pot_h"] = Data.JP_CAP_H * 50.0
 	_check(absf(game.jackpot_pot() - game.jackpot_cap()) < 0.01, "the pot never shows more than %d h of income" % int(Data.JP_CAP_H))
-	game.casino["pot"] = game.jackpot_cap() * 0.9
+	game.casino["pot_h"] = Data.JP_CAP_H * 0.9
 	game.jp_force = 1
 	var jpc0: float = game.chips()
-	var jp_full: float = game.jackpot_win_for(cs_max)
-	game.casino_stake(cs_max)
-	_check(game.jackpot_pending() > game.casino_max_win(), "a jackpot may pay past the normal win cap (%s)" % game.money_short(game.jackpot_pending()))
+	var jp_full: float = game.jackpot_win_for(jm)
+	game.casino_stake(jm)
+	_check(game.jackpot_pending() > game.casino_max_win() and absf(game.jackpot_pending() / jp_full - 1.0) < 0.001, "a jackpot may pay past the normal win cap (%s)" % game.money_short(game.jackpot_pending()))
+	_check(absf(game.jackpot_hours() - Data.JP_SEED_H) < 0.001, "a max-bet jackpot empties the pot back to the seed")
 	game.save_game()
 	game.load_game()
 	_check(game.jackpot_pending() > 0.0, "a won jackpot survives closing the app before it shows")
 	var jp_paid: float = game.settle_jackpot()
-	_check(jp_paid > 0.0 and absf(game.chips() - (jpc0 - cs_max + jp_paid)) < 1.0 and game.jackpot_pending() == 0.0, "the jackpot is paid into chips once")
-	_check(game.settle_jackpot() == 0.0 and game.jackpot_pot() >= jp_seed - 0.01, "it can't be paid twice, and the pot starts again from the seed")
+	_check(jp_paid > 0.0 and absf(game.chips() - (jpc0 - jm + jp_paid)) < 1.0 and game.jackpot_pending() == 0.0, "the jackpot is paid into chips once")
+	_check(game.settle_jackpot() == 0.0, "it can't be paid twice")
+	game.jp_force = 1
+	game.casino_stake(jm, 1.0, false)
+	_check(game.jackpot_pending() == 0.0 and game.jp_force == 1, "a blackjack or video poker bet never rolls the jackpot")
+	game.jp_force = 0
 	_check(game._jackpot_roll(777) == game._jackpot_roll(777), "the same bet always rolls the same (no re-rolls by reloading)")
 	var hits := 0
 	for jn in 200000:

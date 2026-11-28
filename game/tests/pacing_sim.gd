@@ -78,6 +78,8 @@ func _hold_trade() -> void:
 var gamble_net := 0.0
 var gamble_jackpots := 0
 var gamble_sessions := 0
+var gamble_staked := 0.0
+var gamble_paid := 0.0
 var gamble_jp_total := 0.0
 var _slot: SlotMath
 
@@ -114,6 +116,8 @@ func _gamble() -> void:
 		if jp > 0.0:
 			gamble_jackpots += 1
 			gamble_jp_total += jp
+	gamble_staked += need
+	gamble_paid += g.chips()
 	g.cash_out(g.chips())
 	gamble_net += g.cash - c0
 
@@ -403,6 +407,7 @@ func _run() -> void:
 	if OS.get_environment("SIM_GAMBLE") == "1":
 		print("Gambler net from the casino: %s" % g.money_short(gamble_net))
 		print("Gambler jackpots: %d, worth %s, %d bets counted" % [gamble_jackpots, g.money_short(gamble_jp_total), int(g.counters.get("jp_n", 0))])
+		print("Gambler return: %.2f%% (staked %s, paid %s); pot now %.1f h of income" % [100.0 * gamble_paid / maxf(gamble_staked, 1.0), g.money_short(gamble_staked), g.money_short(gamble_paid), g.jackpot_hours()])
 	if trader in ["news", "dip", "hold"]:
 		print("Trader (%s) profit from news trades: %s" % [trader, g.money_short(trade_profit)])
 	quit()

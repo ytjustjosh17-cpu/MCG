@@ -84,6 +84,10 @@ func build_game() -> void:
 	pr.add_child(_stand_b)
 
 
+func in_jackpot() -> bool:
+	return false
+
+
 func info_content() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
@@ -167,7 +171,7 @@ func _on_deal() -> void:
 		Kit.toast("Not enough chips · tap +")
 		Motion.shake(_deal_b)
 		return
-	if not Game.casino_stake(_bet):
+	if not Game.casino_stake(_bet, 1.0, false):
 		Kit.toast("Table limit %s" % Game.money_short(Game.casino_max_bet()))
 		Motion.shake(_deal_b)
 		return
@@ -206,7 +210,7 @@ func _on_double() -> void:
 		Kit.toast("Not enough chips to double")
 		Motion.shake(_double_b)
 		return
-	if not Game.casino_stake(extra, 2.0):
+	if not Game.casino_stake(extra, 2.0, false):
 		Motion.shake(_double_b)
 		return
 	Kit.haptic("medium")
@@ -223,7 +227,7 @@ func _on_split() -> void:
 		Kit.toast("Not enough chips to split")
 		Motion.shake(_split_b)
 		return
-	if not Game.casino_stake(extra, 2.0):
+	if not Game.casino_stake(extra, 2.0, false):
 		Motion.shake(_split_b)
 		return
 	Kit.haptic("medium")
@@ -255,7 +259,7 @@ func _after_move() -> void:
 
 func _settle() -> void:
 	var res := _bj.result()
-	_paid = Game.casino_pay(float(res["payout_total"]))
+	_paid = Game.casino_pay(float(res["payout_total"]), false)
 	_settled = true
 	GameLog.info("casino", "Blackjack: staked %s, back %s" % [Game.money(_staked), Game.money(_paid)])
 

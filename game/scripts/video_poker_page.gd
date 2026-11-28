@@ -92,6 +92,10 @@ func build_game() -> void:
 	_show_idle_line()
 
 
+func in_jackpot() -> bool:
+	return false
+
+
 func info_content() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
@@ -146,7 +150,7 @@ func _on_go() -> void:
 		Motion.shake(_go)
 		offer_chips()
 		return
-	if not Game.casino_stake(bet):
+	if not Game.casino_stake(bet, 1.0, false):
 		Kit.toast("Over the table limit")
 		Motion.shake(_go)
 		return
@@ -169,7 +173,7 @@ func _draw_now(animate: bool) -> void:
 	_pm.draw(_holds)
 	var id := PokerMath.evaluate(_pm.hand)
 	var win := _bet_now * PokerMath.pays(id)
-	var paid := Game.casino_pay(win) if win > 0.0 else 0.0   # paid and saved before the cards turn
+	var paid := Game.casino_pay(win, false) if win > 0.0 else 0.0   # paid and saved before the cards turn
 	_phase = "show"
 	_last = id
 	if not animate:

@@ -100,7 +100,7 @@ func refresh() -> void:
 		_go.text = "Pick a box"
 		set_go(_go, false)
 	else:
-		_go.text = "Cash out · " + Game.money_short(stake * TowerMath.mult(_mode, step))
+		_go.text = "Cash out · " + Game.money_short(Game.casino_net(stake * TowerMath.mult(_mode, step)))
 		set_go(_go, true, true)
 
 
