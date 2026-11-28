@@ -152,3 +152,17 @@ The smoke and stress tests check most of these. Add a test when you add a guard 
 
 - After the whole tree (around day 163 for the robot) RBP has nothing to buy. Options: repeatable nodes, a second tree ring.
 - The once-a-day player loses a lot to the 8-hour cap. Options: raise it, or pay a smaller rate beyond it.
+
+## Time to £10B (1.2, corrected robot)
+
+The robot now tires like a thumb (heat) and gets the tap boost for only its 60 s of taps (before, every tap of a visit was boosted, which made tapping look three times stronger). With that fix the normal robot (4 short visits) reaches 90% on day 38.3 and 37.9 (seeds 1234, 99), the top of the target range; greedy miner 38.9.
+
+| How you play (`SIM_SCHED`) | Day net worth reaches £10B |
+|---|---|
+| six 30-minute visits (`heavy`) | 8.9 |
+| six 10-minute visits (`six`) | 10.8 (seed 99: 11.4) |
+| every 4 hours round the clock (`alarm`) | 11.6 |
+| four short visits (normal robot) | 22.5 to 22.8 |
+| one 15-minute visit a day (`once`) | 42.8 |
+
+In the `six` diary (`SIM_DIARY=1`), taps paid about 60% of everything earned before £10B, rewards about 6%, and companies the rest. One hour of tapping at 3 a second pays about 19 hours of income (0.12% of an hour a tap x 10,800 taps x about 1.46 for combos); past about 10 minutes non-stop at 3 a second taps tire to a tenth.
